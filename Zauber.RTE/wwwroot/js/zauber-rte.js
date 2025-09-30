@@ -233,38 +233,58 @@ window.ZauberRTE = {
                 selection.addRange(range);
             } else {
                 // Split current paragraph at cursor position
-                // Extract content after the cursor
-                const contentAfter = range.extractContents();
                 
-                // Create new paragraph for the content after cursor
-                const newParagraph = document.createElement('p');
+                // Check if cursor is at the very beginning
+                const isAtStart = range.startOffset === 0 && 
+                                 range.startContainer === currentBlock ||
+                                 (range.startContainer === currentBlock.firstChild && range.startOffset === 0);
                 
-                if (contentAfter.textContent?.trim() || contentAfter.childNodes.length > 0) {
-                    // There is content after cursor - move it to new paragraph
-                    newParagraph.appendChild(contentAfter);
-                    // Clean up any unnecessary spans
-                    this.cleanUnnecessarySpans(newParagraph);
+                if (isAtStart) {
+                    // Cursor at beginning - insert empty paragraph before current
+                    const emptyParagraph = document.createElement('p');
+                    emptyParagraph.innerHTML = '<br>';
+                    currentBlock.parentNode.insertBefore(emptyParagraph, currentBlock);
+                    
+                    // Keep cursor at the beginning of the original paragraph
+                    range.setStart(currentBlock, 0);
+                    range.setEnd(currentBlock, 0);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
                 } else {
-                    // No content after cursor - create empty paragraph
-                    newParagraph.innerHTML = '<br>';
-                }
-                
-                // Clean up current block
-                this.cleanUnnecessarySpans(currentBlock);
-                
-                // If current block is now empty, add br
-                if (!currentBlock.textContent?.trim() && currentBlock.children.length === 0) {
-                    currentBlock.innerHTML = '<br>';
-                }
-                
-                // Insert new paragraph after current block
-                currentBlock.parentNode.insertBefore(newParagraph, currentBlock.nextSibling);
+                    // Cursor in middle or end - split the paragraph
+                    // Extract content after the cursor
+                    const contentAfter = range.extractContents();
+                    
+                    // Create new paragraph for the content after cursor
+                    const newParagraph = document.createElement('p');
+                    
+                    if (contentAfter.textContent?.trim() || contentAfter.childNodes.length > 0) {
+                        // There is content after cursor - move it to new paragraph
+                        newParagraph.appendChild(contentAfter);
+                        // Clean up any unnecessary spans
+                        this.cleanUnnecessarySpans(newParagraph);
+                    } else {
+                        // No content after cursor - create empty paragraph
+                        newParagraph.innerHTML = '<br>';
+                    }
+                    
+                    // Clean up current block
+                    this.cleanUnnecessarySpans(currentBlock);
+                    
+                    // If current block is now empty, add br
+                    if (!currentBlock.textContent?.trim() && currentBlock.children.length === 0) {
+                        currentBlock.innerHTML = '<br>';
+                    }
+                    
+                    // Insert new paragraph after current block
+                    currentBlock.parentNode.insertBefore(newParagraph, currentBlock.nextSibling);
 
-                // Move cursor to start of new paragraph
-                range.setStart(newParagraph, 0);
-                range.setEnd(newParagraph, 0);
-                selection.removeAllRanges();
-                selection.addRange(range);
+                    // Move cursor to start of new paragraph
+                    range.setStart(newParagraph, 0);
+                    range.setEnd(newParagraph, 0);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
             }
         },
 
