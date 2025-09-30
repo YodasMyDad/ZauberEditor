@@ -242,6 +242,8 @@ window.ZauberRTE = {
                     // There is content after cursor - create a new paragraph for it
                     const remainingParagraph = document.createElement('p');
                     remainingParagraph.appendChild(contentAfter);
+                    // Clean up any unnecessary spans in the remaining paragraph
+                    this.cleanUnnecessarySpans(remainingParagraph);
                     currentBlock.parentNode.insertBefore(remainingParagraph, currentBlock.nextSibling);
                     // Insert empty paragraph before the remaining content
                     currentBlock.parentNode.insertBefore(newParagraph, remainingParagraph);
@@ -249,6 +251,9 @@ window.ZauberRTE = {
                     // No content after cursor - just insert empty paragraph after current block
                     currentBlock.parentNode.insertBefore(newParagraph, currentBlock.nextSibling);
                 }
+
+                // Clean up any unnecessary spans in the current block
+                this.cleanUnnecessarySpans(currentBlock);
 
                 // Add non-breaking space to make the paragraph visible
                 newParagraph.innerHTML = '&nbsp;';
@@ -450,15 +455,33 @@ window.ZauberRTE = {
 
                     if (isActive) {
                         this.unwrap(editorId, this.getTagForMark(markName));
+                        // Clean up any spans that might have been created during unwrapping
+                        const editor = document.getElementById(editorId);
+                        if (editor) {
+                            this.cleanUnnecessarySpans(editor);
+                        }
                     } else {
                         this.wrap(editorId, this.getTagForMark(markName));
                     }
                 }
             } else {
-                const command = this.getCommandForMark(markName);
-                console.log('Executing command:', command);
-                const result = document.execCommand(command, false, null);
-                console.log('execCommand result:', result);
+                // Use custom implementation for all marks to handle toggling properly
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const activeMarks = this.getActiveMarks(editorId);
+                    const isActive = activeMarks.includes(markName);
+
+                    if (isActive) {
+                        this.unwrap(editorId, this.getTagForMark(markName));
+                        // Clean up any spans that might have been created during unwrapping
+                        const editor = document.getElementById(editorId);
+                        if (editor) {
+                            this.cleanUnnecessarySpans(editor);
+                        }
+                    } else {
+                        this.wrap(editorId, this.getTagForMark(markName));
+                    }
+                }
             }
         },
 
@@ -557,6 +580,119 @@ window.ZauberRTE = {
             return commandMap[markName] || markName;
         },
 
+        getSelectedListItems: function(range, editor) {
+            const selectedLis = [];
+
+            // Find all li elements that intersect with the selection
+            const allLis = editor.querySelectorAll('li');
+            allLis.forEach(li => {
+                if (range.intersectsNode(li)) {
+                    selectedLis.push(li);
+                }
+            });
+
+            return selectedLis;
+        },
+
+        convertSelectedListItems: function(selectedLis, blockType, range, selection) {
+            if (selectedLis.length === 0) return;
+
+            // Group list items by their parent list using a unique identifier
+            const listGroups = new Map();
+            selectedLis.forEach(li => {
+                const parentList = li.parentElement;
+                if (parentList) {
+                    if (!listGroups.has(parentList)) {
+                        listGroups.set(parentList, []);
+                    }
+                    listGroups.get(parentList).push(li);
+                }
+            });
+
+            // Check if we're converting to the same list type (should convert to paragraphs)
+            const shouldConvertToParagraphs = listGroups.size > 0 && Array.from(listGroups.keys()).every(list =>
+                list.tagName?.toLowerCase() === blockType
+            );
+
+            if (shouldConvertToParagraphs) {
+                // Convert to paragraphs
+                const newParagraphs = [];
+
+                // Process each list group
+                listGroups.forEach((lisInList, list) => {
+                    const allLisInList = Array.from(list.children).filter(child => child.tagName?.toLowerCase() === 'li');
+
+                    // If all list items in the list are selected, replace the entire list
+                    if (lisInList.length === allLisInList.length) {
+                        // Create paragraphs for each li and replace the whole list
+                        const fragment = document.createDocumentFragment();
+                        lisInList.forEach(li => {
+                            const paragraph = document.createElement('p');
+                            while (li.firstChild) {
+                                paragraph.appendChild(li.firstChild);
+                            }
+                            newParagraphs.push(paragraph);
+                            fragment.appendChild(paragraph);
+                        });
+                        list.parentNode.replaceChild(fragment, list);
+                    } else {
+                        // Only some list items are selected - replace them individually
+                        lisInList.forEach(li => {
+                            const paragraph = document.createElement('p');
+                            while (li.firstChild) {
+                                paragraph.appendChild(li.firstChild);
+                            }
+                            newParagraphs.push(paragraph);
+                            list.parentNode.insertBefore(paragraph, li);
+                            list.removeChild(li);
+                        });
+                    }
+                });
+
+                // Restore selection to cover all the new paragraphs
+                if (newParagraphs.length > 0) {
+                    const newRange = document.createRange();
+                    newRange.setStartBefore(newParagraphs[0]);
+                    newRange.setEndAfter(newParagraphs[newParagraphs.length - 1]);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                }
+            } else {
+                // Convert to different list type - handle this by changing parent list types
+                listGroups.forEach((lisInList, list) => {
+                    const allLisInList = Array.from(list.children).filter(child => child.tagName?.toLowerCase() === 'li');
+
+                    if (lisInList.length === allLisInList.length) {
+                        // All items selected - change the entire list type
+                        const newList = document.createElement(blockType);
+                        // Copy all attributes
+                        for (let attr of list.attributes) {
+                            newList.setAttribute(attr.name, attr.value);
+                        }
+                        // Move all children
+                        while (list.firstChild) {
+                            newList.appendChild(list.firstChild);
+                        }
+                        // Replace the old list
+                        list.parentNode.replaceChild(newList, list);
+                    } else {
+                        // Partial selection - this is complex, for now just change the parent list type
+                        const newList = document.createElement(blockType);
+                        // Copy all attributes
+                        for (let attr of list.attributes) {
+                            newList.setAttribute(attr.name, attr.value);
+                        }
+                        // Move all children
+                        while (list.firstChild) {
+                            newList.appendChild(list.firstChild);
+                        }
+                        // Replace the old list
+                        list.parentNode.replaceChild(newList, list);
+                    }
+                });
+            }
+        },
+
         setBlockType: function(editorId, blockType, attributes) {
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
@@ -565,13 +701,23 @@ window.ZauberRTE = {
             const editor = document.getElementById(editorId);
             if (!editor) return;
 
+            // Check if selection spans multiple elements and contains list items
+            if (!range.collapsed) {
+                const selectedLis = this.getSelectedListItems(range, editor);
+                if (selectedLis.length > 0) {
+                    // Handle multi-list-item selection
+                    this.convertSelectedListItems(selectedLis, blockType, range, selection);
+                    return;
+                }
+            }
+
             // Find the current block element
             let currentBlock = range.commonAncestorContainer;
             if (currentBlock.nodeType === Node.TEXT_NODE) {
                 currentBlock = currentBlock.parentElement;
             }
 
-            const blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre'];
+            const blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li'];
             while (currentBlock && currentBlock.id !== editorId && !blockTags.includes(currentBlock.tagName?.toLowerCase())) {
                 currentBlock = currentBlock.parentElement;
             }
@@ -581,6 +727,52 @@ window.ZauberRTE = {
                 currentBlock = document.createElement('p');
                 range.insertNode(currentBlock);
                 range.selectNodeContents(currentBlock);
+            }
+
+            // Handle special case: converting from list item
+            if (currentBlock.tagName?.toLowerCase() === 'li') {
+                const parentList = currentBlock.parentElement;
+                if (parentList && (parentList.tagName?.toLowerCase() === 'ul' || parentList.tagName?.toLowerCase() === 'ol')) {
+                    // If converting to the same list type, convert to paragraph
+                    if (blockType === parentList.tagName.toLowerCase()) {
+                        // Extract content from li and create paragraph
+                        const newParagraph = document.createElement('p');
+                        while (currentBlock.firstChild) {
+                            newParagraph.appendChild(currentBlock.firstChild);
+                        }
+
+                        // Replace the entire list with the paragraph if it's the only item
+                        if (parentList.children.length === 1) {
+                            parentList.parentNode.replaceChild(newParagraph, parentList);
+                        } else {
+                            // Replace just this li with the paragraph
+                            parentList.parentNode.insertBefore(newParagraph, parentList);
+                            parentList.removeChild(currentBlock);
+                        }
+
+                        // Restore selection to the new paragraph
+                        range.selectNodeContents(newParagraph);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        return;
+                    }
+                    // If converting to different list type, change the parent list type
+                    else if (blockType === 'ul' || blockType === 'ol') {
+                        const newList = document.createElement(blockType);
+                        // Copy all attributes
+                        for (let attr of parentList.attributes) {
+                            newList.setAttribute(attr.name, attr.value);
+                        }
+                        // Move all children
+                        while (parentList.firstChild) {
+                            newList.appendChild(parentList.firstChild);
+                        }
+                        // Replace the old list
+                        parentList.parentNode.replaceChild(newList, parentList);
+                        // Selection should already be correct
+                        return;
+                    }
+                }
             }
 
             // Create the new block element
@@ -610,20 +802,38 @@ window.ZauberRTE = {
             }
 
             // Move content to new block
+            let hasContent = false;
             while (currentBlock.firstChild) {
+                hasContent = true;
                 if (newBlock.tagName.toLowerCase() === 'pre' && newBlock.firstChild) {
                     // For code blocks, move content into the code element
+                    newBlock.firstChild.appendChild(currentBlock.firstChild);
+                } else if (newBlock.tagName.toLowerCase() === 'ul' || newBlock.tagName.toLowerCase() === 'ol') {
+                    // For lists, move content into the li element
                     newBlock.firstChild.appendChild(currentBlock.firstChild);
                 } else {
                     newBlock.appendChild(currentBlock.firstChild);
                 }
             }
 
+            // If creating a list and there's no content, add &nbsp; to the li element
+            if ((newBlock.tagName.toLowerCase() === 'ul' || newBlock.tagName.toLowerCase() === 'ol') && !hasContent) {
+                newBlock.firstChild.innerHTML = '&nbsp;';
+            }
+
             // Replace the old block
             currentBlock.parentNode.replaceChild(newBlock, currentBlock);
 
             // Restore selection
-            range.selectNodeContents(newBlock.tagName.toLowerCase() === 'pre' && newBlock.firstChild ? newBlock.firstChild : newBlock);
+            let selectionTarget = newBlock;
+            if (newBlock.tagName.toLowerCase() === 'pre' && newBlock.firstChild) {
+                // For code blocks, select the code element
+                selectionTarget = newBlock.firstChild;
+            } else if (newBlock.tagName.toLowerCase() === 'ul' || newBlock.tagName.toLowerCase() === 'ol') {
+                // For lists, select the li element
+                selectionTarget = newBlock.firstChild;
+            }
+            range.selectNodeContents(selectionTarget);
             selection.removeAllRanges();
             selection.addRange(range);
         },
@@ -719,6 +929,8 @@ window.ZauberRTE = {
                 // Handle removing &nbsp; when user starts typing in empty paragraphs
                 editor.addEventListener('input', (event) => {
                     this.handleParagraphInput(editorId, event.target);
+                    // Clean up any spans that might have been created during input
+                    this.cleanUnnecessarySpans(editor);
                 });
 
                 // Handle focus events to clean up empty paragraphs
@@ -740,6 +952,34 @@ window.ZauberRTE = {
                     } else {
                         // If only &nbsp; remains, clear it completely
                         target.innerHTML = '';
+                    }
+                }
+
+                // Clean up unnecessary spans with default styles
+                this.cleanUnnecessarySpans(target);
+            }
+        },
+
+        cleanUnnecessarySpans: function(element) {
+            // Find all spans in the element
+            const spans = element.querySelectorAll('span');
+
+            for (let i = 0; i < spans.length; i++) {
+                const span = spans[i];
+                // Check if span has only default style attributes
+                const style = span.getAttribute('style');
+                if (style) {
+                    // Simple check for known default style patterns
+                    if (style.indexOf('color: inherit') !== -1 &&
+                        style.indexOf('font-size: inherit') !== -1 &&
+                        style.indexOf('font-family: inherit') !== -1) {
+                        // This span has the common default styles, unwrap it
+                        const parent = span.parentNode;
+                        while (span.firstChild) {
+                            parent.insertBefore(span.firstChild, span);
+                        }
+                        parent.removeChild(span);
+                        i--; // Adjust index since we removed an element
                     }
                 }
             }
@@ -776,6 +1016,9 @@ window.ZauberRTE = {
                                 // Find the previous paragraph to move cursor to
                                 const prevParagraph = currentElement.previousElementSibling;
                                 if (prevParagraph && prevParagraph.tagName?.toLowerCase() === 'p') {
+                                    // Clean up any unnecessary spans in the previous paragraph
+                                    this.cleanUnnecessarySpans(prevParagraph);
+
                                     // Move cursor to end of previous paragraph
                                     const textNodes = this.getTextNodes(prevParagraph);
                                     if (textNodes.length > 0) {
@@ -825,6 +1068,9 @@ window.ZauberRTE = {
                                 // Find the next paragraph to move cursor to
                                 const nextParagraph = currentElement.nextElementSibling;
                                 if (nextParagraph && nextParagraph.tagName?.toLowerCase() === 'p') {
+                                    // Clean up any unnecessary spans in the next paragraph
+                                    this.cleanUnnecessarySpans(nextParagraph);
+
                                     // Move cursor to beginning of next paragraph
                                     range.setStart(nextParagraph, 0);
                                     range.setEnd(nextParagraph, 0);
