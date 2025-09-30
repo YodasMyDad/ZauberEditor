@@ -232,59 +232,76 @@ window.ZauberRTE = {
                 selection.removeAllRanges();
                 selection.addRange(range);
             } else {
-                // Split current paragraph at cursor position
+                // Determine cursor position within the block
+                let textBeforeCursor = '';
+                let textAfterCursor = '';
                 
-                // Check if cursor is at the very beginning
-                const isAtStart = range.startOffset === 0 && 
-                                 range.startContainer === currentBlock ||
-                                 (range.startContainer === currentBlock.firstChild && range.startOffset === 0);
+                // Get all text content before and after cursor
+                const walker = document.createTreeWalker(currentBlock, NodeFilter.SHOW_TEXT);
+                let currentNode;
+                let foundCursor = false;
                 
-                if (isAtStart) {
-                    // Cursor at beginning - insert empty paragraph before current
+                while (currentNode = walker.nextNode()) {
+                    if (!foundCursor) {
+                        if (currentNode === range.startContainer) {
+                            // This is the node containing the cursor
+                            textBeforeCursor += currentNode.textContent.substring(0, range.startOffset);
+                            textAfterCursor += currentNode.textContent.substring(range.startOffset);
+                            foundCursor = true;
+                        } else {
+                            textBeforeCursor += currentNode.textContent;
+                        }
+                    } else {
+                        textAfterCursor += currentNode.textContent;
+                    }
+                }
+                
+                // Check if at the very beginning
+                if (textBeforeCursor.length === 0) {
+                    // Insert empty paragraph before
                     const emptyParagraph = document.createElement('p');
                     emptyParagraph.innerHTML = '<br>';
                     currentBlock.parentNode.insertBefore(emptyParagraph, currentBlock);
                     
-                    // Keep cursor at the beginning of the original paragraph
-                    range.setStart(currentBlock, 0);
-                    range.setEnd(currentBlock, 0);
+                    // Focus stays in current paragraph
+                    const newRange = document.createRange();
+                    newRange.selectNodeContents(currentBlock);
+                    newRange.collapse(true);
                     selection.removeAllRanges();
-                    selection.addRange(range);
-                } else {
-                    // Cursor in middle or end - split the paragraph
-                    // Extract content after the cursor
-                    const contentAfter = range.extractContents();
-                    
-                    // Create new paragraph for the content after cursor
-                    const newParagraph = document.createElement('p');
-                    
-                    if (contentAfter.textContent?.trim() || contentAfter.childNodes.length > 0) {
-                        // There is content after cursor - move it to new paragraph
-                        newParagraph.appendChild(contentAfter);
-                        // Clean up any unnecessary spans
-                        this.cleanUnnecessarySpans(newParagraph);
-                    } else {
-                        // No content after cursor - create empty paragraph
-                        newParagraph.innerHTML = '<br>';
-                    }
-                    
-                    // Clean up current block
-                    this.cleanUnnecessarySpans(currentBlock);
-                    
-                    // If current block is now empty, add br
-                    if (!currentBlock.textContent?.trim() && currentBlock.children.length === 0) {
-                        currentBlock.innerHTML = '<br>';
-                    }
-                    
-                    // Insert new paragraph after current block
-                    currentBlock.parentNode.insertBefore(newParagraph, currentBlock.nextSibling);
-
-                    // Move cursor to start of new paragraph
-                    range.setStart(newParagraph, 0);
-                    range.setEnd(newParagraph, 0);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
+                    selection.addRange(newRange);
+                    return;
                 }
+                
+                // Split the paragraph - extract content after cursor
+                const splitRange = range.cloneRange();
+                splitRange.setEndAfter(currentBlock.lastChild || currentBlock);
+                const afterContent = splitRange.extractContents();
+                
+                // Create new paragraph
+                const newParagraph = document.createElement('p');
+                newParagraph.appendChild(afterContent);
+                
+                // Clean both paragraphs
+                this.cleanUnnecessarySpans(currentBlock);
+                this.cleanUnnecessarySpans(newParagraph);
+                
+                // Ensure both have content or br
+                if (!currentBlock.textContent?.trim() && currentBlock.children.length === 0) {
+                    currentBlock.innerHTML = '<br>';
+                }
+                if (!newParagraph.textContent?.trim() && newParagraph.children.length === 0) {
+                    newParagraph.innerHTML = '<br>';
+                }
+                
+                // Insert new paragraph after current
+                currentBlock.parentNode.insertBefore(newParagraph, currentBlock.nextSibling);
+                
+                // Move cursor to start of new paragraph
+                const newRange = document.createRange();
+                newRange.selectNodeContents(newParagraph);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
             }
         },
 
