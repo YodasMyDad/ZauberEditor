@@ -1,0 +1,127 @@
+@using Zauber.RTE.Models
+@implements IDisposable
+
+<div class="rte-panel-content">
+    <h3 class="rte-panel-title">Insert Image</h3>
+
+    <div class="rte-form-group">
+        <label for="image-url" class="rte-label">Image URL</label>
+        <input type="url"
+               id="image-url"
+               class="rte-input"
+               @bind="_imageUrl"
+               placeholder="https://example.com/image.jpg" />
+    </div>
+
+    <div class="rte-form-group">
+        <label for="image-alt" class="rte-label">Alt Text</label>
+        <input type="text"
+               id="image-alt"
+               class="rte-input"
+               @bind="_altText"
+               placeholder="Describe the image" />
+    </div>
+
+    <div class="rte-form-group">
+        <label class="rte-checkbox-label">
+            <input type="checkbox" @bind="_includeCaption" />
+            <span class="rte-checkbox-mark"></span>
+            Include caption
+        </label>
+    </div>
+
+    @if (_includeCaption)
+    {
+        <div class="rte-form-group">
+            <label for="image-caption" class="rte-label">Caption</label>
+            <input type="text"
+                   id="image-caption"
+                   class="rte-input"
+                   @bind="_caption"
+                   placeholder="Image caption" />
+        </div>
+    }
+
+    <div class="rte-form-group">
+        <label for="image-width" class="rte-label">Width (optional)</label>
+        <input type="number"
+               id="image-width"
+               class="rte-input"
+               @bind="_width"
+               placeholder="Auto" />
+    </div>
+
+    <div class="rte-panel-actions">
+        <button type="button"
+                class="rte-btn rte-btn-secondary"
+                @onclick="CancelAsync">
+            Cancel
+        </button>
+        <button type="button"
+                class="rte-btn rte-btn-primary"
+                @onclick="InsertAsync"
+                disabled="@string.IsNullOrEmpty(_imageUrl)">
+            Insert Image
+        </button>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] public EditorApi? Api { get; set; }
+
+    private string _imageUrl = string.Empty;
+    private string _altText = string.Empty;
+    private string _caption = string.Empty;
+    private bool _includeCaption;
+    private int? _width;
+
+    private async Task InsertAsync()
+    {
+        if (Api == null || string.IsNullOrEmpty(_imageUrl)) return;
+
+        try
+        {
+            string html;
+            if (_includeCaption && !string.IsNullOrEmpty(_caption))
+            {
+                // Create figure with caption
+                var imgAttrs = new Dictionary<string, string> { ["src"] = _imageUrl };
+                if (!string.IsNullOrEmpty(_altText)) imgAttrs["alt"] = _altText;
+                if (_width.HasValue) imgAttrs["width"] = _width.Value.ToString();
+
+                var imgTag = "<img " + string.Join(" ", imgAttrs.Select(kv => $"{kv.Key}=\"{kv.Value}\"")) + ">";
+                html = "<figure class=\"rte-figure\">" + imgTag + "<figcaption>" + System.Web.HttpUtility.HtmlEncode(_caption) + "</figcaption></figure>";
+            }
+            else
+            {
+                // Simple image
+                var attrs = new Dictionary<string, string> { ["src"] = _imageUrl };
+                if (!string.IsNullOrEmpty(_altText)) attrs["alt"] = _altText;
+                if (_width.HasValue) attrs["width"] = _width.Value.ToString();
+
+                html = "<img " + string.Join(" ", attrs.Select(kv => $"{kv.Key}=\"{kv.Value}\"")) + ">";
+            }
+
+            await Api.InsertHtmlAsync(html);
+            await Api.ClosePanelAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log error and show toast
+            await Api.ShowToastAsync($"Failed to insert image: {ex.Message}", ToastType.Error);
+        }
+    }
+
+    private async Task CancelAsync()
+    {
+        if (Api != null)
+        {
+            await Api.ClosePanelAsync();
+        }
+    }
+
+    void IDisposable.Dispose()
+    {
+        // Cleanup if needed
+    }
+}

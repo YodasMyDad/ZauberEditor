@@ -1,0 +1,785 @@
+---
+alwaysApply: true
+---
+
+# Product Design Requirements (PDR)
+
+## Working title
+
+**Zauber RTE** — a modern, fully‑Blazor, extensible rich‑text editor component and toolbar framework (a TinyMCE replacement and a semi TipTap‑style competitor for Blazor).
+
+------
+
+## 1) Vision & Goals
+
+**Vision.** A beautiful, accessible, mobile‑friendly, and extensible HTML editor that ships as a single reusable Blazor component via NuGet, requires **no global JS**, outputs **clean/valid HTML**, and offers a first‑class plug‑in model for custom toolbar items and right‑side slide‑out tools.
+
+**Primary goals**
+
+- 100% Blazor UI with JS isolated behind **Interop** facades.
+- A **discoverable toolbar plug‑in system** (DI + assembly scanning) so developers can drop in new toolbar items without modifying core.
+- **Right slide‑out panel** pattern for advanced actions (e.g., image upload, table design, link inspector), closing back into the editor.
+- **Clean HTML output** and **paste‑from‑Word/HTML cleaner** to avoid `<span style="…">` soup.
+- **SVG icon** pack, light/dark themes, and fully responsive UX.
+- **Encapsulated styling** using TailwindCSS with isolation so host‑app styles cannot leak in or be affected.
+- **Events API** (change, keydown, selection change, focus/blur, paste, command executed, image resized, etc.).
+- **Image insertion with resizable drag handles** (preserve aspect ratio by default).
+- **No paid licenses**; permitted to use MIT/Apache‑2.0/ISC standalone JS libs.
+
+**Non‑goals (v1)**
+
+- Collaborative (multi‑cursor) editing.
+- RTL content editing beyond base browser support (can be added later).
+- Markdown mode (may come as a plug‑in).
+
+------
+
+## 2) Personas & Core Use Cases
+
+- **App devs** embedding a CMS/CRM editor.
+- **Content editors** authoring marketing/blog content.
+- **ISVs** who need a customizable editor with custom commands (e.g., bespoke shortcodes, mention chips).
+
+Typical flows:
+
+1. Drop `<ZauberRichTextEditor />` in a form; bind value; enable desired tool groups from settings.
+2. Paste content from Word → cleaner runs → valid HTML persisted.
+3. Click **Image** → slide‑out opens → upload/select → insert → resize handles appear.
+4. Integrators write a new toolbar item in a separate assembly; register it via startup config.
+
+------
+
+## 3) UX Overview
+
+The editor UI mirrors the supplied screenshots:
+
+- **Figure A (Editor)** – A content canvas with a top toolbar, H1 dropdown, inline formatting, alignment, link, table, code, quote, lists, media, etc. A **media upload drop‑zone** appears when relevant.
+- **Figure B (Settings)** – A dedicated settings surface that toggles capabilities (Text Formatting, Interactive elements, Embeds/Media), a visual **Toolbar designer** (drag items to rows), dimensions, and maximum image size.
+
+> The in‑component **Settings Panel** may be exposed both as developer configuration (C# object) and an optional **runtime UI** (for admin users) that matches Figure B.
+
+------
+
+## 4) Component Architecture
+
+### 4.1 Packaging
+
+- **Razor Class Library (RCL)** named `Zauber.RTE`.
+- Ships one main component: `<ZauberRichTextEditor />` with all sub‑components internal to the package unless explicitly part of the plug‑in API.
+- Static assets (JS, SVG sprite, Tailwind CSS) served under `_content/Zauber.RTE/…` via standard RCL conventions.
+
+### 4.2 Rendering Strategy
+
+- Editor surface is a **contenteditable** root `<div>` with a strict block schema (paragraphs, headings, lists, blockquote, code block, table, figure/image, link).
+- Commands operate via **Selection/Range API** through JS interop. We do **not** use `document.execCommand` (deprecated); we maintain our own command handlers per node type.
+- Output serialization and normalization are run on **every change** (debounced) ensuring valid HTML.
+
+### 4.3 Interop Boundary
+
+`IZauberJsRuntime` thin wrappers:
+
+- `SelectionInterop` – read/modify selection, surround/unwrap nodes, compute inline marks.
+- `ClipboardInterop` – read HTML on paste; run clean‑up; insert fragments.
+- `ImageInterop` – show resize handles, track drag, maintain aspect ratio, update attributes.
+- `MutationInterop` – observe DOM mutations for change events.
+- `PanelInterop` – animate slide‑out panel (CSS classes + focus trap).
+
+> All JS is internal, tree‑shaken, and never required by host apps except via `_content` path automatically included by the RCL.
+
+### 4.4 Allowed Node/Mark Schema (v1)
+
+**Blocks**: `paragraph`, `heading(level 1–3)`, `blockquote`, `codeblock`, `ul/li`, `ol/li`, `table/thead/tbody/tr/th/td`, `figure > img + figcaption`, `hr`.
+ **Inline marks**: `strong`, `em`, `u`, `s`, `sub`, `sup`, `a[href]`, `code`.
+
+The serializer upgrades legacy tags: `<b>→<strong>`, `<i>→<em>`, strips deprecated `<font>`, removes inline styles except a whitelist for images (`width`, `height`, `max-width` for responsiveness) and alignment on blocks via classes.
+
+------
+
+## 5) Extensibility — Toolbar Plug‑in Model
+
+### 5.1 Discovery
+
+On startup, the editor scans configured assemblies for toolbar items implementing an interface:
+
+```csharp
+public interface IToolbarItem
+{
+    string Id { get; }                  // unique key, e.g., "bold"
+    string Label { get; }               // accessible name
+    string? Tooltip { get; }
+    string SvgPath { get; }             // inline path data or sprite id
+    ToolbarPlacement Placement { get; } // Inline | Block | Insert | Media | Custom
+
+    bool IsToggle { get; }              // e.g., bold on/off
+    bool IsEnabled(EditorState state);
+    bool IsActive(EditorState state);   // for toggle highlight
+
+    Task ExecuteAsync(EditorApi api);   // perform action via EditorApi
+
+    // Optional: when advanced options are needed
+    Type? PanelComponent { get; }       // a Blazor component to render in slide‑out
+}
+```
+
+`EditorApi` abstracts selection, node transforms, insert HTML, openPanel/closePanel, showToast, etc.
+
+### 5.2 Registration API
+
+```csharp
+builder.Services.AddZauberRte(options =>
+{
+    options.Assemblies.Add(typeof(MyCustomToolbar).Assembly);
+    // or scan by name/pattern
+});
+```
+
+Toolbar rows & order are configured by developers or via the runtime **Toolbar Designer** UI (persisted to JSON):
+
+```csharp
+<ZauberRichTextEditor Value="@Body"
+                      OnChange="OnBodyChanged"
+                      ToolbarLayout="@MyToolbar"
+                      Capabilities="@MyCaps" />
+```
+
+Where `ToolbarLayout` is a list of item IDs arranged into rows, and `Capabilities` toggles groups (Text Formatting, Interactive, Embeds/Media) akin to Figure B.
+
+### 5.3 Slide‑out Panels
+
+If `PanelComponent` is provided, clicking the item opens the **right slide‑out** (overlay with focus trap). The panel is a normal Blazor component receiving the `EditorApi` via cascading parameter to insert content when the user confirms.
+
+Common panels:
+
+- **Image**: upload/select (local file input), alt text, caption toggle; returns `<figure>`.
+- **Table**: rows/cols creator, header row toggle, merge/split.
+- **Link**: URL, open‑in‑new‑tab, rel attributes; link inspector when caret is inside a link.
+
+------
+
+## 6) Theming & Styling
+
+### 6.1 TailwindCSS + Isolation
+
+- The RCL ships a prebuilt Tailwind CSS sheet compiled with a **prefix** (e.g., `rte-`) to avoid class collisions.
+- All editor DOM is wrapped in a root class `.zauber-rte` and all Tailwind utilities are generated as `.zauber-rte .rte-…` via Tailwind `prefix` and `content` config.
+- We also ship **component CSS isolation** (`ZauberRichTextEditor.razor.css`) for any non‑utility styling; Blazor adds a scope attribute so styles cannot leak.
+
+### 6.2 Light/Dark Mode
+
+- Theme via CSS variables on `.zauber-rte` (colors, borders, shadows). Host app may opt‑in to dark by setting `Theme="Dark"` or by inheriting system color scheme.
+- SVG icons inherit `currentColor` for automatic theming.
+
+------
+
+## 7) Settings (Developer API & Optional UI)
+
+The **Settings Panel** mirrors Figure B and is available as a Blazor component (`<ZauberRteSettings />`) that modifies a bound `EditorSettings` object. Key areas:
+
+### 7.1 Capabilities
+
+- **Text formatting** (Rich Text Essentials + toggles: subscript, superscript, text align, underline, strike, clear formatting).
+- **Interactive elements**: link, table, block (future custom embeds).
+- **Embeds & media**: image, figure, media upload, code block.
+
+### 7.2 Toolbar designer
+
+- Drag‑and‑drop rows of toolbar items (using Blazor drag events with a thin interop for smoothness). Persist as layout JSON.
+
+### 7.3 Dimensions
+
+- Configurable `Width` x `Height` (or auto height). The toolbar height is excluded.
+
+### 7.4 Image constraints
+
+- **Maximum size for inserted images** (e.g., 500 px width) applied at insert time and enforced during resize.
+
+### 7.5 Validation & HTML policy
+
+- Whitelist of allowed tags/attributes, block schema, and autowrap of orphan text nodes into paragraphs.
+
+------
+
+## 8) Clean HTML & Paste From Word/HTML
+
+### 8.1 Sanitization pipeline
+
+1. On input/paste, read `text/html` from clipboard.
+2. Run **DOMPurify** (MIT) with our **allowlist** to remove scripting/unsafe attributes.
+3. Run a custom **Word cleaner**:
+   - Strip inline styles with `mso-*`, `class^=Mso`, `style` attributes except on `img`.
+   - Upgrade tags (`b→strong`, `i→em`), remove `font`, convert first level headings if configured.
+   - Convert complex Word lists to semantic `<ol>/<ul>`.
+   - Normalize whitespace and empty nodes.
+4. Normalize block model (no nested paragraphs, ensure `li` children are blocks/inlines only).
+5. Insert resulting fragment at caret.
+
+### 8.2 Output normalization
+
+- On change (debounced 300 ms), serialize DOM → HTML, run final normalizer (pretty print optional) and raise `OnChange` event with HTML string.
+
+------
+
+## 9) Images & Media
+
+- Insert as `<figure class="rte-figure"><img src alt><figcaption>…</figcaption></figure>` if caption enabled, else `<img>`.
+- **Resizable handles**: 8 handles appear on image focus; drag updates width with **aspect ratio locked** by default (toggle with Shift). Touch gestures supported.
+- Respect **maximum width** from settings; scale images responsively (`max-width:100%`, height auto).
+
+------
+
+## 10) Accessibility & Keyboard
+
+- Toolbar uses **`role="toolbar"`** with groups; each item is a **button** with aria‑label/pressed.
+- **Focus ring** and tab order; Esc closes slide‑out.
+- Keyboard shortcuts: `Ctrl/Cmd+B/I/U`, `Ctrl+K` (link), `Ctrl+Shift+7/8` (ordered/unordered list), `Shift+Tab` outdent, etc. All shortcuts are overridable.
+- Screen reader announcements for state changes (e.g., “Bold on”).
+
+------
+
+## 11) Responsiveness (Mobile‑first)
+
+- Toolbar collapses into **grouped buttons** and an overflow "More" menu on narrow screens.
+- Slide‑out panel becomes a **full‑height drawer**.
+- Touch targets >= 44 px.
+
+------
+
+## 12) Public API (Component Parameters)
+
+```csharp
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public EventCallback<EditorChangeArgs> OnChange { get; set; }
+
+    // Events
+    [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+    [Parameter] public EventCallback<SelectionChangedArgs> OnSelectionChanged { get; set; }
+    [Parameter] public EventCallback<PasteArgs> OnPaste { get; set; }
+    [Parameter] public EventCallback<ImageResizedArgs> OnImageResized { get; set; }
+    [Parameter] public EventCallback<CommandExecutedArgs> OnCommandExecuted { get; set; }
+
+    // Config
+    [Parameter] public EditorSettings Settings { get; set; } = new();
+    [Parameter] public ToolbarLayout ToolbarLayout { get; set; } = ToolbarLayout.Default;
+    [Parameter] public Theme Theme { get; set; } = Theme.Auto;
+    [Parameter] public bool ReadOnly { get; set; }
+}
+```
+
+`EditorSettings` mirrors the Settings UI including capabilities toggles, dimensions, max image size, sanitizer policy, paste rules, and shortcut map.
+
+------
+
+## 13) Sample Usage
+
+```razor
+<ZauberRichTextEditor Value="@ArticleBody"
+                      ValueChanged="v => ArticleBody = v"
+                      OnChange="LogChange"
+                      Theme="Theme.Auto"
+                      Settings="@RteSettings"
+                      ToolbarLayout="@AdminLayout" />
+
+@code {
+    private string? ArticleBody;
+    private EditorSettings RteSettings = EditorSettings.CmsDefault();
+    private ToolbarLayout AdminLayout = ToolbarLayout.FromRows(
+        ["viewSource","h1","bold","italic","underline","strike","clear"],
+        ["alignLeft","alignCenter","alignRight","justified"],
+        ["ul","ol","blockquote","codeBlock","table","link","image","upload"]
+    );
+}
+```
+
+------
+
+## 14) Internal Components
+
+- `ZauberRichTextEditor.razor` — host + editable surface.
+- `ToolbarHost.razor` — renders discovered items in configured rows.
+- `ToolbarButton.razor` — generic button (SVG + tooltip + toggle state).
+- `SlideOutPanel.razor` — right drawer host with focus trap.
+- `Panel.Image.razor`, `Panel.Link.razor`, `Panel.Table.razor` — built‑in panels.
+- `SettingsPane.razor` — optional runtime settings editor.
+
+------
+
+## 15) SVG Icon Strategy
+
+- Use a single **SVG sprite** embedded once in the component. Toolbar items reference by `href="#icon-bold"` or supply an **inline `path`** string via `IToolbarItem.SvgPath`.
+- Icons adapt to `currentColor`; 16×16 grid baseline.
+
+------
+
+## 16) Data & State
+
+- `EditorState` snapshot caches selection, active marks, and node at caret; updated on selectionchange.
+- Undo/redo stack maintained in JS for performance; exposed as commands.
+
+------
+
+## 17) Performance Targets
+
+- Initial load < 80 KB gzipped for core JS + CSS.
+- Typing latency < 16 ms per keystroke (60 fps).
+- Paste of 50k‑char Word doc cleans in < 250 ms on modern laptop.
+
+------
+
+## 18) Testing & QA
+
+- **bUnit** for component logic; **Playwright** for e2e (typing, paste, toolbar actions, image resize).
+- Sanitizer tests with golden HTML fixtures (Word/Google Docs/Confluence).
+- Accessibility audits with axe‑core.
+
+------
+
+## 19) Security
+
+- Sanitize and strip scripts on any insertion.
+- Block remote image fetch during paste unless allowed by settings.
+- CSP‑friendly; no inline scripts except our RCL (nonce‑ready).
+
+------
+
+## 20) Licensing & Third‑Party JS (allowed)
+
+- **DOMPurify** (MIT) – sanitization.
+- **Keen‑Slider**/**noUiSlider** (MIT) – optional for image resize handles if desired; or custom.
+- **FilePond** (MIT) – optional for upload UI inside Image panel (standalone, no paid license). Alternatively, native `<input type=file>`.
+
+All external libs are vendored or referenced from the RCL `_content` folder; versions pinned.
+
+------
+
+## 21) Deliverables
+
+- `Zauber.RTE` RCL with source and sample **Blazor Server & WASM** demo site.
+- NuGet package incl. embedded static assets.
+- API docs and “How to write a toolbar plug‑in” guide.
+- Two themes (light/dark) and an icon set.
+
+------
+
+## 22) Milestones
+
+1. **M1 — Core editor**: contenteditable surface, selection/command framework, basic inline marks, paragraphs/headings, clean HTML serializer, light/dark.
+2. **M2 — Toolbar & discovery**: DI + assembly scanning; default toolbar set; events.
+3. **M3 — Paste cleaner**: DOMPurify + Word fixer; settings.
+4. **M4 — Panels**: Image/Link/Table panels; slide‑out.
+5. **M5 — Image resize handles** and mobile polish.
+6. **M6 — Settings UI** and toolbar designer.
+7. **M7 — Docs, tests, and NuGet release.**
+
+------
+
+## 23) Acceptance Criteria (excerpt)
+
+- ✅ No global CSS/JS leakage; the host app’s design remains unaffected.
+- ✅ Pasting from a Word document with lists and headings results in clean, semantic HTML (no `mso-` classes, minimal spans).
+- ✅ Toolbar items can be added from an external assembly by implementing `IToolbarItem` and registering the assembly.
+- ✅ Clicking **Image** opens the right slide‑out, uploading/inserting an image with alt text and optional caption; image is resizable via handles.
+- ✅ Works in latest Chrome/Edge/Firefox/Safari; responsive and keyboard accessible; light/dark.
+- ✅ Events fire and can be handled by the host app; `Value` two‑way binds.
+
+------
+
+## 24) Appendix — Mapping to Provided Images
+
+- **Figure A – Editor canvas & toolbar**: Our default layout mirrors this, including H1 picker, inline buttons, alignment, link, code, table, and media upload zone.
+- **Figure B – Settings**: The Capabilities toggles, Available toolbar items list, **Toolbar designer** rows, Dimensions, and Max image size fields match one‑for‑one with the `EditorSettings` model and the `<ZauberRteSettings />` UI.
+
+------
+
+*End of PDR*# Product Design Requirements (PDR)
+
+## Working title
+
+**Zauber RTE** — a modern, fully‑Blazor, extensible rich‑text editor component and toolbar framework (a TinyMCE replacement and a semi TipTap‑style competitor for Blazor).
+
+------
+
+## 1) Vision & Goals
+
+**Vision.** A beautiful, accessible, mobile‑friendly, and extensible HTML editor that ships as a single reusable Blazor component via NuGet, requires **no global JS**, outputs **clean/valid HTML**, and offers a first‑class plug‑in model for custom toolbar items and right‑side slide‑out tools.
+
+**Primary goals**
+
+- 100% Blazor UI with JS isolated behind **Interop** facades.
+- A **discoverable toolbar plug‑in system** (DI + assembly scanning) so developers can drop in new toolbar items without modifying core.
+- **Right slide‑out panel** pattern for advanced actions (e.g., image upload, table design, link inspector), closing back into the editor.
+- **Clean HTML output** and **paste‑from‑Word/HTML cleaner** to avoid `<span style="…">` soup.
+- **SVG icon** pack, light/dark themes, and fully responsive UX.
+- **Encapsulated styling** using TailwindCSS with isolation so host‑app styles cannot leak in or be affected.
+- **Events API** (change, keydown, selection change, focus/blur, paste, command executed, image resized, etc.).
+- **Image insertion with resizable drag handles** (preserve aspect ratio by default).
+- **No paid licenses**; permitted to use MIT/Apache‑2.0/ISC standalone JS libs.
+
+**Non‑goals (v1)**
+
+- Collaborative (multi‑cursor) editing.
+- RTL content editing beyond base browser support (can be added later).
+- Markdown mode (may come as a plug‑in).
+
+------
+
+## 2) Personas & Core Use Cases
+
+- **App devs** embedding a CMS/CRM editor.
+- **Content editors** authoring marketing/blog content.
+- **ISVs** who need a customizable editor with custom commands (e.g., bespoke shortcodes, mention chips).
+
+Typical flows:
+
+1. Drop `<ZauberRichTextEditor />` in a form; bind value; enable desired tool groups from settings.
+2. Paste content from Word → cleaner runs → valid HTML persisted.
+3. Click **Image** → slide‑out opens → upload/select → insert → resize handles appear.
+4. Integrators write a new toolbar item in a separate assembly; register it via startup config.
+
+------
+
+## 3) UX Overview
+
+The editor UI mirrors the supplied screenshots:
+
+- **Figure A (Editor)** – A content canvas with a top toolbar, H1 dropdown, inline formatting, alignment, link, table, code, quote, lists, media, etc. A **media upload drop‑zone** appears when relevant.
+- **Figure B (Settings)** – A dedicated settings surface that toggles capabilities (Text Formatting, Interactive elements, Embeds/Media), a visual **Toolbar designer** (drag items to rows), dimensions, and maximum image size.
+
+> The in‑component **Settings Panel** may be exposed both as developer configuration (C# object) and an optional **runtime UI** (for admin users) that matches Figure B.
+
+------
+
+## 4) Component Architecture
+
+### 4.1 Packaging
+
+- **Razor Class Library (RCL)** named `Zauber.RTE`.
+- Ships one main component: `<ZauberRichTextEditor />` with all sub‑components internal to the package unless explicitly part of the plug‑in API.
+- Static assets (JS, SVG sprite, Tailwind CSS) served under `_content/Zauber.RTE/…` via standard RCL conventions.
+
+### 4.2 Rendering Strategy
+
+- Editor surface is a **contenteditable** root `<div>` with a strict block schema (paragraphs, headings, lists, blockquote, code block, table, figure/image, link).
+- Commands operate via **Selection/Range API** through JS interop. We do **not** use `document.execCommand` (deprecated); we maintain our own command handlers per node type.
+- Output serialization and normalization are run on **every change** (debounced) ensuring valid HTML.
+
+### 4.3 Interop Boundary
+
+`IZauberJsRuntime` thin wrappers:
+
+- `SelectionInterop` – read/modify selection, surround/unwrap nodes, compute inline marks.
+- `ClipboardInterop` – read HTML on paste; run clean‑up; insert fragments.
+- `ImageInterop` – show resize handles, track drag, maintain aspect ratio, update attributes.
+- `MutationInterop` – observe DOM mutations for change events.
+- `PanelInterop` – animate slide‑out panel (CSS classes + focus trap).
+
+> All JS is internal, tree‑shaken, and never required by host apps except via `_content` path automatically included by the RCL.
+
+### 4.4 Allowed Node/Mark Schema (v1)
+
+**Blocks**: `paragraph`, `heading(level 1–3)`, `blockquote`, `codeblock`, `ul/li`, `ol/li`, `table/thead/tbody/tr/th/td`, `figure > img + figcaption`, `hr`.
+ **Inline marks**: `strong`, `em`, `u`, `s`, `sub`, `sup`, `a[href]`, `code`.
+
+The serializer upgrades legacy tags: `<b>→<strong>`, `<i>→<em>`, strips deprecated `<font>`, removes inline styles except a whitelist for images (`width`, `height`, `max-width` for responsiveness) and alignment on blocks via classes.
+
+------
+
+## 5) Extensibility — Toolbar Plug‑in Model
+
+### 5.1 Discovery
+
+On startup, the editor scans configured assemblies for toolbar items implementing an interface:
+
+```csharp
+public interface IToolbarItem
+{
+    string Id { get; }                  // unique key, e.g., "bold"
+    string Label { get; }               // accessible name
+    string? Tooltip { get; }
+    string SvgPath { get; }             // inline path data or sprite id
+    ToolbarPlacement Placement { get; } // Inline | Block | Insert | Media | Custom
+
+    bool IsToggle { get; }              // e.g., bold on/off
+    bool IsEnabled(EditorState state);
+    bool IsActive(EditorState state);   // for toggle highlight
+
+    Task ExecuteAsync(EditorApi api);   // perform action via EditorApi
+
+    // Optional: when advanced options are needed
+    Type? PanelComponent { get; }       // a Blazor component to render in slide‑out
+}
+```
+
+`EditorApi` abstracts selection, node transforms, insert HTML, openPanel/closePanel, showToast, etc.
+
+### 5.2 Registration API
+
+```csharp
+builder.Services.AddZauberRte(options =>
+{
+    options.Assemblies.Add(typeof(MyCustomToolbar).Assembly);
+    // or scan by name/pattern
+});
+```
+
+Toolbar rows & order are configured by developers or via the runtime **Toolbar Designer** UI (persisted to JSON):
+
+```csharp
+<ZauberRichTextEditor Value="@Body"
+                      OnChange="OnBodyChanged"
+                      ToolbarLayout="@MyToolbar"
+                      Capabilities="@MyCaps" />
+```
+
+Where `ToolbarLayout` is a list of item IDs arranged into rows, and `Capabilities` toggles groups (Text Formatting, Interactive, Embeds/Media) akin to Figure B.
+
+### 5.3 Slide‑out Panels
+
+If `PanelComponent` is provided, clicking the item opens the **right slide‑out** (overlay with focus trap). The panel is a normal Blazor component receiving the `EditorApi` via cascading parameter to insert content when the user confirms.
+
+Common panels:
+
+- **Image**: upload/select (local file input), alt text, caption toggle; returns `<figure>`.
+- **Table**: rows/cols creator, header row toggle, merge/split.
+- **Link**: URL, open‑in‑new‑tab, rel attributes; link inspector when caret is inside a link.
+
+------
+
+## 6) Theming & Styling
+
+### 6.1 TailwindCSS + Isolation
+
+- The RCL ships a prebuilt Tailwind CSS sheet compiled with a **prefix** (e.g., `rte-`) to avoid class collisions.
+- All editor DOM is wrapped in a root class `.zauber-rte` and all Tailwind utilities are generated as `.zauber-rte .rte-…` via Tailwind `prefix` and `content` config.
+- We also ship **component CSS isolation** (`ZauberRichTextEditor.razor.css`) for any non‑utility styling; Blazor adds a scope attribute so styles cannot leak.
+
+### 6.2 Light/Dark Mode
+
+- Theme via CSS variables on `.zauber-rte` (colors, borders, shadows). Host app may opt‑in to dark by setting `Theme="Dark"` or by inheriting system color scheme.
+- SVG icons inherit `currentColor` for automatic theming.
+
+------
+
+## 7) Settings (Developer API & Optional UI)
+
+The **Settings Panel** mirrors Figure B and is available as a Blazor component (`<ZauberRteSettings />`) that modifies a bound `EditorSettings` object. Key areas:
+
+### 7.1 Capabilities
+
+- **Text formatting** (Rich Text Essentials + toggles: subscript, superscript, text align, underline, strike, clear formatting).
+- **Interactive elements**: link, table, block (future custom embeds).
+- **Embeds & media**: image, figure, media upload, code block.
+
+### 7.2 Toolbar designer
+
+- Drag‑and‑drop rows of toolbar items (using Blazor drag events with a thin interop for smoothness). Persist as layout JSON.
+
+### 7.3 Dimensions
+
+- Configurable `Width` x `Height` (or auto height). The toolbar height is excluded.
+
+### 7.4 Image constraints
+
+- **Maximum size for inserted images** (e.g., 500 px width) applied at insert time and enforced during resize.
+
+### 7.5 Validation & HTML policy
+
+- Whitelist of allowed tags/attributes, block schema, and autowrap of orphan text nodes into paragraphs.
+
+------
+
+## 8) Clean HTML & Paste From Word/HTML
+
+### 8.1 Sanitization pipeline
+
+1. On input/paste, read `text/html` from clipboard.
+2. Run **DOMPurify** (MIT) with our **allowlist** to remove scripting/unsafe attributes.
+3. Run a custom **Word cleaner**:
+   - Strip inline styles with `mso-*`, `class^=Mso`, `style` attributes except on `img`.
+   - Upgrade tags (`b→strong`, `i→em`), remove `font`, convert first level headings if configured.
+   - Convert complex Word lists to semantic `<ol>/<ul>`.
+   - Normalize whitespace and empty nodes.
+4. Normalize block model (no nested paragraphs, ensure `li` children are blocks/inlines only).
+5. Insert resulting fragment at caret.
+
+### 8.2 Output normalization
+
+- On change (debounced 300 ms), serialize DOM → HTML, run final normalizer (pretty print optional) and raise `OnChange` event with HTML string.
+
+------
+
+## 9) Images & Media
+
+- Insert as `<figure class="rte-figure"><img src alt><figcaption>…</figcaption></figure>` if caption enabled, else `<img>`.
+- **Resizable handles**: 8 handles appear on image focus; drag updates width with **aspect ratio locked** by default (toggle with Shift). Touch gestures supported.
+- Respect **maximum width** from settings; scale images responsively (`max-width:100%`, height auto).
+
+------
+
+## 10) Accessibility & Keyboard
+
+- Toolbar uses **`role="toolbar"`** with groups; each item is a **button** with aria‑label/pressed.
+- **Focus ring** and tab order; Esc closes slide‑out.
+- Keyboard shortcuts: `Ctrl/Cmd+B/I/U`, `Ctrl+K` (link), `Ctrl+Shift+7/8` (ordered/unordered list), `Shift+Tab` outdent, etc. All shortcuts are overridable.
+- Screen reader announcements for state changes (e.g., “Bold on”).
+
+------
+
+## 11) Responsiveness (Mobile‑first)
+
+- Toolbar collapses into **grouped buttons** and an overflow "More" menu on narrow screens.
+- Slide‑out panel becomes a **full‑height drawer**.
+- Touch targets >= 44 px.
+
+------
+
+## 12) Public API (Component Parameters)
+
+```csharp
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public EventCallback<EditorChangeArgs> OnChange { get; set; }
+
+    // Events
+    [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+    [Parameter] public EventCallback<SelectionChangedArgs> OnSelectionChanged { get; set; }
+    [Parameter] public EventCallback<PasteArgs> OnPaste { get; set; }
+    [Parameter] public EventCallback<ImageResizedArgs> OnImageResized { get; set; }
+    [Parameter] public EventCallback<CommandExecutedArgs> OnCommandExecuted { get; set; }
+
+    // Config
+    [Parameter] public EditorSettings Settings { get; set; } = new();
+    [Parameter] public ToolbarLayout ToolbarLayout { get; set; } = ToolbarLayout.Default;
+    [Parameter] public Theme Theme { get; set; } = Theme.Auto;
+    [Parameter] public bool ReadOnly { get; set; }
+}
+```
+
+`EditorSettings` mirrors the Settings UI including capabilities toggles, dimensions, max image size, sanitizer policy, paste rules, and shortcut map.
+
+------
+
+## 13) Sample Usage
+
+```razor
+<ZauberRichTextEditor Value="@ArticleBody"
+                      ValueChanged="v => ArticleBody = v"
+                      OnChange="LogChange"
+                      Theme="Theme.Auto"
+                      Settings="@RteSettings"
+                      ToolbarLayout="@AdminLayout" />
+
+@code {
+    private string? ArticleBody;
+    private EditorSettings RteSettings = EditorSettings.CmsDefault();
+    private ToolbarLayout AdminLayout = ToolbarLayout.FromRows(
+        ["viewSource","h1","bold","italic","underline","strike","clear"],
+        ["alignLeft","alignCenter","alignRight","justified"],
+        ["ul","ol","blockquote","codeBlock","table","link","image","upload"]
+    );
+}
+```
+
+------
+
+## 14) Internal Components
+
+- `ZauberRichTextEditor.razor` — host + editable surface.
+- `ToolbarHost.razor` — renders discovered items in configured rows.
+- `ToolbarButton.razor` — generic button (SVG + tooltip + toggle state).
+- `SlideOutPanel.razor` — right drawer host with focus trap.
+- `Panel.Image.razor`, `Panel.Link.razor`, `Panel.Table.razor` — built‑in panels.
+- `SettingsPane.razor` — optional runtime settings editor.
+
+------
+
+## 15) SVG Icon Strategy
+
+- Use a single **SVG sprite** embedded once in the component. Toolbar items reference by `href="#icon-bold"` or supply an **inline `path`** string via `IToolbarItem.SvgPath`.
+- Icons adapt to `currentColor`; 16×16 grid baseline.
+
+------
+
+## 16) Data & State
+
+- `EditorState` snapshot caches selection, active marks, and node at caret; updated on selectionchange.
+- Undo/redo stack maintained in JS for performance; exposed as commands.
+
+------
+
+## 17) Performance Targets
+
+- Initial load < 80 KB gzipped for core JS + CSS.
+- Typing latency < 16 ms per keystroke (60 fps).
+- Paste of 50k‑char Word doc cleans in < 250 ms on modern laptop.
+
+------
+
+## 18) Testing & QA
+
+- **bUnit** for component logic; **Playwright** for e2e (typing, paste, toolbar actions, image resize).
+- Sanitizer tests with golden HTML fixtures (Word/Google Docs/Confluence).
+- Accessibility audits with axe‑core.
+
+------
+
+## 19) Security
+
+- Sanitize and strip scripts on any insertion.
+- Block remote image fetch during paste unless allowed by settings.
+- CSP‑friendly; no inline scripts except our RCL (nonce‑ready).
+
+------
+
+## 20) Licensing & Third‑Party JS (allowed)
+
+- **DOMPurify** (MIT) – sanitization.
+- **Keen‑Slider**/**noUiSlider** (MIT) – optional for image resize handles if desired; or custom.
+- **FilePond** (MIT) – optional for upload UI inside Image panel (standalone, no paid license). Alternatively, native `<input type=file>`.
+
+All external libs are vendored or referenced from the RCL `_content` folder; versions pinned.
+
+------
+
+## 21) Deliverables
+
+- `Zauber.RTE` RCL with source and sample **Blazor Server & WASM** demo site.
+- NuGet package incl. embedded static assets.
+- API docs and “How to write a toolbar plug‑in” guide.
+- Two themes (light/dark) and an icon set.
+
+------
+
+## 22) Milestones
+
+1. **M1 — Core editor**: contenteditable surface, selection/command framework, basic inline marks, paragraphs/headings, clean HTML serializer, light/dark.
+2. **M2 — Toolbar & discovery**: DI + assembly scanning; default toolbar set; events.
+3. **M3 — Paste cleaner**: DOMPurify + Word fixer; settings.
+4. **M4 — Panels**: Image/Link/Table panels; slide‑out.
+5. **M5 — Image resize handles** and mobile polish.
+6. **M6 — Settings UI** and toolbar designer.
+7. **M7 — Docs, tests, and NuGet release.**
+
+------
+
+## 23) Acceptance Criteria (excerpt)
+
+- ✅ No global CSS/JS leakage; the host app’s design remains unaffected.
+- ✅ Pasting from a Word document with lists and headings results in clean, semantic HTML (no `mso-` classes, minimal spans).
+- ✅ Toolbar items can be added from an external assembly by implementing `IToolbarItem` and registering the assembly.
+- ✅ Clicking **Image** opens the right slide‑out, uploading/inserting an image with alt text and optional caption; image is resizable via handles.
+- ✅ Works in latest Chrome/Edge/Firefox/Safari; responsive and keyboard accessible; light/dark.
+- ✅ Events fire and can be handled by the host app; `Value` two‑way binds.
+
+------
+
+## 24) Appendix — Mapping to Provided Images
+
+- **Figure A – Editor canvas & toolbar**: Our default layout mirrors this, including H1 picker, inline buttons, alignment, link, code, table, and media upload zone.
+- **Figure B – Settings**: The Capabilities toggles, Available toolbar items list, **Toolbar designer** rows, Dimensions, and Max image size fields match one‑for‑one with the `EditorSettings` model and the `<ZauberRteSettings />` UI.
+
+------
+
+*End of PDR*

@@ -1,0 +1,68 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<style>
+    .rte-demo {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .content-preview {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 4px;
+        background-color: #f9f9f9;
+    }
+
+    .html-output {
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 15px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    h2, h3 {
+        color: #333;
+        margin-top: 30px;
+    }
+
+    h2:first-child {
+        margin-top: 0;
+    }
+</style>
+
+<h1>Zauber Rich Text Editor Demo</h1>
+
+<div class="rte-demo">
+    <h2>Basic Example</h2>
+    <ZauberRichTextEditor @bind-Value="_editorContent"
+                         OnChange="HandleEditorChange"
+                         Theme="Theme.Light" />
+
+    <h3>Current Content:</h3>
+    <div class="content-preview">
+        @((MarkupString)_editorContent)
+    </div>
+
+    <h3>HTML Output:</h3>
+    <pre class="html-output">@_editorContent</pre>
+</div>
+
+@code {
+    private string _editorContent = "<p>Welcome to the <strong>Zauber Rich Text Editor</strong>!</p><p>This is a simple demo showing basic functionality.</p>";
+
+    private void HandleEditorChange(EditorChangeArgs args)
+    {
+        // You can handle editor changes here
+        Console.WriteLine($"Editor content changed: {args.Text?.Length ?? 0} characters");
+    }
+}

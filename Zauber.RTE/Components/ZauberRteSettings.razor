@@ -1,0 +1,352 @@
+@using Zauber.RTE.Models
+@implements IDisposable
+@inject ToolbarDiscoveryService ToolbarDiscovery
+
+<div class="rte-settings-panel">
+    <div class="rte-settings-header">
+        <h2 class="rte-settings-title">Editor Settings</h2>
+    </div>
+
+    <div class="rte-settings-content">
+        <!-- Capabilities Section -->
+        <div class="rte-settings-section">
+            <h3 class="rte-settings-section-title">Capabilities</h3>
+
+            <div class="rte-capability-group">
+                <h4>Text Formatting</h4>
+                <div class="rte-capability-grid">
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.TextFormatting" />
+                        <span class="rte-capability-checkmark"></span>
+                        Rich Text Essentials (bold, italic, underline)
+                    </label>
+
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.Subscript" />
+                        <span class="rte-capability-checkmark"></span>
+                        Subscript
+                    </label>
+
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.Superscript" />
+                        <span class="rte-capability-checkmark"></span>
+                        Superscript
+                    </label>
+
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.Underline" />
+                        <span class="rte-capability-checkmark"></span>
+                        Underline
+                    </label>
+
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.Strike" />
+                        <span class="rte-capability-checkmark"></span>
+                        Strikethrough
+                    </label>
+
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.TextAlign" />
+                        <span class="rte-capability-checkmark"></span>
+                        Text Alignment
+                    </label>
+
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.ClearFormatting" />
+                        <span class="rte-capability-checkmark"></span>
+                        Clear Formatting
+                    </label>
+                </div>
+            </div>
+
+            <div class="rte-capability-group">
+                <h4>Interactive Elements</h4>
+                <div class="rte-capability-grid">
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.InteractiveElements" />
+                        <span class="rte-capability-checkmark"></span>
+                        Links
+                    </label>
+
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.InteractiveElements" />
+                        <span class="rte-capability-checkmark"></span>
+                        Tables
+                    </label>
+                </div>
+            </div>
+
+            <div class="rte-capability-group">
+                <h4>Embeds & Media</h4>
+                <div class="rte-capability-grid">
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.EmbedsAndMedia" />
+                        <span class="rte-capability-checkmark"></span>
+                        Images
+                    </label>
+
+                    <label class="rte-capability-item">
+                        <input type="checkbox" @bind="Settings.Capabilities.EmbedsAndMedia" />
+                        <span class="rte-capability-checkmark"></span>
+                        Code Blocks
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar Designer Section -->
+        <div class="rte-settings-section">
+            <h3 class="rte-settings-section-title">Toolbar Layout</h3>
+
+            <div class="rte-toolbar-designer">
+                <div class="rte-available-items">
+                    <h4>Available Items</h4>
+                    <div class="rte-items-list">
+                        @foreach (var item in _availableItems)
+                        {
+                            <div class="rte-item-chip"
+                                 draggable="true"
+                                 @ondragstart="(() => StartDrag(item))"
+                                 @onclick="(() => AddItemToToolbar(item))">
+                                <svg class="rte-item-icon" aria-hidden="true">
+                                    <use href="@($"#icon-{item.Id}")" />
+                                </svg>
+                                <span>@item.Label</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="rte-toolbar-preview">
+                    <h4>Toolbar Preview</h4>
+                    <div class="rte-preview-toolbar">
+                        @for (int rowIndex = 0; rowIndex < Settings.ToolbarLayout.Rows.Count; rowIndex++)
+                        {
+                            var row = Settings.ToolbarLayout.Rows[rowIndex];
+                            <div class="rte-preview-row"
+                                 @ondragover="HandleDragOver"
+                                 @ondrop="(() => HandleDrop(rowIndex))"
+                                 @ondragleave="HandleDragLeave">
+                                @foreach (var itemId in row)
+                                {
+                                    var item = ToolbarDiscovery.GetItem(itemId);
+                                    if (item != null)
+                                    {
+                                        <div class="rte-preview-item"
+                                             @onclick="(() => RemoveItemFromToolbar(rowIndex, itemId))">
+                                            <svg class="rte-item-icon" aria-hidden="true">
+                                                <use href="@($"#icon-{item.Id}")" />
+                                            </svg>
+                                            <span class="rte-item-tooltip">@item.Label</span>
+                                        </div>
+                                    }
+                                }
+                                <div class="rte-drop-zone" style="@GetDropZoneStyle(rowIndex)">
+                                    Drop items here
+                                </div>
+                            </div>
+                        }
+
+                        <button type="button"
+                                class="rte-add-row-btn"
+                                @onclick="AddToolbarRow">
+                            + Add Row
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dimensions Section -->
+        <div class="rte-settings-section">
+            <h3 class="rte-settings-section-title">Dimensions</h3>
+
+            <div class="rte-form-group">
+                <label for="editor-width" class="rte-label">Width</label>
+                <input type="text"
+                       id="editor-width"
+                       class="rte-input"
+                       @bind="Settings.Dimensions.Width"
+                       placeholder="auto" />
+                <small class="rte-help-text">CSS width value (e.g., "100%", "600px", or "auto")</small>
+            </div>
+
+            <div class="rte-form-group">
+                <label for="editor-height" class="rte-label">Height</label>
+                <input type="text"
+                       id="editor-height"
+                       class="rte-input"
+                       @bind="Settings.Dimensions.Height"
+                       placeholder="300px" />
+                <small class="rte-help-text">CSS height value (e.g., "400px")</small>
+            </div>
+
+            <div class="rte-form-group">
+                <label for="min-height" class="rte-label">Minimum Height</label>
+                <input type="number"
+                       id="min-height"
+                       class="rte-input"
+                       @bind="Settings.Dimensions.MinHeight"
+                       min="50"
+                       max="1000"
+                       step="10" />
+                <small class="rte-help-text">Minimum height in pixels</small>
+            </div>
+        </div>
+
+        <!-- Image Constraints Section -->
+        <div class="rte-settings-section">
+            <h3 class="rte-settings-section-title">Image Constraints</h3>
+
+            <div class="rte-form-group">
+                <label for="max-width" class="rte-label">Maximum Width</label>
+                <input type="number"
+                       id="max-width"
+                       class="rte-input"
+                       @bind="Settings.ImageConstraints.MaxWidth"
+                       min="50"
+                       max="2000"
+                       step="10" />
+                <small class="rte-help-text">Maximum image width in pixels</small>
+            </div>
+
+            <div class="rte-form-group">
+                <label for="max-height" class="rte-label">Maximum Height</label>
+                <input type="number"
+                       id="max-height"
+                       class="rte-input"
+                       @bind="Settings.ImageConstraints.MaxHeight"
+                       min="50"
+                       max="2000"
+                       step="10" />
+                <small class="rte-help-text">Maximum image height in pixels</small>
+            </div>
+
+            <div class="rte-form-group">
+                <label class="rte-checkbox-label">
+                    <input type="checkbox" @bind="Settings.ImageConstraints.MaintainAspectRatio" />
+                    <span class="rte-checkbox-mark"></span>
+                    Maintain aspect ratio during resize
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="rte-settings-actions">
+        <button type="button"
+                class="rte-btn rte-btn-secondary"
+                @onclick="OnCancel">
+            Cancel
+        </button>
+        <button type="button"
+                class="rte-btn rte-btn-primary"
+                @onclick="OnSave">
+            Save Settings
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EditorSettings Settings { get; set; } = new();
+    [Parameter] public EventCallback<EditorSettings> SettingsChanged { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private List<IToolbarItem> _availableItems = new();
+    private IToolbarItem? _draggedItem;
+    private int _dropTargetRow = -1;
+
+    protected override void OnInitialized()
+    {
+        _availableItems = ToolbarDiscovery.GetAllItems().Values.ToList();
+
+        // Ensure we have at least one row
+        if (Settings.ToolbarLayout.Rows.Count == 0)
+        {
+            Settings.ToolbarLayout.Rows.Add(Array.Empty<string>());
+        }
+    }
+
+    private void StartDrag(IToolbarItem item)
+    {
+        _draggedItem = item;
+    }
+
+    private void HandleDragOver()
+    {
+        // Prevent default to allow drop
+    }
+
+    private void HandleDragLeave()
+    {
+        _dropTargetRow = -1;
+    }
+
+    private void HandleDrop(int rowIndex)
+    {
+        if (_draggedItem != null)
+        {
+            var currentRow = Settings.ToolbarLayout.Rows[rowIndex];
+            var newRow = currentRow.Concat(new[] { _draggedItem.Id }).ToArray();
+            Settings.ToolbarLayout.Rows[rowIndex] = newRow;
+            _draggedItem = null;
+            StateHasChanged();
+        }
+    }
+
+    private void AddItemToToolbar(IToolbarItem item)
+    {
+        // Add to the last row, or create a new row if needed
+        if (Settings.ToolbarLayout.Rows.Count == 0 ||
+            Settings.ToolbarLayout.Rows.Last().Length >= 8) // Max items per row
+        {
+            Settings.ToolbarLayout.Rows.Add(new[] { item.Id });
+        }
+        else
+        {
+            var lastRow = Settings.ToolbarLayout.Rows.Last();
+            var newRow = lastRow.Concat(new[] { item.Id }).ToArray();
+            Settings.ToolbarLayout.Rows[Settings.ToolbarLayout.Rows.Count - 1] = newRow;
+        }
+        StateHasChanged();
+    }
+
+    private void RemoveItemFromToolbar(int rowIndex, string itemId)
+    {
+        var currentRow = Settings.ToolbarLayout.Rows[rowIndex];
+        var newRow = currentRow.Where(id => id != itemId).ToArray();
+        Settings.ToolbarLayout.Rows[rowIndex] = newRow;
+
+        // Remove empty rows
+        Settings.ToolbarLayout.Rows = Settings.ToolbarLayout.Rows
+            .Where(row => row.Any())
+            .ToList();
+
+        if (Settings.ToolbarLayout.Rows.Count == 0)
+        {
+            Settings.ToolbarLayout.Rows.Add(Array.Empty<string>());
+        }
+
+        StateHasChanged();
+    }
+
+    private void AddToolbarRow()
+    {
+        Settings.ToolbarLayout.Rows.Add(Array.Empty<string>());
+        StateHasChanged();
+    }
+
+    private string GetDropZoneStyle(int rowIndex)
+    {
+        return _dropTargetRow == rowIndex ? "display: block;" : "display: none;";
+    }
+
+    private async Task OnSave()
+    {
+        await SettingsChanged.InvokeAsync(Settings);
+    }
+
+    void IDisposable.Dispose()
+    {
+        // Cleanup if needed
+    }
+}

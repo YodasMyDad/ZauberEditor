@@ -1,0 +1,497 @@
+@using Zauber.RTE.Models
+@using Zauber.RTE.Services
+@implements IDisposable
+@inject IZauberJsRuntime JsRuntime
+@inject ToolbarDiscoveryService ToolbarDiscovery
+@inject IJSRuntime JSRuntime
+
+<link href="_content/Zauber.RTE/css/fontawesome.min.css" rel="stylesheet" />
+
+<div class="zauber-rte @GetThemeClass()" id="@_editorId">
+    <div class="rte-toolbar" role="toolbar" aria-label="Rich text editor toolbar">
+        <ToolbarHost ToolbarLayout="Settings.ToolbarLayout"
+                     Capabilities="Settings.Capabilities"
+                     EditorState="_currentState"
+                     OnItemExecuted="HandleToolbarCommandAsync" />
+    </div>
+
+    <div class="rte-editor-container">
+        @if (_isSourceView)
+        {
+            <textarea class="rte-source-view"
+                      @bind="_sourceViewContent"
+                      @bind:event="oninput"
+                      @onfocus="HandleFocusAsync"
+                      @onblur="HandleBlurAsync"
+                      spellcheck="false"
+                      placeholder="Enter HTML source code..."
+                      style="@GetEditorStyle()"
+                      id="@(_editorId + "-source")">
+            </textarea>
+        }
+        else
+        {
+            <div class="rte-content"
+                 contenteditable="true"
+                 @ref="_contentEditableRef"
+                 @oninput="HandleInputAsync"
+                 @onkeydown="HandleKeyDownAsync"
+                 @onpaste="HandlePasteAsync"
+                 @onfocus="HandleFocusAsync"
+                 @onblur="HandleBlurAsync"
+                 @onselectionchange="HandleSelectionChangeAsync"
+                 @onfocusout="HandleFocusOutAsync"
+                 spellcheck="false"
+                 role="textbox"
+                 aria-multiline="true"
+                 aria-label="Rich text editor content"
+                 style="@GetEditorStyle()"
+                 id="@(_editorId + "-content")">
+            </div>
+
+            @if (Settings.Capabilities.EmbedsAndMedia)
+            {
+                <div class="rte-drop-zone" @ondrop="HandleDropAsync" @ondragover="HandleDragOverAsync">
+                    <span>Drop images here</span>
+                </div>
+            }
+        }
+    </div>
+
+    <SlideOutPanel @ref="_slideOutPanel" Api="@_editorApi" />
+</div>
+
+@code {
+    private ElementReference _contentEditableRef;
+    private SlideOutPanel? _slideOutPanel;
+    private string _editorId = $"zauber-rte-{Guid.NewGuid().ToString("N")}";
+    private EditorState _currentState = new();
+    private EditorApi? _editorApi;
+    private string? _currentHtml;
+    private bool _isInitialized;
+    private bool _isSourceView;
+    private string? _sourceViewContent;
+
+    // Parameters
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public EventCallback<EditorChangeArgs> OnChange { get; set; }
+
+    // Events
+    [Parameter] public EventCallback<ZauberKeyboardEventArgs> OnKeyDown { get; set; }
+    [Parameter] public EventCallback<SelectionChangedArgs> OnSelectionChanged { get; set; }
+    [Parameter] public EventCallback<PasteArgs> OnPaste { get; set; }
+    [Parameter] public EventCallback<ImageResizedArgs> OnImageResized { get; set; }
+    [Parameter] public EventCallback<CommandExecutedArgs> OnCommandExecuted { get; set; }
+
+    // Config
+    [Parameter] public EditorSettings Settings { get; set; } = new();
+    [Parameter] public ToolbarLayout ToolbarLayout { get; set; } = ToolbarLayout.Default;
+    [Parameter] public Theme Theme { get; set; } = Theme.Auto;
+    [Parameter] public bool ReadOnly { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await InitializeEditorAsync();
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnPasteCallbackAsync(string pastedContent)
+    {
+        try
+        {
+            // Clean the HTML using our policy
+            var cleanedHtml = await JsRuntime.Clipboard.CleanHtmlAsync(pastedContent, Settings.HtmlPolicy);
+
+            // Insert the cleaned HTML
+            await JsRuntime.Clipboard.InsertCleanedHtmlAsync(_editorId, cleanedHtml);
+
+            var pasteArgs = new PasteArgs
+            {
+                OriginalHtml = pastedContent,
+                CleanedHtml = cleanedHtml
+            };
+            await OnPaste.InvokeAsync(pasteArgs);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Failed to handle paste callback: {ex.Message}");
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnImageClickCallbackAsync(string imageId)
+    {
+        try
+        {
+            // Show resize handles for the clicked image
+            await JsRuntime.Image.ShowResizeHandlesAsync(_editorId, imageId);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Failed to handle image click callback: {ex.Message}");
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Always update settings
+        Settings.ToolbarLayout = ToolbarLayout;
+
+        // Set content if the value has changed
+        if (Value != _currentHtml)
+        {
+            await SetContentAsync(Value);
+        }
+    }
+
+    private async Task InitializeEditorAsync()
+    {
+        try
+        {
+            // Set up paste callback
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.clipboard.setPasteCallback",
+                DotNetObjectReference.Create(this),
+                nameof(OnPasteCallbackAsync));
+
+            // Set up paste event listener
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.clipboard.setupPasteListener", _editorId);
+
+            // Set up Enter key event listener
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.selection.setupEnterKeyListener", _editorId);
+
+            // Set up image focus/click event listeners for resize handles
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.image.setupImageListeners", _editorId,
+                DotNetObjectReference.Create(this));
+
+            // Start observing mutations for change detection
+            await JsRuntime.Mutation.StartObservingAsync(_editorId);
+
+            // Create the editor API
+            _editorApi = new EditorApiImpl(this, JsRuntime, _editorId);
+
+            // Set initial content
+            if (!string.IsNullOrEmpty(_currentHtml))
+            {
+                await JsRuntime.Mutation.SetHtmlAsync(_editorId, _currentHtml);
+            }
+            else
+            {
+                // Ensure editor starts with proper paragraph structure
+                await JsRuntime.Mutation.SetHtmlAsync(_editorId, "<p>&nbsp;</p>");
+            }
+
+            _isInitialized = true;
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't throw - editor should still work
+            Console.Error.WriteLine($"Failed to initialize editor: {ex.Message}");
+        }
+    }
+
+    public async Task SetContentAsync(string? html)
+    {
+        if (string.IsNullOrEmpty(html))
+        {
+            _currentHtml = null;
+            if (_isInitialized)
+            {
+                await JsRuntime.Mutation.SetHtmlAsync(_editorId, "");
+            }
+            return;
+        }
+
+        _currentHtml = html;
+        if (_isInitialized)
+        {
+            await JsRuntime.Mutation.SetHtmlAsync(_editorId, html);
+        }
+        // If not initialized yet, the content will be set during initialization
+    }
+
+    private string GetThemeClass()
+    {
+        return Theme switch
+        {
+            Theme.Light => "rte-theme-light",
+            Theme.Dark => "rte-theme-dark",
+            _ => "rte-theme-auto"
+        };
+    }
+
+    private string GetEditorStyle()
+    {
+        var styles = new List<string>();
+
+        if (!string.IsNullOrEmpty(Settings.Dimensions.Width))
+            styles.Add($"width: {Settings.Dimensions.Width}");
+
+        if (!string.IsNullOrEmpty(Settings.Dimensions.Height))
+            styles.Add($"min-height: {Settings.Dimensions.Height ?? "200px"}");
+
+        return string.Join("; ", styles);
+    }
+
+    private async Task HandleInputAsync()
+    {
+        await UpdateContentAsync();
+    }
+
+    private async Task HandleKeyDownAsync(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs args)
+    {
+        var keyboardArgs = new ZauberKeyboardEventArgs
+        {
+            Key = args.Key,
+            CtrlKey = args.CtrlKey,
+            ShiftKey = args.ShiftKey,
+            AltKey = args.AltKey,
+            MetaKey = args.MetaKey
+        };
+
+        // Note: Enter key is now handled entirely in JavaScript to prevent browser default behavior
+        // Handle keyboard shortcuts
+        if (await HandleKeyboardShortcutAsync(keyboardArgs))
+            keyboardArgs.Cancelled = true;
+        {
+            keyboardArgs.Cancelled = true;
+            // Prevent default behavior for handled shortcuts
+        }
+    }
+
+    private async Task HandlePasteAsync()
+    {
+        // The paste handling is now done via JavaScript callback
+        // This method is kept for the Blazor event binding but doesn't do anything
+        // since we handle paste in the JS callback method
+        await Task.CompletedTask;
+    }
+
+    private async Task HandleFocusAsync()
+    {
+        _currentState.HasFocus = true;
+        await UpdateStateAsync();
+    }
+
+    private async Task HandleBlurAsync()
+    {
+        _currentState.HasFocus = false;
+        await UpdateStateAsync();
+    }
+
+    private async Task HandleFocusOutAsync()
+    {
+        // Hide resize handles when focus leaves the editor
+        await JsRuntime.Image.HideResizeHandlesAsync(_editorId);
+    }
+
+    private async Task HandleSelectionChangeAsync()
+    {
+        await UpdateStateAsync();
+
+        var selectionArgs = new SelectionChangedArgs
+        {
+            Selection = await JsRuntime.Selection.GetSelectionAsync(_editorId),
+            EditorState = _currentState
+        };
+
+        await OnSelectionChanged.InvokeAsync(selectionArgs);
+    }
+
+    private async Task HandleDropAsync()
+    {
+        // Handle file drops for images
+        await Task.CompletedTask;
+    }
+
+    private async Task HandleDragOverAsync()
+    {
+        // Handle drag over for drop zone
+        await Task.CompletedTask;
+    }
+
+    private async Task HandleToolbarCommandAsync(string commandId)
+    {
+        var item = ToolbarDiscovery.GetItem(commandId);
+        if (item == null) return;
+
+        var api = new EditorApiImpl(this, JsRuntime, _editorId);
+        await item.ExecuteAsync(api);
+
+        // Update content after toolbar command execution
+        await UpdateContentAsync();
+
+        var commandArgs = new CommandExecutedArgs
+        {
+            Command = commandId,
+            Success = true
+        };
+
+        await OnCommandExecuted.InvokeAsync(commandArgs);
+    }
+
+    private async Task<bool> HandleKeyboardShortcutAsync(ZauberKeyboardEventArgs args)
+    {
+        // Check for keyboard shortcuts defined in settings
+        var shortcuts = Settings.Shortcuts;
+
+        if (args.MatchesShortcut(shortcuts.Bold))
+        {
+            await HandleToolbarCommandAsync("bold");
+            return true;
+        }
+
+        if (args.MatchesShortcut(shortcuts.Italic))
+        {
+            await HandleToolbarCommandAsync("italic");
+            return true;
+        }
+
+        if (args.MatchesShortcut(shortcuts.Underline))
+        {
+            await HandleToolbarCommandAsync("underline");
+            return true;
+        }
+
+        if (args.MatchesShortcut(shortcuts.Link))
+        {
+            await HandleToolbarCommandAsync("link");
+            return true;
+        }
+
+        if (args.MatchesShortcut(shortcuts.UnorderedList))
+        {
+            await HandleToolbarCommandAsync("ul");
+            return true;
+        }
+
+        if (args.MatchesShortcut(shortcuts.OrderedList))
+        {
+            await HandleToolbarCommandAsync("ol");
+            return true;
+        }
+
+        // Undo (Ctrl+Z)
+        if (args.CtrlKey && !args.ShiftKey && args.Key == "z")
+        {
+            await HandleToolbarCommandAsync("undo");
+            return true;
+        }
+
+        // Redo (Ctrl+Y or Ctrl+Shift+Z)
+        if ((args.CtrlKey && args.Key == "y") || (args.CtrlKey && args.ShiftKey && args.Key == "z"))
+        {
+            await HandleToolbarCommandAsync("redo");
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task UpdateContentAsync()
+    {
+        var html = await JsRuntime.Mutation.GetHtmlAsync(_editorId);
+        if (html != _currentHtml)
+        {
+            // Record the previous state for undo before changing
+            if (_currentHtml != null)
+            {
+                await JsRuntime.History.RecordStateAsync(_editorId);
+            }
+
+            _currentHtml = html;
+            await ValueChanged.InvokeAsync(html);
+
+            var changeArgs = new EditorChangeArgs
+            {
+                Html = html,
+                Text = await JsRuntime.Mutation.GetHtmlAsync(_editorId) // This should get text content
+            };
+
+            await OnChange.InvokeAsync(changeArgs);
+        }
+    }
+
+    private async Task UpdateStateAsync()
+    {
+        _currentState.ActiveMarks = await JsRuntime.Selection.GetActiveMarksAsync(_editorId);
+        _currentState.CurrentBlockType = await JsRuntime.Selection.GetCurrentBlockTypeAsync(_editorId);
+        _currentState.CurrentHeadingLevel = await JsRuntime.Selection.GetCurrentHeadingLevelAsync(_editorId);
+        _currentState.HasSelection = (await JsRuntime.Selection.GetSelectionAsync(_editorId))?.IsCollapsed == false;
+        _currentState.CanUndo = await JsRuntime.History.CanUndoAsync(_editorId);
+        _currentState.CanRedo = await JsRuntime.History.CanRedoAsync(_editorId);
+
+        // Update state with additional info as needed
+    }
+
+    // Public API methods for EditorApiImpl
+    internal EditorState GetCurrentState() => _currentState;
+    internal SelectionInfo? GetCurrentSelection() => null; // Would be implemented with JS interop
+    internal string? GetCurrentHtml() => _currentHtml;
+    internal string? GetCurrentText() => null; // Would extract text from HTML
+
+    internal async Task OpenPanelAsync(Type componentType, object? parameters = null)
+    {
+        if (_slideOutPanel != null)
+        {
+            await _slideOutPanel.OpenAsync(componentType, parameters);
+        }
+    }
+
+    internal async Task ClosePanelAsync()
+    {
+        if (_slideOutPanel != null)
+        {
+            await _slideOutPanel.CloseAsync();
+        }
+    }
+
+    internal async Task ToggleSourceViewAsync()
+    {
+        if (_isSourceView)
+        {
+            // Switching from source view to rich text view
+            if (_sourceViewContent != null)
+            {
+                await SetContentAsync(_sourceViewContent);
+            }
+        }
+        else
+        {
+            // Switching from rich text view to source view
+            _sourceViewContent = await JsRuntime.Mutation.GetHtmlAsync(_editorId) ?? _currentHtml;
+        }
+
+        _isSourceView = !_isSourceView;
+        _currentState.IsSourceView = _isSourceView;
+        await UpdateStateAsync();
+        StateHasChanged();
+    }
+
+    internal async Task ShowToastAsync(string message, ToastType type = ToastType.Info)
+    {
+        // Would show toast notification - placeholder implementation
+        Console.WriteLine($"Toast ({type}): {message}");
+        await Task.CompletedTask;
+    }
+
+    internal async Task FocusAsync()
+    {
+        await JsRuntime.Mutation.StartObservingAsync(_editorId); // Placeholder
+    }
+
+    public void Dispose()
+    {
+        // Cleanup JS resources
+        if (_isInitialized)
+        {
+            // JsRuntime.Mutation.StopObservingAsync(_editorId).Wait();
+        }
+    }
+}
+
+<script src="_content/Zauber.RTE/js/lib/purify.min.js"></script>
+<script src="_content/Zauber.RTE/js/zauber-rte.js"></script>

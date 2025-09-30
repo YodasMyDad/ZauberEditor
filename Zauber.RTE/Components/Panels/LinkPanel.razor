@@ -1,0 +1,109 @@
+@using Zauber.RTE.Models
+@implements IDisposable
+
+<div class="rte-panel-content">
+    <h3 class="rte-panel-title">Insert Link</h3>
+
+    <div class="rte-form-group">
+        <label for="link-url" class="rte-label">URL</label>
+        <input type="url"
+               id="link-url"
+               class="rte-input"
+               @bind="_url"
+               placeholder="https://example.com" />
+    </div>
+
+    <div class="rte-form-group">
+        <label for="link-text" class="rte-label">Link Text</label>
+        <input type="text"
+               id="link-text"
+               class="rte-input"
+               @bind="_text"
+               placeholder="Link text" />
+    </div>
+
+    <div class="rte-form-group">
+        <label class="rte-checkbox-label">
+            <input type="checkbox" @bind="_openInNewTab" />
+            <span class="rte-checkbox-mark"></span>
+            Open in new tab
+        </label>
+    </div>
+
+    <div class="rte-panel-actions">
+        <button type="button"
+                class="rte-btn rte-btn-secondary"
+                @onclick="CancelAsync">
+            Cancel
+        </button>
+        <button type="button"
+                class="rte-btn rte-btn-primary"
+                @onclick="InsertAsync"
+                disabled="@(string.IsNullOrEmpty(_url) || string.IsNullOrEmpty(_text))">
+            Insert Link
+        </button>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] public EditorApi? Api { get; set; }
+
+    private string _url = string.Empty;
+    private string _text = string.Empty;
+    private bool _openInNewTab;
+
+    protected override void OnInitialized()
+    {
+        // Try to get selected text as default link text
+        if (Api != null)
+        {
+            var selection = Api.GetSelection();
+            if (selection != null && !string.IsNullOrEmpty(selection.SelectedText))
+            {
+                _text = selection.SelectedText;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task InsertAsync()
+    {
+        if (Api == null || string.IsNullOrEmpty(_url) || string.IsNullOrEmpty(_text)) return;
+
+        try
+        {
+            var attrs = new Dictionary<string, string>
+            {
+                ["href"] = _url
+            };
+
+            if (_openInNewTab)
+            {
+                attrs["target"] = "_blank";
+                attrs["rel"] = "noopener noreferrer";
+            }
+
+            await Api.WrapSelectionAsync("a", attrs);
+            await Api.InsertTextAsync(_text);
+            await Api.ClosePanelAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log error and show toast
+            await Api.ShowToastAsync($"Failed to insert link: {ex.Message}", ToastType.Error);
+        }
+    }
+
+    private async Task CancelAsync()
+    {
+        if (Api != null)
+        {
+            await Api.ClosePanelAsync();
+        }
+    }
+
+    void IDisposable.Dispose()
+    {
+        // Cleanup if needed
+    }
+}
