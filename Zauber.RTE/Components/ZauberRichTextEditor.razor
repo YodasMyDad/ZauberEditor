@@ -49,18 +49,21 @@
                  style="@GetEditorStyle()"
                  id="@(_editorId + "-content")">
             </div>
+            
+            <div class="rte-resize-handle" title="Drag to resize"></div>
 
             @if (Settings.Capabilities.EmbedsAndMedia)
             {
-                <div class="rte-drop-zone" @ondrop="HandleDropAsync" @ondragover="HandleDragOverAsync">
+                <div class="rte-drop-zone" style="display: none;" @ondrop="HandleDropAsync" @ondragover="HandleDragOverAsync">
                     <span>Drop images here</span>
                 </div>
             }
         }
     </div>
 
-    <SlideOutPanel @ref="_slideOutPanel" Api="@_editorApi" />
 </div>
+
+<SlideOutPanel @ref="_slideOutPanel" Api="@_editorApi" />
 
 @code {
     private ElementReference _contentEditableRef;
@@ -84,10 +87,11 @@
     [Parameter] public EventCallback<PasteArgs> OnPaste { get; set; }
     [Parameter] public EventCallback<ImageResizedArgs> OnImageResized { get; set; }
     [Parameter] public EventCallback<CommandExecutedArgs> OnCommandExecuted { get; set; }
+    [Parameter] public EventCallback OnFocus { get; set; }
+    [Parameter] public EventCallback OnBlur { get; set; }
 
     // Config
     [Parameter] public EditorSettings Settings { get; set; } = new();
-    [Parameter] public ToolbarLayout ToolbarLayout { get; set; } = ToolbarLayout.Default;
     [Parameter] public Theme Theme { get; set; } = Theme.Auto;
     [Parameter] public bool ReadOnly { get; set; }
 
@@ -157,8 +161,11 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        // Always update settings
-        Settings.ToolbarLayout = ToolbarLayout;
+        // Set theme from settings if not explicitly set
+        if (Theme == Theme.Auto && Settings.DefaultTheme != Theme.Auto)
+        {
+            Theme = Settings.DefaultTheme;
+        }
 
         // Set content if the value has changed
         if (Value != _currentHtml)
@@ -277,11 +284,12 @@
         // Note: Enter key is now handled entirely in JavaScript to prevent browser default behavior
         // Handle keyboard shortcuts
         if (await HandleKeyboardShortcutAsync(keyboardArgs))
-            keyboardArgs.Cancelled = true;
         {
             keyboardArgs.Cancelled = true;
             // Prevent default behavior for handled shortcuts
         }
+
+        await OnKeyDown.InvokeAsync(keyboardArgs);
     }
 
     private async Task HandlePasteAsync()
@@ -296,12 +304,14 @@
     {
         _currentState.HasFocus = true;
         await UpdateStateAsync();
+        await OnFocus.InvokeAsync();
     }
 
     private async Task HandleBlurAsync()
     {
         _currentState.HasFocus = false;
         await UpdateStateAsync();
+        await OnBlur.InvokeAsync();
     }
 
     private async Task HandleFocusOutAsync()
@@ -337,6 +347,19 @@
 
     private async Task HandleToolbarCommandAsync(string commandId)
     {
+        // Handle theme toggle specially
+        if (commandId == "themeToggle")
+        {
+            Theme = Theme switch
+            {
+                Theme.Light => Theme.Dark,
+                Theme.Dark => Theme.Light,
+                _ => Theme.Light
+            };
+            StateHasChanged();
+            return;
+        }
+
         var item = ToolbarDiscovery.GetItem(commandId);
         if (item == null) return;
 
@@ -476,10 +499,8 @@
         if (_isSourceView)
         {
             // Switching from source view to rich text view
-            if (_sourceViewContent != null)
-            {
-                await SetContentAsync(_sourceViewContent);
-            }
+            await JsRuntime.Mutation.SetHtmlAsync(_editorId, _sourceViewContent ?? "");
+            _currentHtml = _sourceViewContent;
         }
         else
         {

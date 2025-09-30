@@ -223,7 +223,7 @@ window.ZauberRTE = {
             if (currentBlock && currentBlock.tagName?.toLowerCase() === 'li') {
                 // In a list item - create new list item
                 const newLi = document.createElement('li');
-                newLi.innerHTML = '&nbsp;';
+                newLi.innerHTML = '<br>';
                 currentBlock.parentNode.insertBefore(newLi, currentBlock.nextSibling);
 
                 // Move cursor to new list item
@@ -232,33 +232,35 @@ window.ZauberRTE = {
                 selection.removeAllRanges();
                 selection.addRange(range);
             } else {
-                // Simple approach: split current paragraph and insert empty paragraph
-                const newParagraph = document.createElement('p');
-
-                // Extract any content after the cursor
+                // Split current paragraph at cursor position
+                // Extract content after the cursor
                 const contentAfter = range.extractContents();
-
-                if (contentAfter.textContent?.trim()) {
-                    // There is content after cursor - create a new paragraph for it
-                    const remainingParagraph = document.createElement('p');
-                    remainingParagraph.appendChild(contentAfter);
-                    // Clean up any unnecessary spans in the remaining paragraph
-                    this.cleanUnnecessarySpans(remainingParagraph);
-                    currentBlock.parentNode.insertBefore(remainingParagraph, currentBlock.nextSibling);
-                    // Insert empty paragraph before the remaining content
-                    currentBlock.parentNode.insertBefore(newParagraph, remainingParagraph);
+                
+                // Create new paragraph for the content after cursor
+                const newParagraph = document.createElement('p');
+                
+                if (contentAfter.textContent?.trim() || contentAfter.childNodes.length > 0) {
+                    // There is content after cursor - move it to new paragraph
+                    newParagraph.appendChild(contentAfter);
+                    // Clean up any unnecessary spans
+                    this.cleanUnnecessarySpans(newParagraph);
                 } else {
-                    // No content after cursor - just insert empty paragraph after current block
-                    currentBlock.parentNode.insertBefore(newParagraph, currentBlock.nextSibling);
+                    // No content after cursor - create empty paragraph
+                    newParagraph.innerHTML = '<br>';
                 }
-
-                // Clean up any unnecessary spans in the current block
+                
+                // Clean up current block
                 this.cleanUnnecessarySpans(currentBlock);
+                
+                // If current block is now empty, add br
+                if (!currentBlock.textContent?.trim() && currentBlock.children.length === 0) {
+                    currentBlock.innerHTML = '<br>';
+                }
+                
+                // Insert new paragraph after current block
+                currentBlock.parentNode.insertBefore(newParagraph, currentBlock.nextSibling);
 
-                // Add non-breaking space to make the paragraph visible
-                newParagraph.innerHTML = '&nbsp;';
-
-                // Move cursor to new paragraph (before the &nbsp;)
+                // Move cursor to start of new paragraph
                 range.setStart(newParagraph, 0);
                 range.setEnd(newParagraph, 0);
                 selection.removeAllRanges();
@@ -425,7 +427,7 @@ window.ZauberRTE = {
                     // Handle special cases
                     switch (tagName) {
                         case 'pre':
-                            return 'codeblock';
+                            return 'pre';
                         case 'li':
                             // Check parent for list type
                             const parent = element.parentElement;
@@ -806,22 +808,41 @@ window.ZauberRTE = {
 
             // Move content to new block
             let hasContent = false;
-            while (currentBlock.firstChild) {
-                hasContent = true;
-                if (newBlock.tagName.toLowerCase() === 'pre' && newBlock.firstChild) {
-                    // For code blocks, move content into the code element
-                    newBlock.firstChild.appendChild(currentBlock.firstChild);
-                } else if (newBlock.tagName.toLowerCase() === 'ul' || newBlock.tagName.toLowerCase() === 'ol') {
-                    // For lists, move content into the li element
-                    newBlock.firstChild.appendChild(currentBlock.firstChild);
+            
+            // Special handling when converting FROM pre to p - extract text from code tag
+            if (currentBlock.tagName?.toLowerCase() === 'pre' && blockType === 'p') {
+                const codeElement = currentBlock.querySelector('code');
+                if (codeElement) {
+                    // Extract text content from code element
+                    const textContent = codeElement.textContent || '';
+                    newBlock.textContent = textContent;
+                    hasContent = textContent.length > 0;
                 } else {
-                    newBlock.appendChild(currentBlock.firstChild);
+                    // No code element, just move content
+                    while (currentBlock.firstChild) {
+                        hasContent = true;
+                        newBlock.appendChild(currentBlock.firstChild);
+                    }
+                }
+            } else {
+                // Normal content transfer
+                while (currentBlock.firstChild) {
+                    hasContent = true;
+                    if (newBlock.tagName.toLowerCase() === 'pre' && newBlock.firstChild) {
+                        // For code blocks, move content into the code element
+                        newBlock.firstChild.appendChild(currentBlock.firstChild);
+                    } else if (newBlock.tagName.toLowerCase() === 'ul' || newBlock.tagName.toLowerCase() === 'ol') {
+                        // For lists, move content into the li element
+                        newBlock.firstChild.appendChild(currentBlock.firstChild);
+                    } else {
+                        newBlock.appendChild(currentBlock.firstChild);
+                    }
                 }
             }
 
-            // If creating a list and there's no content, add &nbsp; to the li element
+            // If creating a list and there's no content, add br to the li element
             if ((newBlock.tagName.toLowerCase() === 'ul' || newBlock.tagName.toLowerCase() === 'ol') && !hasContent) {
-                newBlock.firstChild.innerHTML = '&nbsp;';
+                newBlock.firstChild.innerHTML = '<br>';
             }
 
             // Replace the old block
@@ -878,8 +899,11 @@ window.ZauberRTE = {
             if (!selection.rangeCount) return;
 
             const range = selection.getRangeAt(0);
-            const editor = document.getElementById(editorId);
+            const editor = document.getElementById(editorId + '-content');
             if (!editor) return;
+
+            // If selection is collapsed, nothing to clear
+            if (range.collapsed) return;
 
             // Get the selected content
             const fragment = range.extractContents();
@@ -894,8 +918,11 @@ window.ZauberRTE = {
                 const elements = tempDiv.querySelectorAll(tag);
                 elements.forEach(element => {
                     // Replace with text content
-                    const textNode = document.createTextNode(element.textContent || '');
-                    element.parentNode.replaceChild(textNode, element);
+                    const parent = element.parentNode;
+                    while (element.firstChild) {
+                        parent.insertBefore(element.firstChild, element);
+                    }
+                    parent.removeChild(element);
                 });
             });
 
@@ -906,13 +933,24 @@ window.ZauberRTE = {
                 element.removeAttribute('class');
             });
 
-            // Insert the cleaned content
-            range.insertNode(tempDiv);
+            // Insert the cleaned content back
+            const insertedNodes = [];
+            while (tempDiv.firstChild) {
+                const node = tempDiv.firstChild;
+                range.insertNode(node);
+                insertedNodes.push(node);
+                range.setStartAfter(node);
+                range.setEndAfter(node);
+            }
 
             // Restore selection
-            range.selectNodeContents(tempDiv);
-            selection.removeAllRanges();
-            selection.addRange(range);
+            if (insertedNodes.length > 0) {
+                const newRange = document.createRange();
+                newRange.setStartBefore(insertedNodes[0]);
+                newRange.setEndAfter(insertedNodes[insertedNodes.length - 1]);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+            }
         },
 
         setupEnterKeyListener: function(editorId) {
@@ -1006,8 +1044,8 @@ window.ZauberRTE = {
                 // Find the paragraph containing the cursor
                 while (currentElement && currentElement !== editor) {
                     if (currentElement.tagName?.toLowerCase() === 'p') {
-                        // Check if this paragraph contains only &nbsp; or is empty
-                        if (currentElement.innerHTML === '&nbsp;' ||
+                        // Check if this paragraph contains only &nbsp;/br or is empty
+                        if (currentElement.innerHTML === '&nbsp;' || currentElement.innerHTML === '<br>' ||
                             (currentElement.textContent?.trim() === '' && currentElement.children.length === 0)) {
 
                             // Check if there are other paragraphs
@@ -1061,7 +1099,7 @@ window.ZauberRTE = {
                         const isAtEnd = textNodes.length === 0 ||
                                        (textNodes.length === 1 && textNodes[0].length === range.startOffset);
 
-                        if (isAtEnd && currentElement.innerHTML === '&nbsp;') {
+                        if (isAtEnd && (currentElement.innerHTML === '&nbsp;' || currentElement.innerHTML === '<br>')) {
                             // Check if there are other paragraphs
                             const allParagraphs = editor.querySelectorAll('p');
                             if (allParagraphs.length > 1) {
@@ -1113,7 +1151,7 @@ window.ZauberRTE = {
                 // Find all paragraphs that contain only &nbsp; and are not the currently focused one
                 const paragraphs = editor.querySelectorAll('p');
                 paragraphs.forEach(p => {
-                    if (p !== target && p.innerHTML === '&nbsp;' && p.textContent?.trim() === '') {
+                    if (p !== target && (p.innerHTML === '&nbsp;' || p.innerHTML === '<br>') && p.textContent?.trim() === '') {
                         // This is an empty paragraph with only &nbsp; that's not focused - clean it up
                         // But we need to be careful not to remove the last paragraph
                         const allParagraphs = editor.querySelectorAll('p');
@@ -1795,7 +1833,7 @@ window.ZauberRTE = {
         ensureParagraphStructure: function(contentEditable) {
             // If content is empty, add a default paragraph
             if (!contentEditable.innerHTML.trim()) {
-                contentEditable.innerHTML = '<p>&nbsp;</p>';
+                contentEditable.innerHTML = '<p><br></p>';
                 return;
             }
 
@@ -1904,7 +1942,7 @@ window.ZauberRTE = {
         },
 
         recordState: function(editorId) {
-            const editor = document.getElementById(editorId);
+            const editor = document.getElementById(editorId + '-content');
             if (!editor) return;
 
             const history = this._getHistory(editorId);
@@ -1931,7 +1969,7 @@ window.ZauberRTE = {
         },
 
         undo: function(editorId) {
-            const editor = document.getElementById(editorId);
+            const editor = document.getElementById(editorId + '-content');
             if (!editor) return false;
 
             const history = this._getHistory(editorId);
@@ -1954,7 +1992,7 @@ window.ZauberRTE = {
         },
 
         redo: function(editorId) {
-            const editor = document.getElementById(editorId);
+            const editor = document.getElementById(editorId + '-content');
             if (!editor) return false;
 
             const history = this._getHistory(editorId);

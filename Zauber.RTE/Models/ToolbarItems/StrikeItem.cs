@@ -11,7 +11,7 @@ public class StrikeItem : ToolbarItemBase
     public override string Id => "strike";
     public override string Label => "Strikethrough";
     public override string Tooltip => "Strikethrough";
-    public override string IconClass => "fa-strikethrough";
+    public override string IconCss => "fa-strikethrough";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
 

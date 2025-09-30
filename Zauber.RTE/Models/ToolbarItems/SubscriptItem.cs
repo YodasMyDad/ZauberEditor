@@ -10,7 +10,7 @@ public class SubscriptItem : ToolbarItemBase
 {
     public override string Id => "subscript";
     public override string Label => "Subscript";
-    public override string IconClass => "fa-subscript";
+    public override string IconCss => "fa-subscript";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
 

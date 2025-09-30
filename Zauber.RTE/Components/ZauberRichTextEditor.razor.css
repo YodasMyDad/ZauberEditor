@@ -16,8 +16,8 @@
 }
 
 .zauber-rte:focus-within {
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    border-color: #3b82f6;
+    box-shadow: none;
+    border-color: #cbd5e1;
 }
 
 .zauber-rte.rte-theme-dark {
@@ -26,16 +26,7 @@
     color: #f9fafb;
 }
 
-/* Toolbar */
-.rte-toolbar {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.75rem;
-    border-bottom: 1px solid #f1f5f9;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-    position: relative;
-}
+/* Toolbar - already defined below with proper row layout */
 
 .rte-toolbar::before {
     content: '';
@@ -56,100 +47,146 @@
     background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%);
 }
 
-.rte-toolbar-row {
+::deep .rte-toolbar-row {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.125rem !important;
+    padding-right: 0.75rem !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    align-items: center !important;
+}
+
+::deep .rte-toolbar-row:last-child {
+    border-right: none !important;
+    padding-right: 0 !important;
+}
+
+.rte-theme-dark ::deep .rte-toolbar-row {
+    border-right-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Make toolbar rows wrap horizontally with separators */
+.rte-toolbar {
     display: flex;
-    gap: 0.125rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    position: relative;
+}
+
+@media (max-width: 768px) {
+    .rte-toolbar {
+        flex-direction: column;
+    }
+    
+    .rte-toolbar-row {
+        border-right: none;
+        padding-right: 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .rte-toolbar-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
 }
 
 /* Toolbar Buttons */
-.rte-toolbar-btn {
+::deep .rte-toolbar-btn {
     display: flex !important;
-    align-items: center;
-    justify-content: center;
+    align-items: center !important;
+    justify-content: center !important;
     width: 2.25rem !important;
     height: 2.25rem !important;
     min-width: 2.25rem !important;
     min-height: 2.25rem !important;
     max-width: 2.25rem !important;
     max-height: 2.25rem !important;
-    border: 1px solid transparent;
-    border-radius: 0.375rem;
-    background: rgba(255, 255, 255, 0.8);
-    color: #475569;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    backdrop-filter: blur(8px);
-    position: relative;
-    overflow: hidden;
+    border: none !important;
+    border-radius: 0.375rem !important;
+    background: transparent !important;
+    color: #475569 !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
     box-sizing: border-box !important;
     padding: 0 !important;
     margin: 0 !important;
+    line-height: 1 !important;
+    font-size: 0.875rem !important;
+    text-decoration: none !important;
+    font-weight: 400 !important;
 }
 
-.rte-toolbar-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
-    opacity: 0;
-    transition: opacity 0.2s ease;
+::deep .rte-toolbar-btn::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%) !important;
+    opacity: 0 !important;
+    transition: opacity 0.2s ease !important;
+    border: none !important;
 }
 
-.rte-toolbar-btn:hover {
-    background: rgba(255, 255, 255, 0.95);
-    border-color: #e2e8f0;
-    color: #334155;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.1);
+::deep .rte-toolbar-btn:hover {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
 }
 
-.rte-toolbar-btn:hover::before {
-    opacity: 1;
+::deep .rte-toolbar-btn:hover::before {
+    opacity: 1 !important;
 }
 
-.rte-toolbar-btn:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+::deep .rte-toolbar-btn:focus {
+    outline: none !important;
+    box-shadow: none !important;
 }
 
-.rte-toolbar-btn.rte-btn-active {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
-    box-shadow: 0 2px 4px -1px rgba(59, 130, 246, 0.4);
+::deep .rte-toolbar-btn.rte-btn-active {
+    background: #3b82f6 !important;
+    color: white !important;
 }
 
-.rte-toolbar-btn.rte-btn-active:hover {
-    background: #2563eb;
-    border-color: #2563eb;
+::deep .rte-toolbar-btn.rte-btn-active:hover {
+    background: #2563eb !important;
 }
 
-.rte-toolbar-btn.rte-btn-disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+::deep .rte-toolbar-btn.rte-btn-disabled {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
-.zauber-rte.rte-theme-dark .rte-toolbar-btn {
-    background: rgba(30, 41, 59, 0.8);
-    color: #cbd5e1;
-    border-color: rgba(71, 85, 105, 0.3);
+.rte-theme-dark ::deep .rte-toolbar-btn {
+    background: transparent !important;
+    color: #f9fafb !important;
 }
 
-.zauber-rte.rte-theme-dark .rte-toolbar-btn:hover {
-    background: rgba(51, 65, 85, 0.9);
-    border-color: #475569;
-    color: #f1f5f9;
+.rte-theme-dark ::deep .rte-toolbar-btn i {
+    color: #f9fafb !important;
 }
 
-.zauber-rte.rte-theme-dark .rte-toolbar-btn.rte-btn-active {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
+.rte-theme-dark ::deep .rte-toolbar-btn .rte-heading-label {
+    color: #f9fafb !important;
+}
+
+.rte-theme-dark ::deep .rte-toolbar-btn:hover {
+    background: #334155 !important;
+    color: #f1f5f9 !important;
+}
+
+.rte-theme-dark ::deep .rte-toolbar-btn.rte-btn-active {
+    background: #3b82f6 !important;
+    color: white !important;
 }
 
 /* Toolbar Icons */
@@ -165,9 +202,41 @@
     line-height: 1;
 }
 
+/* Heading Labels */
+.rte-heading-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 /* Editor Container */
 .rte-editor-container {
     position: relative;
+}
+
+/* Resize Handle */
+.rte-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 0%, transparent 50%, #cbd5e1 50%, #cbd5e1 100%);
+    border-bottom-right-radius: 0.75rem;
+}
+
+.rte-resize-handle:hover {
+    background: linear-gradient(135deg, transparent 0%, transparent 50%, #94a3b8 50%, #94a3b8 100%);
+}
+
+.zauber-rte.rte-theme-dark .rte-resize-handle {
+    background: linear-gradient(135deg, transparent 0%, transparent 50%, #4b5563 50%, #4b5563 100%);
+}
+
+.zauber-rte.rte-theme-dark .rte-resize-handle:hover {
+    background: linear-gradient(135deg, transparent 0%, transparent 50%, #6b7280 50%, #6b7280 100%);
 }
 
 /* Content Editable */
@@ -183,7 +252,7 @@
 }
 
 .rte-content:focus {
-    outline: none;
+    outline: none !important;
 }
 
 .rte-content:empty::before {
@@ -292,22 +361,22 @@
 }
 
 /* Panel form styles */
-.rte-panel-content {
+::deep .rte-panel-content {
     padding: 0;
 }
 
-.rte-panel-title {
+::deep .rte-panel-title {
     margin: 0 0 1rem 0;
     font-size: 1.125rem;
     font-weight: 600;
     color: inherit;
 }
 
-.rte-form-group {
+::deep .rte-form-group {
     margin-bottom: 1rem;
 }
 
-.rte-label {
+::deep .rte-label {
     display: block;
     margin-bottom: 0.5rem;
     font-size: 0.875rem;
@@ -315,7 +384,7 @@
     color: inherit;
 }
 
-.rte-input {
+::deep .rte-input {
     width: 100%;
     padding: 0.5rem 0.75rem;
     border: 1px solid #d1d5db;
@@ -337,7 +406,7 @@
     border-color: #3b82f6;
 }
 
-.rte-checkbox-label {
+::deep .rte-checkbox-label {
     display: flex;
     align-items: center;
     cursor: pointer;
@@ -345,13 +414,13 @@
     color: inherit;
 }
 
-.rte-checkbox-label input[type="checkbox"] {
+::deep .rte-checkbox-label input[type="checkbox"] {
     position: absolute;
     opacity: 0;
     cursor: pointer;
 }
 
-.rte-checkbox-mark {
+::deep .rte-checkbox-mark {
     display: inline-block;
     width: 1rem;
     height: 1rem;
@@ -383,7 +452,7 @@
     font-weight: bold;
 }
 
-.rte-panel-actions {
+::deep .rte-panel-actions {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
@@ -396,44 +465,44 @@
     border-color: #374151;
 }
 
-.rte-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 1rem;
-    border: 1px solid transparent;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.15s ease;
+::deep .rte-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0.5rem 1rem !important;
+    border: 1px solid transparent !important;
+    border-radius: 0.375rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
 }
 
-.rte-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+::deep .rte-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
 }
 
-.rte-btn-primary {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
+::deep .rte-btn-primary {
+    background: #3b82f6 !important;
+    color: white !important;
+    border-color: #3b82f6 !important;
 }
 
-.rte-btn-primary:hover:not(:disabled) {
-    background: #2563eb;
-    border-color: #2563eb;
+::deep .rte-btn-primary:hover:not(:disabled) {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
 }
 
-.rte-btn-secondary {
-    background: white;
-    color: #374151;
-    border-color: #d1d5db;
+::deep .rte-btn-secondary {
+    background: white !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
 }
 
-.rte-btn-secondary:hover:not(:disabled) {
-    background: #f9fafb;
-    border-color: #9ca3af;
+::deep .rte-btn-secondary:hover:not(:disabled) {
+    background: #f9fafb !important;
+    border-color: #9ca3af !important;
 }
 
 .zauber-rte.rte-theme-dark .rte-btn-secondary {
@@ -446,11 +515,7 @@
     background: #4b5563;
 }
 
-/* Focus and accessibility */
-.rte-content:focus {
-    outline: 2px solid #3b82f6;
-    outline-offset: -2px;
-}
+/* Focus and accessibility removed - handled above */
 
 /* Image resize handles */
 .rte-image-resize-handles {

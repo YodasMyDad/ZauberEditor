@@ -11,7 +11,7 @@ public class CodeItem : ToolbarItemBase
     public override string Id => "code";
     public override string Label => "Code";
     public override string Tooltip => "Code";
-    public override string IconClass => "fa-code";
+    public override string IconCss => "fa-code";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
 

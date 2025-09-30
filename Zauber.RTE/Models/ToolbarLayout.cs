@@ -41,9 +41,10 @@ public class ToolbarLayout
     /// Full toolbar layout with all available items
     /// </summary>
     public static ToolbarLayout Full => FromRows(
-        ["viewSource", "h1", "h2", "h3", "bold", "italic", "underline", "strike", "subscript", "superscript", "clear"],
+        ["undo", "redo", "viewSource", "themeToggle"],
+        ["h1", "h2", "h3", "paragraph", "bold", "italic", "underline", "strike", "subscript", "superscript", "code", "clear"],
         ["alignLeft", "alignCenter", "alignRight", "justified"],
-        ["ul", "ol", "blockquote", "codeBlock", "table", "link", "image", "upload"]
+        ["ul", "ol", "blockquote", "codeBlock", "table", "link", "image"]
     );
 
     /// <summary>

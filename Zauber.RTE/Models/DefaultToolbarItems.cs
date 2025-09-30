@@ -39,6 +39,7 @@ public static class DefaultToolbarItems
         yield return new RedoItem();
         yield return new ViewSourceItem();
         yield return new SettingsItem();
+        yield return new ThemeToggleItem();
     }
 }
 

@@ -38,6 +38,11 @@ public class EditorSettings
     public ShortcutMap Shortcuts { get; set; } = new();
 
     /// <summary>
+    /// Default theme for the editor
+    /// </summary>
+    public Theme DefaultTheme { get; set; } = Theme.Auto;
+
+    /// <summary>
     /// Creates a default settings configuration suitable for CMS usage
     /// </summary>
     public static EditorSettings CmsDefault() => new()

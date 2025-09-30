@@ -10,7 +10,7 @@ public class ParagraphItem : ToolbarItemBase
 {
     public override string Id => "paragraph";
     public override string Label => "Paragraph";
-    public override string IconClass => "fa-paragraph";
+    public override string IconCss => "fa-paragraph";
     public override ToolbarPlacement Placement => ToolbarPlacement.Block;
     public override bool IsToggle => true;
 

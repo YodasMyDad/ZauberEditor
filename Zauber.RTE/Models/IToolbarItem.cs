@@ -28,7 +28,7 @@ public interface IToolbarItem
     /// <summary>
     /// Font Awesome icon class (e.g., "fa-bold", "fa-align-left")
     /// </summary>
-    string IconClass { get; }
+    string IconCss { get; }
 
     /// <summary>
     /// Whether this is a toggle item (can be on/off)
@@ -65,7 +65,7 @@ public abstract class ToolbarItemBase : IToolbarItem
     public abstract string Label { get; }
     public virtual string? Tooltip => null;
     public abstract ToolbarPlacement Placement { get; }
-    public abstract string IconClass { get; }
+    public abstract string IconCss { get; }
     public virtual bool IsToggle => false;
     public virtual Type? PanelComponent => null;
 

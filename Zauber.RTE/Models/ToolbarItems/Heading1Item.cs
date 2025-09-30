@@ -10,10 +10,21 @@ public class Heading1Item : ToolbarItemBase
 {
     public override string Id => "h1";
     public override string Label => "Heading 1";
-    public override string IconClass => "fa-heading";
+    public override string IconCss => "fa-heading";
     public override ToolbarPlacement Placement => ToolbarPlacement.Block;
     public override bool IsToggle => true;
 
     public override bool IsActive(EditorState state) => state.CurrentBlockType == "heading" && state.CurrentHeadingLevel == 1;
-    public override Task ExecuteAsync(EditorApi api) => api.SetBlockTypeAsync("heading", new() { ["level"] = "1" });
+    public override async Task ExecuteAsync(EditorApi api)
+    {
+        // Toggle: if already H1, convert to paragraph
+        if (IsActive(api.GetState()))
+        {
+            await api.SetBlockTypeAsync("p", null);
+        }
+        else
+        {
+            await api.SetBlockTypeAsync("h1", null);
+        }
+    }
 }

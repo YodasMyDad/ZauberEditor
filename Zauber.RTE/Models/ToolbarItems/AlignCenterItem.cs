@@ -10,7 +10,7 @@ public class AlignCenterItem : ToolbarItemBase
 {
     public override string Id => "alignCenter";
     public override string Label => "Align Center";
-    public override string IconClass => "fa-align-center";
+    public override string IconCss => "fa-align-center";
     public override ToolbarPlacement Placement => ToolbarPlacement.Block;
 
     public override bool IsActive(EditorState state) => state.CurrentAlignment == TextAlignment.Center;

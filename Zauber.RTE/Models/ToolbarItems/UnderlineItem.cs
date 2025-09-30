@@ -11,7 +11,7 @@ public class UnderlineItem : ToolbarItemBase
     public override string Id => "underline";
     public override string Label => "Underline";
     public override string Tooltip => "Underline (Ctrl+U)";
-    public override string IconClass => "fa-underline";
+    public override string IconCss => "fa-underline";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
 

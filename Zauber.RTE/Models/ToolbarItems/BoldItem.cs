@@ -11,7 +11,7 @@ public class BoldItem : ToolbarItemBase
     public override string Id => "bold";
     public override string Label => "Bold";
     public override string Tooltip => "Bold (Ctrl+B)";
-    public override string IconClass => "fa-bold";
+    public override string IconCss => "fa-bold";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
 

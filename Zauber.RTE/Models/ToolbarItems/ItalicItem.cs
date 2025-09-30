@@ -11,7 +11,7 @@ public class ItalicItem : ToolbarItemBase
     public override string Id => "italic";
     public override string Label => "Italic";
     public override string Tooltip => "Italic (Ctrl+I)";
-    public override string IconClass => "fa-italic";
+    public override string IconCss => "fa-italic";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
 

@@ -11,7 +11,7 @@ public class OrderedListItem : ToolbarItemBase
     public override string Id => "ol";
     public override string Label => "Numbered List";
     public override string Tooltip => "Ordered List (Ctrl+Shift+7)";
-    public override string IconClass => "fa-list-ol";
+    public override string IconCss => "fa-list-ol";
     public override ToolbarPlacement Placement => ToolbarPlacement.Block;
     public override bool IsToggle => true;
 

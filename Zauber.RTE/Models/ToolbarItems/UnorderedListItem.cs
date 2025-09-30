@@ -11,7 +11,7 @@ public class UnorderedListItem : ToolbarItemBase
     public override string Id => "ul";
     public override string Label => "Bullet List";
     public override string Tooltip => "Unordered List (Ctrl+Shift+8)";
-    public override string IconClass => "fa-list-ul";
+    public override string IconCss => "fa-list-ul";
     public override ToolbarPlacement Placement => ToolbarPlacement.Block;
     public override bool IsToggle => true;
 

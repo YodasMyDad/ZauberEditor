@@ -3,11 +3,20 @@
 <button type="button"
         class="rte-toolbar-btn @GetButtonClasses()"
         @onclick="HandleClick"
+        @onclick:preventDefault="true"
+        @onclick:stopPropagation="true"
         disabled="@(!IsEnabled)"
         aria-pressed="@(Item.IsToggle ? IsActive.ToString().ToLower() : null)"
         aria-label="@Item.Label"
         title="@GetTooltipText()">
-    <i class="fas @Item.IconClass" aria-hidden="true"></i>
+    @if (Item.Id == "h1" || Item.Id == "h2" || Item.Id == "h3")
+    {
+        <span class="rte-heading-label">@Item.Id.ToUpper()</span>
+    }
+    else
+    {
+        <i class="fas @Item.IconCss" aria-hidden="true"></i>
+    }
 </button>
 
 @code {
@@ -18,7 +27,7 @@
 
     private string GetButtonClasses()
     {
-        var classes = new List<string> { "rte-btn" };
+        var classes = new List<string>();
 
         if (Item.IsToggle && IsActive)
         {

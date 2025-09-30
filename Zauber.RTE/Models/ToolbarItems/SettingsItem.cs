@@ -10,8 +10,8 @@ public class SettingsItem : ToolbarItemBase
 {
     public override string Id => "settings";
     public override string Label => "Settings";
-    public override string IconClass => "fa-cog";
-    public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
+    public override string IconCss => "fa-cog";
+    public override ToolbarPlacement Placement => ToolbarPlacement.Custom;
     public override Type? PanelComponent => typeof(Zauber.RTE.Components.ZauberRteSettings);
 
     public override Task ExecuteAsync(EditorApi api) => api.OpenPanelAsync(typeof(Zauber.RTE.Components.ZauberRteSettings));

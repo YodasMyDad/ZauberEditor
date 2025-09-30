@@ -10,7 +10,7 @@ public class SuperscriptItem : ToolbarItemBase
 {
     public override string Id => "superscript";
     public override string Label => "Superscript";
-    public override string IconClass => "fa-superscript";
+    public override string IconCss => "fa-superscript";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
 

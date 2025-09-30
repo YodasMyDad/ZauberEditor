@@ -10,7 +10,7 @@ public class TableItem : ToolbarItemBase
 {
     public override string Id => "table";
     public override string Label => "Table";
-    public override string IconClass => "fa-table";
+    public override string IconCss => "fa-table";
     public override ToolbarPlacement Placement => ToolbarPlacement.Insert;
 
     public override Task ExecuteAsync(EditorApi api) => api.OpenPanelAsync(typeof(Zauber.RTE.Components.Panels.TablePanel));

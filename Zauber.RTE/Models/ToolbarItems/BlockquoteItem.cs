@@ -10,7 +10,7 @@ public class BlockquoteItem : ToolbarItemBase
 {
     public override string Id => "blockquote";
     public override string Label => "Quote";
-    public override string IconClass => "fa-quote-left";
+    public override string IconCss => "fa-quote-left";
     public override ToolbarPlacement Placement => ToolbarPlacement.Block;
     public override bool IsToggle => true;
 
