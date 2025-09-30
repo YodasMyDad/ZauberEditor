@@ -53,6 +53,15 @@
     private int _cols = 3;
     private bool _hasHeader;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Api != null)
+        {
+            // Save the selection range so we insert at the correct position
+            await Api.SaveSelectionRangeAsync();
+        }
+    }
+
     private async Task InsertAsync()
     {
         if (Api == null) return;
@@ -60,7 +69,15 @@
         try
         {
             var tableHtml = GenerateTableHtml();
+            
+            // Restore the saved selection/cursor position before inserting
+            await Api.RestoreSelectionRangeAsync();
+            
             await Api.InsertHtmlAsync(tableHtml);
+            
+            // Clear the saved range
+            await Api.ClearSavedSelectionRangeAsync();
+            
             await Api.ClosePanelAsync();
         }
         catch (Exception ex)
@@ -105,6 +122,7 @@
     {
         if (Api != null)
         {
+            await Api.ClearSavedSelectionRangeAsync();
             await Api.ClosePanelAsync();
         }
     }

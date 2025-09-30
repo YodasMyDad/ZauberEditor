@@ -124,6 +124,31 @@ public interface EditorApi
     /// Toggles between rich text and source view modes
     /// </summary>
     Task ToggleSourceViewAsync();
+
+    /// <summary>
+    /// Saves the current selection range for later restoration (useful when opening panels)
+    /// </summary>
+    Task SaveSelectionRangeAsync();
+
+    /// <summary>
+    /// Restores a previously saved selection range
+    /// </summary>
+    Task<bool> RestoreSelectionRangeAsync();
+
+    /// <summary>
+    /// Clears the saved selection range
+    /// </summary>
+    Task ClearSavedSelectionRangeAsync();
+
+    /// <summary>
+    /// Gets information about a link at the current cursor position (if any)
+    /// </summary>
+    Task<LinkInfo?> GetLinkAtCursorAsync();
+
+    /// <summary>
+    /// Selects the entire link element if the cursor is inside a link
+    /// </summary>
+    Task<bool> SelectLinkAtCursorAsync();
 }
 
 /// <summary>

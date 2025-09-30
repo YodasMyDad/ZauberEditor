@@ -6,6 +6,8 @@ console.log('ZauberRTE JavaScript loaded');
 window.ZauberRTE = {
     // Selection API
     selection: {
+        _savedRanges: new Map(), // editorId -> saved range
+        
         get: function(editorId) {
             const editor = document.getElementById(editorId);
             if (!editor) return null;
@@ -20,6 +22,130 @@ window.ZauberRTE = {
                 isCollapsed: range.collapsed,
                 selectedText: selection.toString()
             };
+        },
+        
+        saveRange: function(editorId) {
+            console.log('saveRange called for', editorId);
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) {
+                console.log('Editor not found');
+                return;
+            }
+
+            const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                console.log('No selection to save');
+                return;
+            }
+
+            const range = selection.getRangeAt(0);
+            
+            // Only save if the selection is within the editor
+            if (editor.contains(range.commonAncestorContainer)) {
+                this._savedRanges.set(editorId, range.cloneRange());
+                console.log('Range saved:', range);
+            } else {
+                console.log('Selection not in editor');
+            }
+        },
+        
+        restoreRange: function(editorId) {
+            console.log('restoreRange called for', editorId);
+            const savedRange = this._savedRanges.get(editorId);
+            if (!savedRange) {
+                console.log('No saved range found');
+                return false;
+            }
+
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(savedRange);
+            console.log('Range restored');
+            return true;
+        },
+        
+        clearSavedRange: function(editorId) {
+            this._savedRanges.delete(editorId);
+        },
+
+        getLinkAtCursor: function(editorId) {
+            console.log('getLinkAtCursor called');
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) {
+                console.log('Editor not found');
+                return null;
+            }
+
+            const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                console.log('No selection');
+                return null;
+            }
+
+            const range = selection.getRangeAt(0);
+            let element = range.commonAncestorContainer;
+            
+            // If it's a text node, get the parent element
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement;
+            }
+
+            // Walk up the DOM to find an <a> tag
+            while (element && element !== editor) {
+                if (element.tagName && element.tagName.toLowerCase() === 'a') {
+                    console.log('Found link:', element);
+                    return {
+                        href: element.getAttribute('href') || '',
+                        target: element.getAttribute('target') || '',
+                        text: element.textContent || '',
+                        element: element
+                    };
+                }
+                element = element.parentElement;
+            }
+
+            console.log('No link found at cursor');
+            return null;
+        },
+
+        selectLinkAtCursor: function(editorId) {
+            console.log('selectLinkAtCursor called');
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) {
+                console.log('Editor not found');
+                return false;
+            }
+
+            const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                console.log('No selection');
+                return false;
+            }
+
+            const range = selection.getRangeAt(0);
+            let element = range.commonAncestorContainer;
+            
+            // If it's a text node, get the parent element
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement;
+            }
+
+            // Walk up the DOM to find an <a> tag
+            while (element && element !== editor) {
+                if (element.tagName && element.tagName.toLowerCase() === 'a') {
+                    console.log('Found link, selecting it:', element);
+                    // Select the entire link element
+                    const newRange = document.createRange();
+                    newRange.selectNodeContents(element);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    return true;
+                }
+                element = element.parentElement;
+            }
+
+            console.log('No link found at cursor to select');
+            return false;
         },
 
         set: function(editorId, startOffset, endOffset) {
@@ -221,16 +347,46 @@ window.ZauberRTE = {
             }
 
             if (currentBlock && currentBlock.tagName?.toLowerCase() === 'li') {
-                // In a list item - create new list item
-                const newLi = document.createElement('li');
-                newLi.innerHTML = '<br>';
-                currentBlock.parentNode.insertBefore(newLi, currentBlock.nextSibling);
+                // In a list item
+                // Check if current list item is empty
+                const isEmpty = !currentBlock.textContent?.trim() || 
+                               currentBlock.innerHTML === '<br>' || 
+                               currentBlock.innerHTML === '&nbsp;';
+                
+                if (isEmpty) {
+                    // Empty list item - exit the list
+                    const parentList = currentBlock.parentElement;
+                    const newParagraph = document.createElement('p');
+                    newParagraph.innerHTML = '<br>';
+                    
+                    // Insert paragraph after the list
+                    parentList.parentNode.insertBefore(newParagraph, parentList.nextSibling);
+                    
+                    // Remove the empty list item
+                    parentList.removeChild(currentBlock);
+                    
+                    // If list is now empty, remove it
+                    if (parentList.children.length === 0) {
+                        parentList.parentNode.removeChild(parentList);
+                    }
+                    
+                    // Move cursor to new paragraph
+                    range.setStart(newParagraph, 0);
+                    range.setEnd(newParagraph, 0);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                } else {
+                    // Non-empty list item - create new list item
+                    const newLi = document.createElement('li');
+                    newLi.innerHTML = '<br>';
+                    currentBlock.parentNode.insertBefore(newLi, currentBlock.nextSibling);
 
-                // Move cursor to new list item
-                range.setStart(newLi, 0);
-                range.setEnd(newLi, 0);
-                selection.removeAllRanges();
-                selection.addRange(range);
+                    // Move cursor to new list item
+                    range.setStart(newLi, 0);
+                    range.setEnd(newLi, 0);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
             } else {
                 // Determine cursor position within the block
                 let textBeforeCursor = '';
@@ -306,19 +462,61 @@ window.ZauberRTE = {
         },
 
         insertHtml: function(editorId, html) {
-            const selection = window.getSelection();
-            if (!selection.rangeCount) return;
+            console.log('=== JS insertHtml called ===');
+            console.log('editorId:', editorId);
+            console.log('html:', html);
+            
+            // Get the editor content element
+            const editor = document.getElementById(editorId + '-content');
+            console.log('editor element:', editor);
+            
+            if (!editor) {
+                console.log('Editor not found, returning early');
+                return;
+            }
 
-            const range = selection.getRangeAt(0);
+            // Focus the editor first to ensure selection is in the right place
+            editor.focus();
+            
+            const selection = window.getSelection();
+            console.log('selection.rangeCount:', selection.rangeCount);
+            
+            let range;
+            if (!selection.rangeCount || !editor.contains(selection.anchorNode)) {
+                console.log('No valid range in editor, creating one at end');
+                // Create a new range at the end of the editor
+                range = document.createRange();
+                const lastChild = editor.lastChild;
+                if (lastChild) {
+                    range.selectNodeContents(lastChild);
+                    range.collapse(false); // Collapse to end
+                } else {
+                    range.selectNodeContents(editor);
+                    range.collapse(false);
+                }
+                selection.removeAllRanges();
+                selection.addRange(range);
+            } else {
+                range = selection.getRangeAt(0);
+            }
+            
+            console.log('range:', range);
+            console.log('range.startContainer:', range.startContainer);
+            console.log('range.endContainer:', range.endContainer);
+            
             range.deleteContents();
 
             const fragment = range.createContextualFragment(html);
+            console.log('fragment created:', fragment);
+            
             range.insertNode(fragment);
+            console.log('fragment inserted');
 
             // Move cursor to end of inserted content
             range.collapse(false);
             selection.removeAllRanges();
             selection.addRange(range);
+            console.log('=== JS insertHtml complete ===');
         },
 
         getActiveMarks: function(editorId) {
@@ -506,6 +704,55 @@ window.ZauberRTE = {
             return 0;
         },
 
+        selectMarkAtCursor: function(editorId, markName) {
+            console.log('selectMarkAtCursor called for', markName);
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) {
+                console.log('Editor not found');
+                return false;
+            }
+
+            const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                console.log('No selection');
+                return false;
+            }
+
+            const range = selection.getRangeAt(0);
+            
+            // Only proceed if range is collapsed (cursor only)
+            if (!range.collapsed) {
+                console.log('Range not collapsed, selection exists');
+                return false;
+            }
+
+            let element = range.commonAncestorContainer;
+            
+            // If it's a text node, get the parent element
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement;
+            }
+
+            const tagName = this.getTagForMark(markName);
+
+            // Walk up the DOM to find the mark tag
+            while (element && element !== editor) {
+                if (element.tagName && element.tagName.toLowerCase() === tagName) {
+                    console.log('Found mark element, selecting it:', element);
+                    // Select the entire mark element
+                    const newRange = document.createRange();
+                    newRange.selectNodeContents(element);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    return true;
+                }
+                element = element.parentElement;
+            }
+
+            console.log('No mark element found at cursor');
+            return false;
+        },
+
         toggleMark: function(editorId, markName) {
             console.log('=== TOGGLE MARK START ===');
             console.log('toggleMark called with:', markName, 'editorId:', editorId);
@@ -522,11 +769,20 @@ window.ZauberRTE = {
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
 
+            const range = selection.getRangeAt(0);
+
             // Check if the mark exists anywhere in the selection
             const hasMarkInSelection = this.hasMarkInSelection(editorId, markName);
             console.log('Has', markName, 'in selection:', hasMarkInSelection);
 
             if (hasMarkInSelection) {
+                // REMOVING the mark
+                // If range is collapsed (cursor only) and we're inside a mark, select it first
+                if (range.collapsed) {
+                    console.log('Range collapsed, selecting mark at cursor');
+                    this.selectMarkAtCursor(editorId, markName);
+                }
+                
                 // Remove all instances of the mark from the selection
                 this.unwrap(editorId, this.getTagForMark(markName));
                 // Clean up any spans that might have been created during unwrapping
@@ -535,6 +791,13 @@ window.ZauberRTE = {
                     this.cleanUnnecessarySpans(editor);
                 }
             } else {
+                // ADDING the mark
+                // Only apply if there's an actual selection (not just a cursor)
+                if (range.collapsed) {
+                    console.log('Cannot apply mark with collapsed range (no selection)');
+                    return;
+                }
+                
                 // Apply the mark to the selection
                 this.wrap(editorId, this.getTagForMark(markName));
             }
@@ -993,12 +1256,54 @@ window.ZauberRTE = {
         setupEnterKeyListener: function(editorId) {
             const editor = document.getElementById(editorId + '-content');
             if (editor) {
-                editor.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
+                // Ctrl+Click on links to open them
+                editor.addEventListener('click', (event) => {
+                    if ((event.ctrlKey || event.metaKey) && event.target.tagName?.toLowerCase() === 'a') {
                         event.preventDefault();
-                        event.stopPropagation();
-                        this.handleEnterKey(editorId);
-                    } else if ((event.key === 'Backspace' || event.key === 'Delete') && !event.shiftKey) {
+                        const href = event.target.getAttribute('href');
+                        if (href) {
+                            window.open(href, event.target.getAttribute('target') || '_blank');
+                        }
+                    }
+                });
+
+                editor.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        if (event.shiftKey) {
+                            // Shift+Enter - insert line break instead of new paragraph
+                            event.preventDefault();
+                            event.stopPropagation();
+                            const selection = window.getSelection();
+                            if (selection.rangeCount) {
+                                const range = selection.getRangeAt(0);
+                                range.deleteContents();
+                                const br = document.createElement('br');
+                                range.insertNode(br);
+                                range.setStartAfter(br);
+                                range.setEndAfter(br);
+                                selection.removeAllRanges();
+                                selection.addRange(range);
+                            }
+                        } else {
+                            // Regular Enter - new paragraph/list item
+                            event.preventDefault();
+                            event.stopPropagation();
+                            this.handleEnterKey(editorId);
+                        }
+                    } else if (event.key === 'Tab') {
+                        // Tab/Shift+Tab in lists and tables
+                        event.preventDefault();
+                        if (this.handleTabKey(editorId, event.shiftKey)) {
+                            return;
+                        }
+                    } else if (event.key === 'Backspace' && !event.shiftKey) {
+                        // Backspace at start of list item
+                        if (this.handleBackspaceInList(editorId, event)) {
+                            return;
+                        }
+                        // Handle deletion of empty paragraphs
+                        this.handleDeletion(editorId, event);
+                    } else if (event.key === 'Delete' && !event.shiftKey) {
                         // Handle deletion of empty paragraphs
                         this.handleDeletion(editorId, event);
                     }
@@ -1198,6 +1503,189 @@ window.ZauberRTE = {
                     }
                 });
             }
+        },
+
+        handleTabKey: function(editorId, isShiftTab) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return false;
+
+            const range = selection.getRangeAt(0);
+            let element = range.commonAncestorContainer;
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement;
+            }
+
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) return false;
+
+            // Check if we're in a list item
+            let listItem = element;
+            while (listItem && listItem !== editor) {
+                if (listItem.tagName?.toLowerCase() === 'li') {
+                    return this.handleTabInList(listItem, isShiftTab, editor);
+                }
+                listItem = listItem.parentElement;
+            }
+
+            // Check if we're in a table cell
+            let tableCell = element;
+            while (tableCell && tableCell !== editor) {
+                if (tableCell.tagName?.toLowerCase() === 'td' || tableCell.tagName?.toLowerCase() === 'th') {
+                    return this.handleTabInTable(tableCell, isShiftTab, selection);
+                }
+                tableCell = tableCell.parentElement;
+            }
+
+            return false;
+        },
+
+        handleTabInList: function(listItem, isShiftTab, editor) {
+            const parentList = listItem.parentElement;
+            if (!parentList) return false;
+
+            if (isShiftTab) {
+                // Outdent - move to parent level
+                const grandParentLi = parentList.parentElement?.closest('li');
+                if (grandParentLi) {
+                    // We're in a nested list, move up one level
+                    const grandParentList = grandParentLi.parentElement;
+                    grandParentList.insertBefore(listItem, grandParentLi.nextSibling);
+                    if (parentList.children.length === 0) {
+                        parentList.remove();
+                    }
+                    return true;
+                }
+            } else {
+                // Indent - nest under previous item
+                const prevItem = listItem.previousElementSibling;
+                if (prevItem && prevItem.tagName?.toLowerCase() === 'li') {
+                    let nestedList = prevItem.querySelector(':scope > ul, :scope > ol');
+                    if (!nestedList) {
+                        nestedList = document.createElement(parentList.tagName);
+                        prevItem.appendChild(nestedList);
+                    }
+                    nestedList.appendChild(listItem);
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
+        handleTabInTable: function(cell, isShiftTab, selection) {
+            const table = cell.closest('table');
+            if (!table) return false;
+
+            const allCells = Array.from(table.querySelectorAll('td, th'));
+            const currentIndex = allCells.indexOf(cell);
+
+            if (isShiftTab) {
+                // Move to previous cell
+                if (currentIndex > 0) {
+                    const prevCell = allCells[currentIndex - 1];
+                    const range = document.createRange();
+                    range.selectNodeContents(prevCell);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    return true;
+                }
+            } else {
+                // Move to next cell
+                if (currentIndex < allCells.length - 1) {
+                    const nextCell = allCells[currentIndex + 1];
+                    const range = document.createRange();
+                    range.selectNodeContents(nextCell);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
+        handleBackspaceInList: function(editorId, event) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return false;
+
+            const range = selection.getRangeAt(0);
+            if (!range.collapsed || range.startOffset !== 0) return false;
+
+            let element = range.startContainer;
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement;
+            }
+
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) return false;
+
+            // Find the list item
+            let listItem = element;
+            while (listItem && listItem !== editor) {
+                if (listItem.tagName?.toLowerCase() === 'li') {
+                    const parentList = listItem.parentElement;
+                    
+                    // Check if this is the first item
+                    if (listItem === parentList.firstElementChild) {
+                        event.preventDefault();
+                        
+                        // Convert to paragraph
+                        const p = document.createElement('p');
+                        while (listItem.firstChild) {
+                            p.appendChild(listItem.firstChild);
+                        }
+                        if (!p.textContent.trim()) {
+                            p.innerHTML = '<br>';
+                        }
+                        
+                        // Insert before list
+                        parentList.parentNode.insertBefore(p, parentList);
+                        parentList.removeChild(listItem);
+                        
+                        // Remove list if empty
+                        if (parentList.children.length === 0) {
+                            parentList.remove();
+                        }
+                        
+                        // Set cursor
+                        const newRange = document.createRange();
+                        newRange.setStart(p, 0);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                        
+                        return true;
+                    } else {
+                        // Merge with previous item
+                        const prevItem = listItem.previousElementSibling;
+                        if (prevItem && prevItem.tagName?.toLowerCase() === 'li') {
+                            event.preventDefault();
+                            
+                            // Move content to previous item
+                            while (listItem.firstChild) {
+                                prevItem.appendChild(listItem.firstChild);
+                            }
+                            listItem.remove();
+                            
+                            // Set cursor at merge point
+                            const newRange = document.createRange();
+                            newRange.selectNodeContents(prevItem);
+                            newRange.collapse(false);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                            
+                            return true;
+                        }
+                    }
+                    
+                    return false;
+                }
+                listItem = listItem.parentElement;
+            }
+
+            return false;
         }
     },
 

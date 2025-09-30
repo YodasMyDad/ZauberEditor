@@ -147,3 +147,24 @@ public class SelectionInfo
     /// </summary>
     public string? SelectedHtml { get; set; }
 }
+
+/// <summary>
+/// Information about a link element
+/// </summary>
+public class LinkInfo
+{
+    /// <summary>
+    /// The href attribute of the link
+    /// </summary>
+    public string Href { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The target attribute of the link
+    /// </summary>
+    public string Target { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The text content of the link
+    /// </summary>
+    public string Text { get; set; } = string.Empty;
+}

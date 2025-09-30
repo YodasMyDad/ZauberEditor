@@ -18,7 +18,7 @@ internal class EditorApiImpl(ZauberRichTextEditor editor, IZauberJsRuntime jsRun
         await _jsRuntime.Selection.InsertHtmlAsync(_editorId, html);
 
     public async Task InsertTextAsync(string text) =>
-        await _jsRuntime.Selection.InsertHtmlAsync(_editorId, System.Web.HttpUtility.HtmlEncode(text));
+        await _jsRuntime.Selection.InsertHtmlAsync(_editorId, System.Net.WebUtility.HtmlEncode(text));
 
     public async Task WrapSelectionAsync(string tagName, Dictionary<string, string>? attributes = null) =>
         await _jsRuntime.Selection.WrapSelectionAsync(_editorId, tagName, attributes);
@@ -78,8 +78,23 @@ internal class EditorApiImpl(ZauberRichTextEditor editor, IZauberJsRuntime jsRun
         await _editor.SetContentAsync(html);
 
     public async Task SetTextAsync(string text) =>
-        await _editor.SetContentAsync(System.Web.HttpUtility.HtmlEncode(text));
+        await _editor.SetContentAsync(System.Net.WebUtility.HtmlEncode(text));
 
     public async Task ToggleSourceViewAsync() =>
         await _editor.ToggleSourceViewAsync();
+
+    public async Task SaveSelectionRangeAsync() =>
+        await _jsRuntime.Selection.SaveRangeAsync(_editorId);
+
+    public async Task<bool> RestoreSelectionRangeAsync() =>
+        await _jsRuntime.Selection.RestoreRangeAsync(_editorId);
+
+    public async Task ClearSavedSelectionRangeAsync() =>
+        await _jsRuntime.Selection.ClearSavedRangeAsync(_editorId);
+
+    public async Task<LinkInfo?> GetLinkAtCursorAsync() =>
+        await _jsRuntime.Selection.GetLinkAtCursorAsync(_editorId);
+
+    public async Task<bool> SelectLinkAtCursorAsync() =>
+        await _jsRuntime.Selection.SelectLinkAtCursorAsync(_editorId);
 }

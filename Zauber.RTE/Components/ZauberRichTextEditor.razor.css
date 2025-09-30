@@ -8,6 +8,7 @@
     position: relative;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     transition: all 0.2s ease;
+    touch-action: manipulation;
 }
 
 .zauber-rte:hover {
@@ -121,6 +122,20 @@
     font-size: 0.875rem !important;
     text-decoration: none !important;
     font-weight: 400 !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Touch-friendly buttons on mobile */
+@media (max-width: 768px) {
+    ::deep .rte-toolbar-btn {
+        width: 2.75rem !important;
+        height: 2.75rem !important;
+        min-width: 2.75rem !important;
+        min-height: 2.75rem !important;
+        max-width: 2.75rem !important;
+        max-height: 2.75rem !important;
+    }
 }
 
 ::deep .rte-toolbar-btn::before {
@@ -230,6 +245,15 @@
     justify-content: center;
     opacity: 0.4;
     transition: opacity 0.2s ease;
+    touch-action: none;
+}
+
+/* Larger touch area on mobile */
+@media (max-width: 768px) {
+    .rte-resize-handle {
+        width: 30px;
+        height: 30px;
+    }
 }
 
 .rte-resize-handle::before {
@@ -275,6 +299,19 @@
     font-size: inherit;
     border-radius: 0 0 0.75rem 0.75rem;
     transition: all 0.2s ease;
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+    touch-action: manipulation;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .rte-content {
+        padding: 1rem;
+        font-size: 16px;
+        line-height: 1.6;
+    }
 }
 
 .rte-content:focus {
@@ -502,6 +539,16 @@
     font-weight: 500 !important;
     cursor: pointer !important;
     transition: all 0.15s ease !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Larger touch targets on mobile */
+@media (max-width: 768px) {
+    ::deep .rte-btn {
+        padding: 0.75rem 1.25rem !important;
+        min-height: 44px !important;
+    }
 }
 
 ::deep .rte-btn:disabled {
@@ -563,6 +610,15 @@
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     z-index: 101;
+    touch-action: none;
+}
+
+/* Larger touch targets on mobile */
+@media (max-width: 768px) {
+    .rte-resize-handle {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 .rte-resize-handle:hover {
@@ -632,17 +688,19 @@
     }
 
     .rte-toolbar {
-        padding: 0.25rem;
-    }
-
-    .rte-toolbar-btn {
-        width: 2.25rem;
-        height: 2.25rem;
+        padding: 0.5rem;
+        gap: 0.5rem;
     }
 
     .rte-source-view {
-        font-size: 0.75rem;
-        padding: 0.75rem;
+        font-size: 0.875rem;
+        padding: 1rem;
+    }
+    
+    /* Prevent iOS zoom on input focus */
+    ::deep .rte-input,
+    .rte-source-view {
+        font-size: 16px !important;
     }
 }
 

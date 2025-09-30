@@ -31,6 +31,7 @@ public static class DefaultToolbarItems
         yield return new AlignRightItem();
         yield return new JustifiedItem();
         yield return new LinkItem();
+        yield return new UnlinkItem();
         yield return new ImageItem();
         yield return new TableItem();
         yield return new ClearFormattingItem();

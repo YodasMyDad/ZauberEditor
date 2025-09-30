@@ -108,6 +108,31 @@ public interface SelectionInterop
     /// Clears all formatting from the current selection
     /// </summary>
     Task ClearFormattingAsync(string editorId);
+
+    /// <summary>
+    /// Saves the current selection range for later restoration
+    /// </summary>
+    Task SaveRangeAsync(string editorId);
+
+    /// <summary>
+    /// Restores a previously saved selection range
+    /// </summary>
+    Task<bool> RestoreRangeAsync(string editorId);
+
+    /// <summary>
+    /// Clears the saved selection range
+    /// </summary>
+    Task ClearSavedRangeAsync(string editorId);
+
+    /// <summary>
+    /// Gets information about a link at the current cursor position
+    /// </summary>
+    Task<LinkInfo?> GetLinkAtCursorAsync(string editorId);
+
+    /// <summary>
+    /// Selects the entire link element at the cursor position
+    /// </summary>
+    Task<bool> SelectLinkAtCursorAsync(string editorId);
 }
 
 /// <summary>

@@ -37,6 +37,8 @@
                  @ref="_contentEditableRef"
                  @oninput="HandleInputAsync"
                  @onkeydown="HandleKeyDownAsync"
+                 @onkeyup="HandleKeyUpAsync"
+                 @onmouseup="HandleMouseUpAsync"
                  @onpaste="HandlePasteAsync"
                  @onfocus="HandleFocusAsync"
                  @onblur="HandleBlurAsync"
@@ -293,6 +295,18 @@
         }
 
         await OnKeyDown.InvokeAsync(keyboardArgs);
+    }
+
+    private async Task HandleKeyUpAsync()
+    {
+        // Update toolbar state after key navigation (arrow keys, etc.)
+        await UpdateStateAsync();
+    }
+
+    private async Task HandleMouseUpAsync()
+    {
+        // Update toolbar state after any mouse click/selection
+        await UpdateStateAsync();
     }
 
     private async Task HandlePasteAsync()

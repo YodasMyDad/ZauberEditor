@@ -75,6 +75,15 @@
     private bool _includeCaption;
     private int? _width;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Api != null)
+        {
+            // Save the selection range so we insert at the correct position
+            await Api.SaveSelectionRangeAsync();
+        }
+    }
+
     private async Task InsertAsync()
     {
         if (Api == null || string.IsNullOrEmpty(_imageUrl)) return;
@@ -90,7 +99,7 @@
                 if (_width.HasValue) imgAttrs["width"] = _width.Value.ToString();
 
                 var imgTag = "<img " + string.Join(" ", imgAttrs.Select(kv => $"{kv.Key}=\"{kv.Value}\"")) + ">";
-                html = "<figure class=\"rte-figure\">" + imgTag + "<figcaption>" + System.Web.HttpUtility.HtmlEncode(_caption) + "</figcaption></figure>";
+                html = "<figure class=\"rte-figure\">" + imgTag + "<figcaption>" + System.Net.WebUtility.HtmlEncode(_caption) + "</figcaption></figure>";
             }
             else
             {
@@ -102,7 +111,14 @@
                 html = "<img " + string.Join(" ", attrs.Select(kv => $"{kv.Key}=\"{kv.Value}\"")) + ">";
             }
 
+            // Restore the saved selection/cursor position before inserting
+            await Api.RestoreSelectionRangeAsync();
+            
             await Api.InsertHtmlAsync(html);
+            
+            // Clear the saved range
+            await Api.ClearSavedSelectionRangeAsync();
+            
             await Api.ClosePanelAsync();
         }
         catch (Exception ex)
@@ -116,6 +132,7 @@
     {
         if (Api != null)
         {
+            await Api.ClearSavedSelectionRangeAsync();
             await Api.ClosePanelAsync();
         }
     }

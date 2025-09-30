@@ -26,7 +26,7 @@ public class ToolbarLayout
     public static ToolbarLayout Default => FromRows(
         ["bold", "italic", "underline", "strike"],
         ["h1", "h2", "h3", "blockquote"],
-        ["ul", "ol", "link", "image"],
+        ["ul", "ol", "link", "unlink", "image"],
         ["alignLeft", "alignCenter", "alignRight"]
     );
 
@@ -44,7 +44,7 @@ public class ToolbarLayout
         ["undo", "redo", "viewSource", "themeToggle"],
         ["h1", "h2", "h3", "paragraph", "bold", "italic", "underline", "strike", "subscript", "superscript", "code", "clear"],
         ["alignLeft", "alignCenter", "alignRight", "justified"],
-        ["ul", "ol", "blockquote", "table", "link", "image"]
+        ["ul", "ol", "blockquote", "table", "link", "unlink", "image"]
     );
 
     /// <summary>
@@ -53,7 +53,7 @@ public class ToolbarLayout
     public static ToolbarLayout Cms => FromRows(
         ["viewSource", "h1", "bold", "italic", "underline", "strike", "clear"],
         ["alignLeft", "alignCenter", "alignRight", "justified"],
-        ["ul", "ol", "blockquote", "code", "table", "link", "image", "upload"]
+        ["ul", "ol", "blockquote", "code", "table", "link", "unlink", "image", "upload"]
     );
 
     /// <summary>

@@ -186,6 +186,69 @@ internal class SelectionInteropImpl(IJSRuntime jsRuntime, ILogger logger) : Sele
             logger.LogError(ex, "Failed to clear formatting for editor {EditorId}", editorId);
         }
     }
+
+    public async Task SaveRangeAsync(string editorId)
+    {
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("ZauberRTE.selection.saveRange", editorId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to save range for editor {EditorId}", editorId);
+        }
+    }
+
+    public async Task<bool> RestoreRangeAsync(string editorId)
+    {
+        try
+        {
+            return await jsRuntime.InvokeAsync<bool>("ZauberRTE.selection.restoreRange", editorId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to restore range for editor {EditorId}", editorId);
+            return false;
+        }
+    }
+
+    public async Task ClearSavedRangeAsync(string editorId)
+    {
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("ZauberRTE.selection.clearSavedRange", editorId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to clear saved range for editor {EditorId}", editorId);
+        }
+    }
+
+    public async Task<LinkInfo?> GetLinkAtCursorAsync(string editorId)
+    {
+        try
+        {
+            return await jsRuntime.InvokeAsync<LinkInfo?>("ZauberRTE.selection.getLinkAtCursor", editorId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get link at cursor for editor {EditorId}", editorId);
+            return null;
+        }
+    }
+
+    public async Task<bool> SelectLinkAtCursorAsync(string editorId)
+    {
+        try
+        {
+            return await jsRuntime.InvokeAsync<bool>("ZauberRTE.selection.selectLinkAtCursor", editorId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to select link at cursor for editor {EditorId}", editorId);
+            return false;
+        }
+    }
 }
 
 /// <summary>
