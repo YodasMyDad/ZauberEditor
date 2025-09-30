@@ -1,6 +1,8 @@
 // Zauber RTE JavaScript Runtime
 // This provides the browser-side functionality for the rich text editor
 
+console.log('ZauberRTE JavaScript loaded');
+
 window.ZauberRTE = {
     // Selection API
     selection: {
@@ -127,6 +129,34 @@ window.ZauberRTE = {
                 return depthB - depthA;
             });
 
+            // Collect all text nodes that will be unwrapped
+            const textNodesToSelect = [];
+
+            elementsToUnwrap.forEach(element => {
+                // Check if the element is fully contained within the selection
+                const elementRange = document.createRange();
+                elementRange.selectNode(element);
+
+                const isFullySelected = range.compareBoundaryPoints(Range.START_TO_START, elementRange) <= 0 &&
+                                       range.compareBoundaryPoints(Range.END_TO_END, elementRange) >= 0;
+
+                if (isFullySelected || range.intersectsNode(element)) {
+                    // Collect all text nodes inside this element
+                    const walker = document.createTreeWalker(
+                        element,
+                        NodeFilter.SHOW_TEXT,
+                        null,
+                        false
+                    );
+                    let textNode;
+                    while (textNode = walker.nextNode()) {
+                        if (textNode.textContent && textNode.textContent.trim()) {
+                            textNodesToSelect.push(textNode);
+                        }
+                    }
+                }
+            });
+
             // Unwrap each element
             elementsToUnwrap.forEach(element => {
                 // Check if the element is fully contained within the selection
@@ -155,7 +185,19 @@ window.ZauberRTE = {
                 }
             });
 
-            // The selection should be preserved automatically since we're not modifying the range
+            // Restore selection to the unwrapped text nodes
+            if (textNodesToSelect.length > 0) {
+                try {
+                    const newRange = document.createRange();
+                    newRange.setStart(textNodesToSelect[0], 0);
+                    const lastNode = textNodesToSelect[textNodesToSelect.length - 1];
+                    newRange.setEnd(lastNode, lastNode.textContent.length);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                } catch (e) {
+                    console.warn('Could not restore selection after unwrap:', e);
+                }
+            }
         },
 
         handleEnterKey: function(editorId) {
@@ -357,25 +399,66 @@ window.ZauberRTE = {
         },
 
         toggleMark: function(editorId, markName) {
-            const selection = window.getSelection();
-            if (!selection.rangeCount) return;
+            console.log('=== TOGGLE MARK START ===');
+            console.log('toggleMark called with:', markName, 'editorId:', editorId);
+            console.log('ZauberRTE object exists:', !!window.ZauberRTE);
+            console.log('toggleMark function exists:', typeof this.toggleMark);
 
             const editor = document.getElementById(editorId);
-            if (!editor) return;
+            if (!editor) {
+                console.log('Editor not found:', editorId);
+                return;
+            }
 
             // Focus the editor to ensure commands work
             editor.focus();
 
             // Check if the mark is active at the current selection
             const activeMarks = this.getActiveMarks(editorId);
+            console.log('Active marks:', activeMarks);
             const isActive = activeMarks.includes(markName);
+            console.log('Is', markName, 'active:', isActive);
 
-            if (isActive) {
-                // Remove the mark using a more robust approach
-                this.removeMark(editorId, markName);
+            // Use browser's native execCommand for formatting
+            if (markName === 'code') {
+                // Handle code formatting specially
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    if (range.collapsed) {
+                        // Insert code tags around cursor
+                        document.execCommand('insertHTML', false, '<code>&nbsp;</code>');
+                        // Move cursor inside the code tags
+                        const codeElement = editor.querySelector('code');
+                        if (codeElement) {
+                            range.setStart(codeElement, 0);
+                            range.setEnd(codeElement, 1);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    } else {
+                        // Wrap selection in code tags
+                        document.execCommand('insertHTML', false, '<code>' + selection.toString() + '</code>');
+                    }
+                }
+            } else if (markName === 'strong') {
+                // Use custom implementation for strong to ensure <strong> tags
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const activeMarks = this.getActiveMarks(editorId);
+                    const isActive = activeMarks.includes(markName);
+
+                    if (isActive) {
+                        this.unwrap(editorId, this.getTagForMark(markName));
+                    } else {
+                        this.wrap(editorId, this.getTagForMark(markName));
+                    }
+                }
             } else {
-                // Apply the mark
-                this.wrap(editorId, this.getTagForMark(markName));
+                const command = this.getCommandForMark(markName);
+                console.log('Executing command:', command);
+                const result = document.execCommand(command, false, null);
+                console.log('execCommand result:', result);
             }
         },
 
@@ -429,12 +512,24 @@ window.ZauberRTE = {
             });
 
             // Insert the cleaned content back
-            range.insertNode(tempDiv);
+            const insertedNodes = [];
+            while (tempDiv.firstChild) {
+                const node = tempDiv.firstChild;
+                range.insertNode(node);
+                insertedNodes.push(node);
+                // Move range to after the inserted node for next insertion
+                range.setStartAfter(node);
+                range.setEndAfter(node);
+            }
 
             // Restore selection to the cleaned content
-            range.selectNodeContents(tempDiv);
-            selection.removeAllRanges();
-            selection.addRange(range);
+            if (insertedNodes.length > 0) {
+                const newRange = document.createRange();
+                newRange.setStartBefore(insertedNodes[0]);
+                newRange.setEndAfter(insertedNodes[insertedNodes.length - 1]);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+            }
         },
 
         getTagForMark: function(markName) {
@@ -448,6 +543,18 @@ window.ZauberRTE = {
                 'sup': 'sup'
             };
             return tagMap[markName] || markName;
+        },
+
+        getCommandForMark: function(markName) {
+            const commandMap = {
+                'strong': 'bold',
+                'em': 'italic',
+                'u': 'underline',
+                's': 'strikethrough',
+                'sub': 'subscript',
+                'sup': 'superscript'
+            };
+            return commandMap[markName] || markName;
         },
 
         setBlockType: function(editorId, blockType, attributes) {
@@ -1494,11 +1601,16 @@ window.ZauberRTE = {
         },
 
         setHtml: function(editorId, html) {
+            console.log('setHtml called with:', html);
             const contentEditable = document.getElementById(editorId + '-content');
+            console.log('contentEditable found:', !!contentEditable);
             if (contentEditable) {
+                console.log('Setting innerHTML to:', html);
                 contentEditable.innerHTML = html;
+                console.log('innerHTML after setting:', contentEditable.innerHTML);
                 // Ensure proper structure after setting HTML
                 this.ensureParagraphStructure(contentEditable);
+                console.log('innerHTML after ensureParagraphStructure:', contentEditable.innerHTML);
             }
         },
 
