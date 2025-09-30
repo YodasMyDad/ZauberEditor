@@ -50,6 +50,9 @@ internal class EditorApiImpl(ZauberRichTextEditor editor, IZauberJsRuntime jsRun
     public SelectionInfo? GetSelection() =>
         _editor.GetCurrentSelection();
 
+    public async Task<SelectionInfo?> GetSelectionAsync() =>
+        await _jsRuntime.Selection.GetSelectionAsync(_editorId);
+
     public async Task FocusAsync() =>
         await _editor.FocusAsync();
 

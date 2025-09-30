@@ -218,25 +218,51 @@
 /* Resize Handle */
 .rte-resize-handle {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 16px;
-    height: 16px;
-    cursor: nwse-resize;
-    background: linear-gradient(135deg, transparent 0%, transparent 50%, #cbd5e1 50%, #cbd5e1 100%);
+    bottom: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    cursor: ns-resize;
+    background: transparent;
     border-bottom-right-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+}
+
+.rte-resize-handle::before {
+    content: '';
+    display: block;
+    width: 12px;
+    height: 3px;
+    background: repeating-linear-gradient(
+        to bottom,
+        #94a3b8,
+        #94a3b8 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    border-radius: 1px;
 }
 
 .rte-resize-handle:hover {
-    background: linear-gradient(135deg, transparent 0%, transparent 50%, #94a3b8 50%, #94a3b8 100%);
+    opacity: 0.8;
 }
 
-.zauber-rte.rte-theme-dark .rte-resize-handle {
-    background: linear-gradient(135deg, transparent 0%, transparent 50%, #4b5563 50%, #4b5563 100%);
+.rte-resize-handle:active {
+    opacity: 1;
 }
 
-.zauber-rte.rte-theme-dark .rte-resize-handle:hover {
-    background: linear-gradient(135deg, transparent 0%, transparent 50%, #6b7280 50%, #6b7280 100%);
+.zauber-rte.rte-theme-dark .rte-resize-handle::before {
+    background: repeating-linear-gradient(
+        to bottom,
+        #6b7280,
+        #6b7280 1px,
+        transparent 1px,
+        transparent 3px
+    );
 }
 
 /* Content Editable */

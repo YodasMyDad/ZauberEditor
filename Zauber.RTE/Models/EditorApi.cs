@@ -71,6 +71,11 @@ public interface EditorApi
     SelectionInfo? GetSelection();
 
     /// <summary>
+    /// Gets the current selection information asynchronously
+    /// </summary>
+    Task<SelectionInfo?> GetSelectionAsync();
+
+    /// <summary>
     /// Focuses the editor
     /// </summary>
     Task FocusAsync();

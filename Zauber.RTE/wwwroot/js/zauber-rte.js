@@ -1963,6 +1963,101 @@ window.ZauberRTE = {
         }
     },
 
+    // Resize API
+    resize: {
+        _isResizing: false,
+        _startY: 0,
+        _startHeight: 0,
+        _editorId: null,
+
+        setupResizeHandle: function(editorId) {
+            const editor = document.getElementById(editorId);
+            if (!editor) return;
+
+            const resizeHandle = editor.querySelector('.rte-resize-handle');
+            if (!resizeHandle) return;
+
+            resizeHandle.addEventListener('mousedown', (e) => this.startResize(e, editorId));
+            resizeHandle.addEventListener('touchstart', (e) => this.startResize(e, editorId), { passive: false });
+        },
+
+        startResize: function(event, editorId) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            this._isResizing = true;
+            this._editorId = editorId;
+            
+            const editor = document.getElementById(editorId);
+            if (!editor) return;
+
+            const contentEditable = editor.querySelector('.rte-content, .rte-source-view');
+            if (!contentEditable) return;
+
+            this._startY = event.clientY || event.touches[0].clientY;
+            this._startHeight = contentEditable.offsetHeight;
+
+            // Add global event listeners
+            const moveHandler = (e) => this.doResize(e);
+            const endHandler = () => this.endResize();
+
+            document.addEventListener('mousemove', moveHandler);
+            document.addEventListener('touchmove', moveHandler, { passive: false });
+            document.addEventListener('mouseup', endHandler);
+            document.addEventListener('touchend', endHandler);
+
+            // Store handlers for cleanup
+            this._moveHandler = moveHandler;
+            this._endHandler = endHandler;
+
+            // Prevent text selection during resize
+            document.body.style.userSelect = 'none';
+            document.body.style.webkitUserSelect = 'none';
+        },
+
+        doResize: function(event) {
+            if (!this._isResizing || !this._editorId) return;
+
+            event.preventDefault();
+
+            const editor = document.getElementById(this._editorId);
+            if (!editor) return;
+
+            const contentEditable = editor.querySelector('.rte-content, .rte-source-view');
+            if (!contentEditable) return;
+
+            const clientY = event.clientY || event.touches[0].clientY;
+            const deltaY = clientY - this._startY;
+            const newHeight = Math.max(200, this._startHeight + deltaY); // Minimum 200px
+
+            contentEditable.style.minHeight = newHeight + 'px';
+        },
+
+        endResize: function() {
+            if (!this._isResizing) return;
+
+            this._isResizing = false;
+
+            // Remove global event listeners
+            if (this._moveHandler) {
+                document.removeEventListener('mousemove', this._moveHandler);
+                document.removeEventListener('touchmove', this._moveHandler);
+            }
+            if (this._endHandler) {
+                document.removeEventListener('mouseup', this._endHandler);
+                document.removeEventListener('touchend', this._endHandler);
+            }
+
+            // Restore text selection
+            document.body.style.userSelect = '';
+            document.body.style.webkitUserSelect = '';
+
+            this._moveHandler = null;
+            this._endHandler = null;
+            this._editorId = null;
+        }
+    },
+
     // History API (Undo/Redo)
     history: {
         _history: new Map(), // editorId -> { states: [], currentIndex: -1, maxStates: 50 }

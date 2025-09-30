@@ -24,7 +24,6 @@ public static class DefaultToolbarItems
         yield return new Heading3Item();
         yield return new ParagraphItem();
         yield return new BlockquoteItem();
-        yield return new CodeBlockItem();
         yield return new UnorderedListItem();
         yield return new OrderedListItem();
         yield return new AlignLeftItem();

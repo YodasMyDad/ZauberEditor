@@ -196,6 +196,9 @@
             await JSRuntime.InvokeVoidAsync("ZauberRTE.image.setupImageListeners", _editorId,
                 DotNetObjectReference.Create(this));
 
+            // Set up resize handle for editor
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.resize.setupResizeHandle", _editorId);
+
             // Start observing mutations for change detection
             await JsRuntime.Mutation.StartObservingAsync(_editorId);
 
@@ -368,6 +371,10 @@
 
         // Update content after toolbar command execution
         await UpdateContentAsync();
+        
+        // Update editor state to reflect changes
+        await UpdateStateAsync();
+        StateHasChanged();
 
         var commandArgs = new CommandExecutedArgs
         {
@@ -474,7 +481,17 @@
 
     // Public API methods for EditorApiImpl
     internal EditorState GetCurrentState() => _currentState;
-    internal SelectionInfo? GetCurrentSelection() => null; // Would be implemented with JS interop
+    internal SelectionInfo? GetCurrentSelection()
+    {
+        try
+        {
+            return JsRuntime.Selection.GetSelectionAsync(_editorId).GetAwaiter().GetResult();
+        }
+        catch
+        {
+            return null;
+        }
+    }
     internal string? GetCurrentHtml() => _currentHtml;
     internal string? GetCurrentText() => null; // Would extract text from HTML
 
@@ -499,19 +516,39 @@
         if (_isSourceView)
         {
             // Switching from source view to rich text view
-            await JsRuntime.Mutation.SetHtmlAsync(_editorId, _sourceViewContent ?? "");
-            _currentHtml = _sourceViewContent;
+            // Store the source content first
+            var contentToRestore = _sourceViewContent;
+            
+            // Toggle the view flag first so the component re-renders to show the editor
+            _isSourceView = false;
+            _currentState.IsSourceView = false;
+            StateHasChanged();
+            
+            // Wait a moment for the component to render
+            await Task.Delay(50);
+            
+            // Now set the HTML content
+            if (!string.IsNullOrEmpty(contentToRestore))
+            {
+                await JsRuntime.Mutation.SetHtmlAsync(_editorId, contentToRestore);
+                _currentHtml = contentToRestore;
+            }
         }
         else
         {
             // Switching from rich text view to source view
-            _sourceViewContent = await JsRuntime.Mutation.GetHtmlAsync(_editorId) ?? _currentHtml;
+            _sourceViewContent = await JsRuntime.Mutation.GetHtmlAsync(_editorId);
+            if (string.IsNullOrEmpty(_sourceViewContent))
+            {
+                _sourceViewContent = _currentHtml;
+            }
+            
+            _isSourceView = true;
+            _currentState.IsSourceView = true;
+            StateHasChanged();
         }
-
-        _isSourceView = !_isSourceView;
-        _currentState.IsSourceView = _isSourceView;
+        
         await UpdateStateAsync();
-        StateHasChanged();
     }
 
     internal async Task ShowToastAsync(string message, ToastType type = ToastType.Info)

@@ -52,12 +52,12 @@
     private string _text = string.Empty;
     private bool _openInNewTab;
 
-    protected override void OnInitialized()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Try to get selected text as default link text
-        if (Api != null)
+        if (firstRender && Api != null)
         {
-            var selection = Api.GetSelection();
+            // Try to get selected text as default link text
+            var selection = await Api.GetSelectionAsync();
             if (selection != null && !string.IsNullOrEmpty(selection.SelectedText))
             {
                 _text = selection.SelectedText;
@@ -83,8 +83,20 @@
                 attrs["rel"] = "noopener noreferrer";
             }
 
-            await Api.WrapSelectionAsync("a", attrs);
-            await Api.InsertTextAsync(_text);
+            // Check if there's a selection
+            var selection = await Api.GetSelectionAsync();
+            if (selection != null && !string.IsNullOrEmpty(selection.SelectedText))
+            {
+                // Wrap existing selection with link
+                await Api.WrapSelectionAsync("a", attrs);
+            }
+            else
+            {
+                // Insert new link with text
+                var attrString = string.Join(" ", attrs.Select(kv => $"{kv.Key}=\"{kv.Value}\""));
+                await Api.InsertHtmlAsync($"<a {attrString}>{System.Web.HttpUtility.HtmlEncode(_text)}</a>");
+            }
+            
             await Api.ClosePanelAsync();
         }
         catch (Exception ex)
