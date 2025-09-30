@@ -330,6 +330,70 @@ window.ZauberRTE = {
             return Array.from(marks);
         },
 
+        hasMarkInSelection: function(editorId, markName) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return false;
+
+            const range = selection.getRangeAt(0);
+            const editor = document.getElementById(editorId);
+            if (!editor) return false;
+
+            // If range is collapsed, check the current position
+            if (range.collapsed) {
+                const activeMarks = this.getActiveMarks(editorId);
+                return activeMarks.includes(markName);
+            }
+
+            // For non-collapsed selections, check if any part contains the mark
+            const tagName = this.getTagForMark(markName);
+            const container = range.commonAncestorContainer;
+            
+            // Get the container element
+            let containerElement = container;
+            if (containerElement.nodeType === Node.TEXT_NODE) {
+                containerElement = containerElement.parentElement;
+            }
+
+            // Check if the container itself is the mark
+            if (containerElement.tagName && containerElement.tagName.toLowerCase() === tagName) {
+                return true;
+            }
+
+            // Find all mark elements within the container
+            const markElements = containerElement.querySelectorAll(tagName);
+            
+            // Check if any of these elements intersect with the selection
+            for (let element of markElements) {
+                if (range.intersectsNode(element)) {
+                    return true;
+                }
+            }
+
+            // Also check if the selection is fully within a mark by walking up the tree
+            let element = containerElement;
+            while (element && element.id !== editorId) {
+                if (element.tagName && element.tagName.toLowerCase() === tagName) {
+                    return true;
+                }
+                element = element.parentElement;
+            }
+
+            return false;
+        },
+
+        getTagForMark: function(markName) {
+            const tagMap = {
+                'strong': 'strong',
+                'em': 'em',
+                'u': 'u',
+                's': 's',
+                'code': 'code',
+                'sub': 'sub',
+                'sup': 'sup'
+            };
+            return tagMap[markName] || markName;
+        },
+
         getCurrentBlockType: function(editorId) {
             const selection = window.getSelection();
             if (!selection.rangeCount) return 'paragraph';
@@ -406,8 +470,6 @@ window.ZauberRTE = {
         toggleMark: function(editorId, markName) {
             console.log('=== TOGGLE MARK START ===');
             console.log('toggleMark called with:', markName, 'editorId:', editorId);
-            console.log('ZauberRTE object exists:', !!window.ZauberRTE);
-            console.log('toggleMark function exists:', typeof this.toggleMark);
 
             const editor = document.getElementById(editorId);
             if (!editor) {
@@ -418,70 +480,24 @@ window.ZauberRTE = {
             // Focus the editor to ensure commands work
             editor.focus();
 
-            // Check if the mark is active at the current selection
-            const activeMarks = this.getActiveMarks(editorId);
-            console.log('Active marks:', activeMarks);
-            const isActive = activeMarks.includes(markName);
-            console.log('Is', markName, 'active:', isActive);
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
 
-            // Use browser's native execCommand for formatting
-            if (markName === 'code') {
-                // Handle code formatting specially
-                const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                    const range = selection.getRangeAt(0);
-                    if (range.collapsed) {
-                        // Insert code tags around cursor
-                        document.execCommand('insertHTML', false, '<code>&nbsp;</code>');
-                        // Move cursor inside the code tags
-                        const codeElement = editor.querySelector('code');
-                        if (codeElement) {
-                            range.setStart(codeElement, 0);
-                            range.setEnd(codeElement, 1);
-                            selection.removeAllRanges();
-                            selection.addRange(range);
-                        }
-                    } else {
-                        // Wrap selection in code tags
-                        document.execCommand('insertHTML', false, '<code>' + selection.toString() + '</code>');
-                    }
-                }
-            } else if (markName === 'strong') {
-                // Use custom implementation for strong to ensure <strong> tags
-                const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                    const activeMarks = this.getActiveMarks(editorId);
-                    const isActive = activeMarks.includes(markName);
+            // Check if the mark exists anywhere in the selection
+            const hasMarkInSelection = this.hasMarkInSelection(editorId, markName);
+            console.log('Has', markName, 'in selection:', hasMarkInSelection);
 
-                    if (isActive) {
-                        this.unwrap(editorId, this.getTagForMark(markName));
-                        // Clean up any spans that might have been created during unwrapping
-                        const editor = document.getElementById(editorId);
-                        if (editor) {
-                            this.cleanUnnecessarySpans(editor);
-                        }
-                    } else {
-                        this.wrap(editorId, this.getTagForMark(markName));
-                    }
+            if (hasMarkInSelection) {
+                // Remove all instances of the mark from the selection
+                this.unwrap(editorId, this.getTagForMark(markName));
+                // Clean up any spans that might have been created during unwrapping
+                const editor = document.getElementById(editorId);
+                if (editor) {
+                    this.cleanUnnecessarySpans(editor);
                 }
             } else {
-                // Use custom implementation for all marks to handle toggling properly
-                const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                    const activeMarks = this.getActiveMarks(editorId);
-                    const isActive = activeMarks.includes(markName);
-
-                    if (isActive) {
-                        this.unwrap(editorId, this.getTagForMark(markName));
-                        // Clean up any spans that might have been created during unwrapping
-                        const editor = document.getElementById(editorId);
-                        if (editor) {
-                            this.cleanUnnecessarySpans(editor);
-                        }
-                    } else {
-                        this.wrap(editorId, this.getTagForMark(markName));
-                    }
-                }
+                // Apply the mark to the selection
+                this.wrap(editorId, this.getTagForMark(markName));
             }
         },
 
@@ -553,19 +569,6 @@ window.ZauberRTE = {
                 selection.removeAllRanges();
                 selection.addRange(newRange);
             }
-        },
-
-        getTagForMark: function(markName) {
-            const tagMap = {
-                'strong': 'strong',
-                'em': 'em',
-                'u': 'u',
-                's': 's',
-                'code': 'code',
-                'sub': 'sub',
-                'sup': 'sup'
-            };
-            return tagMap[markName] || markName;
         },
 
         getCommandForMark: function(markName) {

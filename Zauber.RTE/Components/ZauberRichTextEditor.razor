@@ -1,5 +1,6 @@
 @using Zauber.RTE.Models
 @using Zauber.RTE.Services
+@using System
 @implements IDisposable
 @inject IZauberJsRuntime JsRuntime
 @inject ToolbarDiscoveryService ToolbarDiscovery
@@ -98,6 +99,24 @@
         }
     }
 
+    private async Task WaitForJavaScriptAsync()
+    {
+        var timeout = 5000; // 5 seconds timeout
+        var startTime = DateTime.Now;
+
+        while ((DateTime.Now - startTime).TotalMilliseconds < timeout)
+        {
+            var isLoaded = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.ZauberRTE !== 'undefined'");
+            if (isLoaded)
+            {
+                return;
+            }
+            await Task.Delay(50); // Wait 50ms before checking again
+        }
+
+        throw new TimeoutException("ZauberRTE JavaScript library failed to load within 5 seconds");
+    }
+
     [JSInvokable]
     public async Task OnPasteCallbackAsync(string pastedContent)
     {
@@ -152,6 +171,9 @@
     {
         try
         {
+            // Wait for JavaScript to load
+            await WaitForJavaScriptAsync();
+
             // Set up paste callback
             await JSRuntime.InvokeVoidAsync("ZauberRTE.clipboard.setPasteCallback",
                 DotNetObjectReference.Create(this),
