@@ -68,13 +68,7 @@ var app = builder.Build();
 }
 ```
 
-### 3. Add Styles
-
-Include the CSS in your `_Host.cshtml` or `index.html`:
-
-```html
-<link href="_content/Zauber.RTE/zauber-rte.css" rel="stylesheet" />
-```
+That's it! Styles are automatically included via CSS isolation and bundled into your project's stylesheet.
 
 ## Configuration
 
@@ -150,21 +144,33 @@ var settings = new EditorSettings
 
 ### Keyboard Shortcuts
 
+Keyboard shortcuts are defined directly on toolbar items, making them fully extensible:
+
 ```csharp
-var settings = new EditorSettings
+public class MyCustomItem : ToolbarItemBase
 {
-    Shortcuts = new ShortcutMap
+    public override string Id => "myCustom";
+    public override string Label => "My Custom Action";
+    public override string IconCss => "fa-star";
+    public override string Shortcut => "Control+Shift+m";  // Define your shortcut here!
+    
+    public override Task ExecuteAsync(EditorApi api)
     {
-        Bold = "Control+b",
-        Italic = "Control+i",
-        Underline = "Control+u",
-        Link = "Control+k",
-        UnorderedList = "Control+Shift+8",
-        OrderedList = "Control+Shift+7",
-        Save = "Control+s"
+        // Your custom logic
+        return Task.CompletedTask;
     }
-};
+}
 ```
+
+Built-in shortcuts:
+- **Bold**: Ctrl+B
+- **Italic**: Ctrl+I  
+- **Underline**: Ctrl+U
+- **Link**: Ctrl+K
+- **Unordered List**: Ctrl+Shift+8
+- **Ordered List**: Ctrl+Shift+7
+- **Undo**: Ctrl+Z
+- **Redo**: Ctrl+Y
 
 ## Component API
 
@@ -371,68 +377,58 @@ Customize appearance using CSS variables:
 
 MIT License - see LICENSE file for details.
 
-## Extending the Editor
+## Extensibility
 
-Zauber RTE is built for extensibility. Create custom toolbar buttons and panels in minutes.
-
-### Quick Example
+Create custom toolbar buttons and panels in minutes. Zauber RTE provides a simple, powerful extension system.
 
 ```csharp
-// 1. Create a custom toolbar item
+// Create a custom toolbar item
 public class EmojiItem : ToolbarItemBase
 {
     public override string Id => "emoji";
     public override string Label => "Emoji";
     public override string IconCss => "fa-smile";
-    public override ToolbarPlacement Placement => ToolbarPlacement.Insert;
-
+    
     public override async Task ExecuteAsync(EditorApi api)
     {
         await api.InsertHtmlAsync("😀");
     }
 }
+```
 
-// 2. Register it
+### Override Built-in Items
+
+Customize any built-in toolbar item by creating your own with the same ID:
+
+```csharp
+// Override the built-in Bold button with custom behavior
+public class BoldItem : ToolbarItemBase
+{
+    public override string Id => "bold";  // Same ID = replaces default
+    public override string Label => "Bold";
+    public override string IconCss => "fa-bold";
+    public override string Shortcut => "Control+b";
+    
+    public override async Task ExecuteAsync(EditorApi api)
+    {
+        // Your custom bold logic here
+        await api.ToggleMarkAsync("strong");
+        await api.ShowToastAsync("Bold applied!");
+    }
+}
+```
+
+By default, `AllowOverrides = true` lets your items replace built-in ones. Set to `false` to prevent overrides:
+
+```csharp
 builder.Services.AddZauberRte(options =>
 {
     options.Assemblies.Add(typeof(Program).Assembly);
+    options.AllowOverrides = false;  // Your items won't replace built-ins
 });
-
-// 3. Add to toolbar
-var settings = new EditorSettings
-{
-    ToolbarLayout = ToolbarLayout.FromRows(
-        new[] { "bold", "italic", "emoji" }
-    )
-};
 ```
 
-**Done!** Your custom button is live. ✨
-
-### Extension Guides
-
-- **[Quick Start Guide](Zauber.RTE/QUICK_START_EXTENDING.md)** - Get started in minutes with copy-paste templates
-- **[Full Extension Guide](EXTENSION_GUIDE_SUMMARY.md)** - Complete documentation on creating custom toolbar items and panels
-
-### Ready-to-Use Templates
-
-Copy from `Zauber.RTE/Examples/`:
-- `CustomToolbarItemTemplate.cs` - Fully documented toolbar button template
-- `CustomPanelTemplate.razor` - Complete panel component template
-
-### Helper Classes
-
-- **PanelBase** - Base class for custom panels (eliminates boilerplate)
-- **HtmlBuilder** - Fluent API for safe HTML generation
-- **EditorApi** - Rich API for editor manipulation
-
-```csharp
-// HtmlBuilder example
-var html = HtmlBuilder.Element("div")
-    .Class("highlight")
-    .Text("Hello!")
-    .Build();
-```
+**[→ Extension Guide](QUICK_START_EXTENDING.md)** - Full documentation with copy-paste templates for toolbar items and custom panels
 
 ## Roadmap
 

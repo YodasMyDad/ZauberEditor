@@ -47,6 +47,45 @@ var settings = new EditorSettings
 
 ---
 
+## 🔄 Overriding Built-in Items
+
+Customize any built-in toolbar button by using the same ID:
+
+```csharp
+// This replaces the default BoldItem
+public class BoldItem : ToolbarItemBase
+{
+    public override string Id => "bold";  // ← Same ID replaces default!
+    public override string Label => "My Bold";
+    public override string IconCss => "fa-bold";
+    public override string Shortcut => "Control+b";
+    public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
+    public override bool IsToggle => true;
+    
+    public override bool IsActive(EditorState state) 
+        => state.ActiveMarks.Contains("strong");
+    
+    public override async Task ExecuteAsync(EditorApi api)
+    {
+        await api.ToggleMarkAsync("strong");
+        await api.ShowToastAsync("Custom bold applied!");
+    }
+}
+```
+
+**Overridable Built-in IDs:**
+`bold`, `italic`, `underline`, `strike`, `code`, `subscript`, `superscript`, `heading1`, `heading2`, `heading3`, `blockquote`, `ul`, `ol`, `alignLeft`, `alignCenter`, `alignRight`, `justified`, `link`, `unlink`, `image`, `table`, `clearFormatting`, `undo`, `redo`, `viewSource`, `settings`, `themeToggle`
+
+By default, overrides are enabled. To disable:
+```csharp
+builder.Services.AddZauberRte(options =>
+{
+    options.AllowOverrides = false;  // Prevent replacements
+});
+```
+
+---
+
 ## 📝 Creating a Custom Panel
 
 ### 1. Copy the Template

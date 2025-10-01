@@ -11,6 +11,7 @@ public class LinkItem : ToolbarItemBase
     public override string Label => "Link";
     public override string Tooltip => "Insert Link (Ctrl+K)";
     public override string IconCss => "fa-link";
+    public override string Shortcut => "Control+k";
     public override ToolbarPlacement Placement => ToolbarPlacement.Insert;
 
     public override Task ExecuteAsync(EditorApi api) => api.OpenPanelAsync(typeof(LinkPanel));

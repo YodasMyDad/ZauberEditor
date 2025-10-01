@@ -31,6 +31,11 @@ public interface IToolbarItem
     string IconCss { get; }
 
     /// <summary>
+    /// Optional keyboard shortcut (e.g., "Control+b", "Control+Shift+8")
+    /// </summary>
+    string? Shortcut { get; }
+
+    /// <summary>
     /// Whether this is a toggle item (can be on/off)
     /// </summary>
     bool IsToggle { get; }
@@ -66,6 +71,7 @@ public abstract class ToolbarItemBase : IToolbarItem
     public virtual string? Tooltip => null;
     public abstract ToolbarPlacement Placement { get; }
     public abstract string IconCss { get; }
+    public virtual string? Shortcut => null;
     public virtual bool IsToggle => false;
     public virtual Type? PanelComponent => null;
 

@@ -33,8 +33,9 @@ public class EditorSettings
     public HtmlPolicy HtmlPolicy { get; set; } = new();
 
     /// <summary>
-    /// Keyboard shortcuts configuration
+    /// Keyboard shortcuts configuration (OBSOLETE: Use Shortcut property on IToolbarItem instead)
     /// </summary>
+    [Obsolete("Keyboard shortcuts are now defined on IToolbarItem. This property is no longer used.")]
     public ShortcutMap Shortcuts { get; set; } = new();
 
     /// <summary>
@@ -217,8 +218,9 @@ public class HtmlPolicy
 }
 
 /// <summary>
-/// Keyboard shortcuts configuration
+/// Keyboard shortcuts configuration (OBSOLETE: Use Shortcut property on IToolbarItem instead)
 /// </summary>
+[Obsolete("Keyboard shortcuts are now defined on IToolbarItem. This class is no longer used.")]
 public class ShortcutMap
 {
     /// <summary>

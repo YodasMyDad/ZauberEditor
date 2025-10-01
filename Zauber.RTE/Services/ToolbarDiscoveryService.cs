@@ -116,7 +116,12 @@ public class ZauberRteOptions
     /// <summary>
     /// Assemblies to scan for toolbar items
     /// </summary>
-    public List<Assembly> Assemblies { get; set; } = new();
+    public List<Assembly> Assemblies { get; set; } = [];
+
+    /// <summary>
+    /// When true, custom toolbar items from user assemblies can override built-in items with the same ID
+    /// </summary>
+    public bool AllowOverrides { get; set; } = true;
 }
 
 /// <summary>
@@ -132,22 +137,30 @@ public static class ZauberRteServiceCollectionExtensions
         var options = new ZauberRteOptions();
         configure?.Invoke(options);
 
-        // Register default toolbar items from this assembly
-        options.Assemblies.Add(typeof(ZauberRteServiceCollectionExtensions).Assembly);
-
         // Register the discovery service with initialization
         services.AddSingleton(provider =>
         {
             var discoveryService = new ToolbarDiscoveryService(provider.GetRequiredService<ILogger<ToolbarDiscoveryService>>());
-            discoveryService.ScanAssemblies(options.Assemblies);
-
-            // Explicitly register default toolbar items to ensure they're always available
-            foreach (var item in DefaultToolbarItems.GetAllDefaultItems())
+            
+            if (options.AllowOverrides)
             {
-                if (!discoveryService.HasItem(item.Id))
+                // Scan user assemblies first, then add defaults only if not present
+                // This allows users to override built-in toolbar items
+                discoveryService.ScanAssemblies(options.Assemblies);
+                
+                foreach (var item in DefaultToolbarItems.GetAllDefaultItems())
                 {
-                    discoveryService.RegisterItem(item);
+                    if (!discoveryService.HasItem(item.Id))
+                    {
+                        discoveryService.RegisterItem(item);
+                    }
                 }
+            }
+            else
+            {
+                // Scan defaults first - user items with duplicate IDs will be skipped
+                discoveryService.ScanAssemblies([typeof(ZauberRteServiceCollectionExtensions).Assembly]);
+                discoveryService.ScanAssemblies(options.Assemblies);
             }
 
             return discoveryService;

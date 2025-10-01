@@ -194,6 +194,13 @@
             // Wait for JavaScript to load
             await WaitForJavaScriptAsync();
 
+            // Register all keyboard shortcuts with JavaScript to prevent browser defaults
+            var shortcuts = ToolbarDiscovery.GetAllItems().Values
+                .Where(item => !string.IsNullOrEmpty(item.Shortcut))
+                .Select(item => item.Shortcut)
+                .ToArray();
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.shortcuts.registerShortcuts", _editorId, shortcuts);
+
             // Set up paste callback
             await JSRuntime.InvokeVoidAsync("ZauberRTE.clipboard.setPasteCallback",
                 DotNetObjectReference.Create(this),
@@ -338,7 +345,11 @@
     private async Task HandleBlurAsync()
     {
         _currentState.HasFocus = false;
-        await UpdateStateAsync();
+        // Clear active marks when editor loses focus to prevent stale button states
+        _currentState.ActiveMarks = [];
+        _currentState.CurrentBlockType = "p";
+        _currentState.CurrentHeadingLevel = 0;
+        _currentState.HasSelection = false;
         await OnBlur.InvokeAsync();
     }
 
@@ -412,57 +423,29 @@
 
     private async Task<bool> HandleKeyboardShortcutAsync(ZauberKeyboardEventArgs args)
     {
-        // Check for keyboard shortcuts defined in settings
-        var shortcuts = Settings.Shortcuts;
-
-        if (args.MatchesShortcut(shortcuts.Bold))
+        // Check all registered toolbar items for matching shortcuts
+        var allItems = ToolbarDiscovery.GetAllItems();
+        
+        foreach (var item in allItems.Values)
         {
-            await HandleToolbarCommandAsync("bold");
-            return true;
+            if (!string.IsNullOrEmpty(item.Shortcut) && 
+                args.MatchesShortcut(item.Shortcut) && 
+                item.IsEnabled(_currentState))
+            {
+                await HandleToolbarCommandAsync(item.Id);
+                return true;
+            }
         }
 
-        if (args.MatchesShortcut(shortcuts.Italic))
+        // Additional fallback for Ctrl+Shift+Z as alternative redo shortcut
+        if (args.CtrlKey && args.ShiftKey && args.Key == "z")
         {
-            await HandleToolbarCommandAsync("italic");
-            return true;
-        }
-
-        if (args.MatchesShortcut(shortcuts.Underline))
-        {
-            await HandleToolbarCommandAsync("underline");
-            return true;
-        }
-
-        if (args.MatchesShortcut(shortcuts.Link))
-        {
-            await HandleToolbarCommandAsync("link");
-            return true;
-        }
-
-        if (args.MatchesShortcut(shortcuts.UnorderedList))
-        {
-            await HandleToolbarCommandAsync("ul");
-            return true;
-        }
-
-        if (args.MatchesShortcut(shortcuts.OrderedList))
-        {
-            await HandleToolbarCommandAsync("ol");
-            return true;
-        }
-
-        // Undo (Ctrl+Z)
-        if (args.CtrlKey && !args.ShiftKey && args.Key == "z")
-        {
-            await HandleToolbarCommandAsync("undo");
-            return true;
-        }
-
-        // Redo (Ctrl+Y or Ctrl+Shift+Z)
-        if ((args.CtrlKey && args.Key == "y") || (args.CtrlKey && args.ShiftKey && args.Key == "z"))
-        {
-            await HandleToolbarCommandAsync("redo");
-            return true;
+            var redoItem = ToolbarDiscovery.GetItem("redo");
+            if (redoItem?.IsEnabled(_currentState) == true)
+            {
+                await HandleToolbarCommandAsync("redo");
+                return true;
+            }
         }
 
         return false;

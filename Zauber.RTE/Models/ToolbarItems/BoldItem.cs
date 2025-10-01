@@ -12,9 +12,9 @@ public class BoldItem : ToolbarItemBase
     public override string Label => "Bold";
     public override string Tooltip => "Bold (Ctrl+B)";
     public override string IconCss => "fa-bold";
+    public override string Shortcut => "Control+b";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
-
     public override bool IsActive(EditorState state) => state.ActiveMarks.Contains("strong");
     public override Task ExecuteAsync(EditorApi api) => api.ToggleMarkAsync("strong");
 }

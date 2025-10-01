@@ -4,6 +4,41 @@
 console.log('ZauberRTE JavaScript loaded');
 
 window.ZauberRTE = {
+    // Shortcuts API
+    shortcuts: {
+        _registeredShortcuts: new Map(), // editorId -> Set of shortcut strings
+        
+        registerShortcuts: function(editorId, shortcuts) {
+            console.log('Registering shortcuts for', editorId, shortcuts);
+            this._registeredShortcuts.set(editorId, new Set(shortcuts));
+        },
+        
+        shouldPreventDefault: function(editorId, event) {
+            const shortcuts = this._registeredShortcuts.get(editorId);
+            if (!shortcuts || shortcuts.size === 0) return false;
+            
+            // Parse the event into a shortcut string format (normalized to lowercase)
+            const parts = [];
+            if (event.ctrlKey || event.metaKey) parts.push('control');
+            if (event.shiftKey) parts.push('shift');
+            if (event.altKey) parts.push('alt');
+            parts.push(event.key.toLowerCase());
+            
+            const eventShortcut = parts.join('+');
+            
+            // Check if any registered shortcut matches
+            for (const shortcut of shortcuts) {
+                const normalizedShortcut = shortcut.toLowerCase().replace('ctrl', 'control').replace('cmd', 'control');
+                if (normalizedShortcut === eventShortcut) {
+                    console.log('Preventing default for shortcut:', eventShortcut);
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+    },
+    
     // Selection API
     selection: {
         _savedRanges: new Map(), // editorId -> saved range
@@ -1319,6 +1354,11 @@ window.ZauberRTE = {
                         if (this.handleTabKey(editorId, event.shiftKey)) {
                             return;
                         }
+                    } else if (window.ZauberRTE.shortcuts.shouldPreventDefault(editorId, event)) {
+                        // Prevent default browser behavior for registered shortcuts
+                        // Let Blazor handle these via custom toolbar items
+                        // NOTE: Only preventDefault, NOT stopPropagation - Blazor needs to receive the event
+                        event.preventDefault();
                     } else if (event.key === 'Backspace' && !event.shiftKey) {
                         // Backspace at start of list item
                         if (this.handleBackspaceInList(editorId, event)) {

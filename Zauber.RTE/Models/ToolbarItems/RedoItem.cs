@@ -11,6 +11,7 @@ public class RedoItem : ToolbarItemBase
     public override string Id => "redo";
     public override string Label => "Redo";
     public override string IconCss => "fa-redo";
+    public override string Shortcut => "Control+y";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
 
     public override bool IsEnabled(EditorState state) => state.CanRedo;
