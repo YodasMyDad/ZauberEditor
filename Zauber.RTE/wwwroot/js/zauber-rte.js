@@ -1422,17 +1422,64 @@ window.ZauberRTE = {
                     }
                 });
 
-                // Handle removing &nbsp; when user starts typing in empty paragraphs
+                // Handle input events for paragraph cleanup
                 editor.addEventListener('input', (event) => {
                     this.handleParagraphInput(editorId, event.target);
                     // Clean up any spans that might have been created during input
                     this.cleanUnnecessarySpans(editor);
                 });
 
+                // Handle deletion keys - cleanup empty paragraphs immediately after
+                editor.addEventListener('keyup', (event) => {
+                    if (event.key === 'Backspace' || event.key === 'Delete') {
+                        // Clean up empty paragraphs after deletion and notify
+                        this.cleanupEmptyParagraphs(editorId);
+                    }
+                });
+
                 // Handle focus events to clean up empty paragraphs
                 editor.addEventListener('focusin', (event) => {
                     this.handleParagraphFocus(editorId, event.target);
                 });
+            }
+        },
+
+        cleanupEmptyParagraphs: function(editorId) {
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) return;
+
+            const paragraphs = editor.querySelectorAll('p');
+            const selection = window.getSelection();
+            const currentRange = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+            let cursorParagraph = null;
+
+            // Find which paragraph has the cursor
+            if (currentRange) {
+                let node = currentRange.startContainer;
+                if (node.nodeType === Node.TEXT_NODE) {
+                    node = node.parentElement;
+                }
+                while (node && node !== editor) {
+                    if (node.tagName?.toLowerCase() === 'p') {
+                        cursorParagraph = node;
+                        break;
+                    }
+                    node = node.parentElement;
+                }
+            }
+
+            // Remove empty paragraphs that don't have the cursor
+            let removedAny = false;
+            paragraphs.forEach(p => {
+                if (p !== cursorParagraph && (p.innerHTML === '<br>' || p.innerHTML === '&nbsp;' || p.textContent.trim() === '')) {
+                    p.remove();
+                    removedAny = true;
+                }
+            });
+
+            // Notify Blazor if we removed any paragraphs
+            if (removedAny) {
+                this._notifyContentModified(editorId);
             }
         },
 
@@ -2131,6 +2178,8 @@ window.ZauberRTE = {
         _isResizing: false,
         _originalDimensions: null,
         _maintainAspectRatio: true,
+        _selectedImageInfo: new Map(), // editorId -> ImageInfo
+        _editorObserver: null,
 
         showResizeHandles: function(editorId, imageId) {
             const editor = document.getElementById(editorId);
@@ -2173,22 +2222,43 @@ window.ZauberRTE = {
             // Position handles around the image
             this.updateHandlePositions(imageElement, handlesContainer);
 
-            // Insert handles into DOM
-            imageElement.parentNode.insertBefore(handlesContainer, imageElement.nextSibling);
+            // Insert handles into body (outside content editable area)
+            document.body.appendChild(handlesContainer);
             this._resizeHandles = handlesContainer;
 
             // Listen for image changes to update handle positions
-            const observer = new MutationObserver(() => {
-                if (this._resizeHandles && document.contains(this._resizeHandles)) {
+            const imageObserver = new MutationObserver(() => {
+                if (this._resizeHandles && document.contains(this._resizeHandles) && document.contains(imageElement)) {
                     this.updateHandlePositions(imageElement, this._resizeHandles);
+                } else if (!document.contains(imageElement)) {
+                    // Image was deleted, cleanup handles
+                    this.hideResizeHandles();
                 }
             });
-            observer.observe(imageElement, { attributes: true, attributeFilter: ['width', 'height', 'style'] });
+            imageObserver.observe(imageElement, { attributes: true, attributeFilter: ['width', 'height', 'style'] });
+
+            // Watch for image deletion from the editor
+            const editorContent = document.getElementById(editorId + '-content');
+            if (editorContent) {
+                const editorObserver = new MutationObserver(() => {
+                    if (!document.contains(imageElement)) {
+                        this.hideResizeHandles();
+                        this._selectedImageInfo.delete(editorId);
+                        editorObserver.disconnect();
+                    }
+                });
+                editorObserver.observe(editorContent, { childList: true, subtree: true });
+                this._editorObserver = editorObserver;
+            }
         },
 
         hideResizeHandles: function() {
             if (this._resizeHandles && document.contains(this._resizeHandles)) {
                 this._resizeHandles.remove();
+            }
+            if (this._editorObserver) {
+                this._editorObserver.disconnect();
+                this._editorObserver = null;
             }
             this._resizeHandles = null;
             this._currentResizeImage = null;
@@ -2425,6 +2495,16 @@ window.ZauberRTE = {
                         target.id = 'img-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
                     }
 
+                    // Store the image info for later retrieval (survives toolbar button clicks)
+                    const src = target.getAttribute('src') || '';
+                    this._selectedImageInfo.set(editorId, {
+                        src: src,
+                        alt: target.getAttribute('alt'),
+                        width: target.getAttribute('width') || target.style.width,
+                        height: target.getAttribute('height') || target.style.height,
+                        isDataUrl: src.startsWith('data:')
+                    });
+
                     // Select the image in the DOM so it can be detected by getImageAtCursor
                     const selection = window.getSelection();
                     const range = document.createRange();
@@ -2437,6 +2517,8 @@ window.ZauberRTE = {
                 } else if (!event.target.closest('.rte-image-resize-handles')) {
                     // Hide resize handles when clicking elsewhere (but not on handles themselves)
                     this.hideResizeHandles();
+                    // Clear stored image info
+                    this._selectedImageInfo.delete(editorId);
                 }
             });
 
@@ -2445,8 +2527,13 @@ window.ZauberRTE = {
                 const editorContent = document.getElementById(editorId + '-content');
                 if (editorContent && !editorContent.contains(event.target) && !event.target.closest('.rte-image-resize-handles')) {
                     this.hideResizeHandles();
+                    this._selectedImageInfo.delete(editorId);
                 }
             });
+        },
+
+        clearSelectedImage: function(editorId) {
+            this._selectedImageInfo.delete(editorId);
         }
     },
 

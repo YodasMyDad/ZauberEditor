@@ -90,6 +90,8 @@
 </div>
 
 @code {
+    [Parameter] public Dictionary<string, object>? Parameters { get; set; }
+
     private string _imageUrl = string.Empty;
     private string _imageDataUrl = string.Empty;
     private string _altText = string.Empty;
@@ -118,6 +120,29 @@
         return Task.CompletedTask;
     }
 
+    protected override Task OnParametersSetAsync()
+    {
+        // Check if we're editing an existing image (passed as parameter)
+        if (Parameters != null && Parameters.TryGetValue("ExistingImage", out var imageObj) && imageObj is ImageInfo existingImage)
+        {
+            _isEditMode = true;
+            _altText = existingImage.Alt ?? string.Empty;
+            
+            if (existingImage.IsDataUrl)
+            {
+                _sourceType = "file";
+                _imageDataUrl = existingImage.Src ?? string.Empty;
+            }
+            else
+            {
+                _sourceType = "url";
+                _imageUrl = existingImage.Src ?? string.Empty;
+            }
+        }
+        
+        return Task.CompletedTask;
+    }
+
     private void SelectUrlSource()
     {
         _sourceType = "url";
@@ -132,27 +157,10 @@
     {
         if (firstRender && Api != null)
         {
-            // Check if we're editing an existing image
-            var imageInfo = await Api.GetImageAtCursorAsync();
-            if (imageInfo != null)
+            if (_isEditMode)
             {
-                _isEditMode = true;
-                _altText = imageInfo.Alt ?? string.Empty;
-                
-                if (imageInfo.IsDataUrl)
-                {
-                    _sourceType = "file";
-                    _imageDataUrl = imageInfo.Src;
-                }
-                else
-                {
-                    _sourceType = "url";
-                    _imageUrl = imageInfo.Src;
-                }
-                
-                // Select the image so we can replace it
+                // Select the image so we can replace it when updating
                 await Api.SelectImageAtCursorAsync();
-                StateHasChanged();
             }
             else
             {
@@ -236,6 +244,8 @@
 
             if (_isEditMode)
             {
+                // Select the image again (in case selection was lost)
+                await Api.SelectImageAtCursorAsync();
                 // Replace the existing image
                 await Api.ReplaceSelectionAsync(html);
             }
