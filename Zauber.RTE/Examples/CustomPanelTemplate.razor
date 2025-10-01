@@ -1,0 +1,125 @@
+@using Zauber.RTE.Models
+@inherits PanelBase
+
+@*
+    Example template for creating a custom panel component.
+    Copy this file to your project (Components/Panels folder) and customize as needed.
+    
+    Panels are slide-out forms that allow users to provide input before executing an action.
+    Common uses: Insert link, insert image, insert table, etc.
+*@
+
+<div class="rte-panel-content">
+    <h3 class="rte-panel-title">My Custom Panel</h3>
+
+    @* Add your form fields here using the provided CSS classes *@
+    
+    <div class="rte-form-group">
+        <label for="custom-input" class="rte-label">Input Label</label>
+        <input type="text"
+               id="custom-input"
+               class="rte-input"
+               @bind="_inputValue"
+               placeholder="Enter value..." />
+    </div>
+
+    <div class="rte-form-group">
+        <label class="rte-checkbox-label">
+            <input type="checkbox" @bind="_checkboxValue" />
+            <span class="rte-checkbox-mark"></span>
+            Checkbox option
+        </label>
+    </div>
+
+    @* Standard action buttons - Cancel and Primary action *@
+    <div class="rte-panel-actions">
+        <button type="button"
+                class="rte-btn rte-btn-secondary"
+                @onclick="CloseAsync">
+            Cancel
+        </button>
+        <button type="button"
+                class="rte-btn rte-btn-primary"
+                @onclick="ApplyAsync"
+                disabled="@string.IsNullOrEmpty(_inputValue)">
+            Apply
+        </button>
+    </div>
+</div>
+
+@code {
+    private string _inputValue = string.Empty;
+    private bool _checkboxValue;
+
+    /// <summary>
+    /// Called when the panel first renders
+    /// Use this to save the selection range or load initial data
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Api != null)
+        {
+            // IMPORTANT: Save the selection range so content is inserted at the correct position
+            await Api.SaveSelectionRangeAsync();
+
+            // Optional: Load existing data if editing
+            // var existingData = await Api.GetSomethingAsync();
+            // if (existingData != null)
+            // {
+            //     _inputValue = existingData;
+            //     StateHasChanged();
+            // }
+        }
+    }
+
+    /// <summary>
+    /// Called when the user clicks the primary action button
+    /// </summary>
+    private async Task ApplyAsync()
+    {
+        if (Api == null || string.IsNullOrEmpty(_inputValue))
+            return;
+
+        try
+        {
+            // Build the HTML to insert using HtmlBuilder
+            var html = HtmlBuilder.Element("div")
+                .Class("custom-content")
+                .Text(_inputValue)
+                .Build();
+
+            // Alternative: Build more complex HTML
+            // var html = HtmlBuilder.Element("div")
+            //     .Class("custom-wrapper")
+            //     .Child(HtmlBuilder.Element("h3").Text("Title"))
+            //     .Child(HtmlBuilder.Element("p").Text(_inputValue))
+            //     .Build();
+
+            // Restore the saved selection before inserting
+            await Api.RestoreSelectionRangeAsync();
+
+            // Insert the HTML
+            await Api.InsertHtmlAsync(html);
+
+            // Clean up the saved range
+            await Api.ClearSavedSelectionRangeAsync();
+
+            // Close the panel (inherited from PanelBase)
+            await CloseAsync();
+        }
+        catch (Exception ex)
+        {
+            // Show error message to user
+            await Api!.ShowToastAsync($"Failed to apply: {ex.Message}", ToastType.Error);
+        }
+    }
+
+    /// <summary>
+    /// Optional: Override to perform cleanup when panel is disposed
+    /// </summary>
+    protected override void OnDispose()
+    {
+        // Clean up any resources here
+    }
+}
+

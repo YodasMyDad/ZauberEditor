@@ -1,4 +1,3 @@
-using Zauber.RTE.Services;
 using Zauber.RTE.Components.Panels;
 
 namespace Zauber.RTE.Models.ToolbarItems;
@@ -14,5 +13,5 @@ public class LinkItem : ToolbarItemBase
     public override string IconCss => "fa-link";
     public override ToolbarPlacement Placement => ToolbarPlacement.Insert;
 
-    public override Task ExecuteAsync(EditorApi api) => api.OpenPanelAsync(typeof(Zauber.RTE.Components.Panels.LinkPanel));
+    public override Task ExecuteAsync(EditorApi api) => api.OpenPanelAsync(typeof(LinkPanel));
 }

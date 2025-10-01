@@ -52,7 +52,11 @@
                  id="@(_editorId + "-content")">
             </div>
             
-            <div class="rte-resize-handle" title="Drag to resize"></div>
+            <div class="rte-editor-resize-handle" title="Drag to resize">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="12" height="12" fill="currentColor">
+                    <path d="M32 288c-17.7 0-32 14.3-32 32s14.3 32 32 32l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 288zm0-128c-17.7 0-32 14.3-32 32s14.3 32 32 32l384 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L32 160z"/>
+                </svg>
+            </div>
 
             @if (Settings.Capabilities.EmbedsAndMedia)
             {
@@ -77,6 +81,8 @@
     private bool _isInitialized;
     private bool _isSourceView;
     private string? _sourceViewContent;
+    private Theme _activeTheme = Theme.Auto;
+    private bool _themeInitialized;
 
     // Parameters
     [Parameter] public string? Value { get; set; }
@@ -163,10 +169,15 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        // Set theme from settings if not explicitly set
-        if (Theme == Theme.Auto && Settings.DefaultTheme != Theme.Auto)
+        // Initialize theme once from parameter or settings
+        if (!_themeInitialized)
         {
-            Theme = Settings.DefaultTheme;
+            _activeTheme = Theme != Theme.Auto 
+                ? Theme 
+                : Settings.DefaultTheme != Theme.Auto 
+                    ? Settings.DefaultTheme 
+                    : Theme.Auto;
+            _themeInitialized = true;
         }
 
         // Set content if the value has changed
@@ -249,7 +260,7 @@
 
     private string GetThemeClass()
     {
-        return Theme switch
+        return _activeTheme switch
         {
             Theme.Light => "rte-theme-light",
             Theme.Dark => "rte-theme-dark",
@@ -367,7 +378,7 @@
         // Handle theme toggle specially
         if (commandId == "themeToggle")
         {
-            Theme = Theme switch
+            _activeTheme = _activeTheme switch
             {
                 Theme.Light => Theme.Dark,
                 Theme.Dark => Theme.Light,

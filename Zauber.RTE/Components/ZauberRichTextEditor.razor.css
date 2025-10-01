@@ -230,63 +230,63 @@
     position: relative;
 }
 
-/* Resize Handle */
-.rte-resize-handle {
+/* Editor Height Resize Handle */
+.rte-editor-resize-handle {
     position: absolute;
-    bottom: 2px;
-    right: 2px;
-    width: 20px;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
     height: 20px;
     cursor: ns-resize;
     background: transparent;
-    border-bottom-right-radius: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.4;
+    opacity: 0.5;
     transition: opacity 0.2s ease;
     touch-action: none;
+    color: #6b7280;
+    border: none;
+    outline: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
 }
 
 /* Larger touch area on mobile */
 @media (max-width: 768px) {
-    .rte-resize-handle {
-        width: 30px;
+    .rte-editor-resize-handle {
+        width: 50px;
         height: 30px;
     }
 }
 
-.rte-resize-handle::before {
-    content: '';
+.rte-editor-resize-handle svg {
     display: block;
-    width: 12px;
-    height: 3px;
-    background: repeating-linear-gradient(
-        to bottom,
-        #94a3b8,
-        #94a3b8 1px,
-        transparent 1px,
-        transparent 3px
-    );
-    border-radius: 1px;
+    pointer-events: none;
 }
 
-.rte-resize-handle:hover {
-    opacity: 0.8;
+.rte-editor-resize-handle:hover {
+    opacity: 0.75;
+    background: transparent;
+    border: none;
 }
 
-.rte-resize-handle:active {
+.rte-editor-resize-handle:active {
     opacity: 1;
+    background: transparent;
+    border: none;
 }
 
-.zauber-rte.rte-theme-dark .rte-resize-handle::before {
-    background: repeating-linear-gradient(
-        to bottom,
-        #6b7280,
-        #6b7280 1px,
-        transparent 1px,
-        transparent 3px
-    );
+.rte-editor-resize-handle:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.zauber-rte.rte-theme-dark .rte-editor-resize-handle {
+    color: #9ca3af;
+    opacity: 0.6;
 }
 
 /* Content Editable */

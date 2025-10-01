@@ -210,34 +210,7 @@ The editor comes with comprehensive toolbar items:
 
 ### Custom Toolbar Items
 
-Create custom toolbar items by implementing `IToolbarItem`:
-
-```csharp
-public class CustomButtonItem : ToolbarItemBase
-{
-    public override string Id => "custom-button";
-    public override string Label => "Custom Button";
-    public override string SvgPath => "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5";
-    public override ToolbarPlacement Placement => ToolbarPlacement.Custom;
-
-    public override Task ExecuteAsync(EditorApi api)
-    {
-        // Your custom logic here
-        await api.InsertHtmlAsync("<div>Custom content</div>");
-        return Task.CompletedTask;
-    }
-}
-```
-
-Register custom items during service configuration:
-
-```csharp
-builder.Services.AddZauberRte(options =>
-{
-    // Register custom toolbar items
-    options.Assemblies.Add(typeof(CustomButtonItem).Assembly);
-});
-```
+Create custom toolbar items by implementing `IToolbarItem`. See the **Extension Guide** section below for detailed examples.
 
 ### Toolbar Layouts
 
@@ -297,24 +270,45 @@ private async Task HandleImageUpload(ImageUploadArgs args)
 
 ### Custom Panels
 
-Create custom slide-out panels:
+Create custom slide-out panels by inheriting from `PanelBase`:
 
 ```razor
 <!-- CustomPanel.razor -->
+@using Zauber.RTE.Models
 @inherits PanelBase
 
-<div class="custom-panel">
-    <h3>Custom Panel</h3>
-    <input @bind="customValue" />
-    <button @onclick="ApplyChanges">Apply</button>
+<div class="rte-panel-content">
+    <h3 class="rte-panel-title">Custom Panel</h3>
+    
+    <div class="rte-form-group">
+        <label class="rte-label">Enter Value</label>
+        <input @bind="customValue" class="rte-input" />
+    </div>
+
+    <div class="rte-panel-actions">
+        <button type="button" class="rte-btn rte-btn-secondary" @onclick="CloseAsync">
+            Cancel
+        </button>
+        <button type="button" class="rte-btn rte-btn-primary" @onclick="ApplyAsync">
+            Apply
+        </button>
+    </div>
 </div>
 
 @code {
     private string customValue = "";
 
-    private async Task ApplyChanges()
+    private async Task ApplyAsync()
     {
-        await Api.InsertHtmlAsync($"<div>{customValue}</div>");
+        if (Api == null) return;
+        
+        // Use HtmlBuilder for clean HTML generation
+        var html = HtmlBuilder.Element("div")
+            .Class("custom-content")
+            .Text(customValue)
+            .Build();
+            
+        await Api.InsertHtmlAsync(html);
         await CloseAsync();
     }
 }
@@ -376,6 +370,69 @@ Customize appearance using CSS variables:
 ## License
 
 MIT License - see LICENSE file for details.
+
+## Extending the Editor
+
+Zauber RTE is built for extensibility. Create custom toolbar buttons and panels in minutes.
+
+### Quick Example
+
+```csharp
+// 1. Create a custom toolbar item
+public class EmojiItem : ToolbarItemBase
+{
+    public override string Id => "emoji";
+    public override string Label => "Emoji";
+    public override string IconCss => "fa-smile";
+    public override ToolbarPlacement Placement => ToolbarPlacement.Insert;
+
+    public override async Task ExecuteAsync(EditorApi api)
+    {
+        await api.InsertHtmlAsync("😀");
+    }
+}
+
+// 2. Register it
+builder.Services.AddZauberRte(options =>
+{
+    options.Assemblies.Add(typeof(Program).Assembly);
+});
+
+// 3. Add to toolbar
+var settings = new EditorSettings
+{
+    ToolbarLayout = ToolbarLayout.FromRows(
+        new[] { "bold", "italic", "emoji" }
+    )
+};
+```
+
+**Done!** Your custom button is live. ✨
+
+### Extension Guides
+
+- **[Quick Start Guide](Zauber.RTE/QUICK_START_EXTENDING.md)** - Get started in minutes with copy-paste templates
+- **[Full Extension Guide](EXTENSION_GUIDE_SUMMARY.md)** - Complete documentation on creating custom toolbar items and panels
+
+### Ready-to-Use Templates
+
+Copy from `Zauber.RTE/Examples/`:
+- `CustomToolbarItemTemplate.cs` - Fully documented toolbar button template
+- `CustomPanelTemplate.razor` - Complete panel component template
+
+### Helper Classes
+
+- **PanelBase** - Base class for custom panels (eliminates boilerplate)
+- **HtmlBuilder** - Fluent API for safe HTML generation
+- **EditorApi** - Rich API for editor manipulation
+
+```csharp
+// HtmlBuilder example
+var html = HtmlBuilder.Element("div")
+    .Class("highlight")
+    .Text("Hello!")
+    .Build();
+```
 
 ## Roadmap
 

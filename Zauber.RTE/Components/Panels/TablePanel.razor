@@ -1,5 +1,5 @@
 @using Zauber.RTE.Models
-@implements IDisposable
+@inherits PanelBase
 
 <div class="rte-panel-content">
     <h3 class="rte-panel-title">Insert Table</h3>
@@ -47,8 +47,6 @@
 </div>
 
 @code {
-    [CascadingParameter] public EditorApi? Api { get; set; }
-
     private int _rows = 3;
     private int _cols = 3;
     private bool _hasHeader;
@@ -120,15 +118,6 @@
 
     private async Task CancelAsync()
     {
-        if (Api != null)
-        {
-            await Api.ClearSavedSelectionRangeAsync();
-            await Api.ClosePanelAsync();
-        }
-    }
-
-    void IDisposable.Dispose()
-    {
-        // Cleanup if needed
+        await CloseAsync();
     }
 }

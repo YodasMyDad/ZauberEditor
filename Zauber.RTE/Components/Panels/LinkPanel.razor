@@ -1,5 +1,5 @@
 @using Zauber.RTE.Models
-@implements IDisposable
+@inherits PanelBase
 
 <div class="rte-panel-content">
     <h3 class="rte-panel-title">Insert Link</h3>
@@ -46,8 +46,6 @@
 </div>
 
 @code {
-    [CascadingParameter] public EditorApi? Api { get; set; }
-
     private string _url = string.Empty;
     private string _text = string.Empty;
     private bool _openInNewTab;
@@ -116,9 +114,7 @@
             }
 
             // Build the link HTML
-            var encodedText = System.Net.WebUtility.HtmlEncode(_text);
-            var attrString = string.Join(" ", attrs.Select(kv => $"{kv.Key}=\"{kv.Value}\""));
-            var htmlToInsert = $"<a {attrString}>{encodedText}</a>";
+            var htmlToInsert = HtmlBuilder.Link(_url, _text).Attrs(attrs).Build();
             
             // Check if we had an original selection when the panel opened
             if (_originalSelection != null && !string.IsNullOrEmpty(_originalSelection.SelectedText))
@@ -167,15 +163,6 @@
 
     private async Task CancelAsync()
     {
-        if (Api != null)
-        {
-            await Api.ClearSavedSelectionRangeAsync();
-            await Api.ClosePanelAsync();
-        }
-    }
-
-    void IDisposable.Dispose()
-    {
-        // Cleanup if needed
+        await CloseAsync();
     }
 }

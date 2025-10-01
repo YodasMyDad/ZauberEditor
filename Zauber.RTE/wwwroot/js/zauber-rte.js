@@ -1233,6 +1233,14 @@ window.ZauberRTE = {
                 element.removeAttribute('class');
             });
 
+            // Remove empty paragraph tags
+            const emptyParagraphs = tempDiv.querySelectorAll('p');
+            emptyParagraphs.forEach(p => {
+                if (p.innerHTML === '' || p.innerHTML === '&nbsp;' || p.textContent.trim() === '') {
+                    p.remove();
+                }
+            });
+
             // Insert the cleaned content back
             const insertedNodes = [];
             while (tempDiv.firstChild) {
@@ -1250,6 +1258,21 @@ window.ZauberRTE = {
                 newRange.setEndAfter(insertedNodes[insertedNodes.length - 1]);
                 selection.removeAllRanges();
                 selection.addRange(newRange);
+            }
+
+            // Clean up empty paragraphs at the start and end of editor
+            const cleanupEmpty = (element) => {
+                return element && 
+                       element.tagName === 'P' && 
+                       (element.innerHTML === '' || element.innerHTML === '&nbsp;' || element.textContent.trim() === '');
+            };
+
+            while (cleanupEmpty(editor.firstElementChild)) {
+                editor.firstElementChild.remove();
+            }
+            
+            while (cleanupEmpty(editor.lastElementChild)) {
+                editor.lastElementChild.remove();
             }
         },
 
@@ -2462,7 +2485,7 @@ window.ZauberRTE = {
             const editor = document.getElementById(editorId);
             if (!editor) return;
 
-            const resizeHandle = editor.querySelector('.rte-resize-handle');
+            const resizeHandle = editor.querySelector('.rte-editor-resize-handle');
             if (!resizeHandle) return;
 
             resizeHandle.addEventListener('mousedown', (e) => this.startResize(e, editorId));

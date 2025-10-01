@@ -1,5 +1,5 @@
 @using Zauber.RTE.Models
-@implements IDisposable
+@inherits PanelBase
 
 <div class="rte-panel-content">
     <h3 class="rte-panel-title">Insert Image</h3>
@@ -67,8 +67,6 @@
 </div>
 
 @code {
-    [CascadingParameter] public EditorApi? Api { get; set; }
-
     private string _imageUrl = string.Empty;
     private string _altText = string.Empty;
     private string _caption = string.Empty;
@@ -90,25 +88,21 @@
 
         try
         {
+            // Build the image HTML
+            var imgBuilder = HtmlBuilder.Image(_imageUrl, _altText);
+            if (_width.HasValue)
+                imgBuilder.Attr("width", _width.Value.ToString());
+
             string html;
             if (_includeCaption && !string.IsNullOrEmpty(_caption))
             {
-                // Create figure with caption
-                var imgAttrs = new Dictionary<string, string> { ["src"] = _imageUrl };
-                if (!string.IsNullOrEmpty(_altText)) imgAttrs["alt"] = _altText;
-                if (_width.HasValue) imgAttrs["width"] = _width.Value.ToString();
-
-                var imgTag = "<img " + string.Join(" ", imgAttrs.Select(kv => $"{kv.Key}=\"{kv.Value}\"")) + ">";
-                html = "<figure class=\"rte-figure\">" + imgTag + "<figcaption>" + System.Net.WebUtility.HtmlEncode(_caption) + "</figcaption></figure>";
+                html = HtmlBuilder.Figure(_imageUrl, _altText, _caption)
+                    .Attr("width", _width?.ToString() ?? "")
+                    .Build();
             }
             else
             {
-                // Simple image
-                var attrs = new Dictionary<string, string> { ["src"] = _imageUrl };
-                if (!string.IsNullOrEmpty(_altText)) attrs["alt"] = _altText;
-                if (_width.HasValue) attrs["width"] = _width.Value.ToString();
-
-                html = "<img " + string.Join(" ", attrs.Select(kv => $"{kv.Key}=\"{kv.Value}\"")) + ">";
+                html = imgBuilder.Build();
             }
 
             // Restore the saved selection/cursor position before inserting
@@ -130,15 +124,6 @@
 
     private async Task CancelAsync()
     {
-        if (Api != null)
-        {
-            await Api.ClearSavedSelectionRangeAsync();
-            await Api.ClosePanelAsync();
-        }
-    }
-
-    void IDisposable.Dispose()
-    {
-        // Cleanup if needed
+        await CloseAsync();
     }
 }
