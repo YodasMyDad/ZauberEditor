@@ -2,32 +2,51 @@
 @inherits PanelBase
 
 <div class="rte-panel-content">
-    <h3 class="rte-panel-title">Insert Link</h3>
-
     <div class="rte-form-group">
         <label for="link-url" class="rte-label">URL</label>
         <input type="url"
                id="link-url"
                class="rte-input"
                @bind="_url"
+               @bind:event="oninput"
                placeholder="https://example.com" />
     </div>
 
     <div class="rte-form-group">
-        <label for="link-text" class="rte-label">Link Text</label>
+        <label for="link-text" class="rte-label">Text to display</label>
         <input type="text"
                id="link-text"
                class="rte-input"
                @bind="_text"
+               @bind:event="oninput"
                placeholder="Link text" />
     </div>
 
     <div class="rte-form-group">
-        <label class="rte-checkbox-label">
-            <input type="checkbox" @bind="_openInNewTab" />
-            <span class="rte-checkbox-mark"></span>
-            Open in new tab
-        </label>
+        <label for="link-title" class="rte-label">Title</label>
+        <input type="text"
+               id="link-title"
+               class="rte-input"
+               @bind="_title"
+               @bind:event="oninput"
+               placeholder="Optional" />
+    </div>
+
+    <div class="rte-form-group">
+        <label for="link-target" class="rte-label">Open link in...</label>
+        <select id="link-target" class="rte-select" @bind="_target">
+            <option value="">Current window</option>
+            <option value="_blank">New window</option>
+        </select>
+    </div>
+
+    <div class="rte-form-group">
+        <label for="link-rel" class="rte-label">Link list</label>
+        <select id="link-rel" class="rte-select" @bind="_rel">
+            <option value="">None</option>
+            <option value="nofollow">No follow</option>
+            <option value="noopener noreferrer">No opener (recommended for new windows)</option>
+        </select>
     </div>
 
     <div class="rte-panel-actions">
@@ -39,8 +58,8 @@
         <button type="button"
                 class="rte-btn rte-btn-primary"
                 @onclick="InsertAsync"
-                disabled="@(string.IsNullOrEmpty(_url) || string.IsNullOrEmpty(_text))">
-            Insert Link
+                disabled="@(string.IsNullOrWhiteSpace(_url))">
+            Save
         </button>
     </div>
 </div>
@@ -48,7 +67,9 @@
 @code {
     private string _url = string.Empty;
     private string _text = string.Empty;
-    private bool _openInNewTab;
+    private string _title = string.Empty;
+    private string _target = string.Empty;
+    private string _rel = string.Empty;
     private SelectionInfo? _originalSelection;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -62,7 +83,9 @@
                 // Populate form with existing link data
                 _url = existingLink.Href;
                 _text = existingLink.Text;
-                _openInNewTab = existingLink.Target == "_blank";
+                _target = existingLink.Target ?? string.Empty;
+                _rel = existingLink.Rel ?? string.Empty;
+                _title = existingLink.Title ?? string.Empty;
                 _originalSelection = new SelectionInfo { SelectedText = existingLink.Text };
                 Console.WriteLine($"Editing existing link: {_url}");
                 
@@ -94,10 +117,16 @@
         Console.WriteLine($"Text: '{_text}'");
         Console.WriteLine($"Original selection: {_originalSelection?.SelectedText ?? "null"}");
         
-        if (Api == null || string.IsNullOrEmpty(_url) || string.IsNullOrEmpty(_text)) 
+        if (Api == null || string.IsNullOrWhiteSpace(_url)) 
         {
             Console.WriteLine("Early return due to validation");
             return;
+        }
+
+        // If text is empty, use URL as the text
+        if (string.IsNullOrWhiteSpace(_text))
+        {
+            _text = _url;
         }
 
         try
@@ -107,10 +136,24 @@
                 ["href"] = _url
             };
 
-            if (_openInNewTab)
+            if (!string.IsNullOrWhiteSpace(_target))
             {
-                attrs["target"] = "_blank";
+                attrs["target"] = _target;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_rel))
+            {
+                attrs["rel"] = _rel;
+            }
+            else if (_target == "_blank")
+            {
+                // Auto-add security rel for new windows if not specified
                 attrs["rel"] = "noopener noreferrer";
+            }
+
+            if (!string.IsNullOrWhiteSpace(_title))
+            {
+                attrs["title"] = _title;
             }
 
             // Build the link HTML

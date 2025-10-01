@@ -131,7 +131,9 @@ window.ZauberRTE = {
                     console.log('Found link:', element);
                     return {
                         href: element.getAttribute('href') || '',
-                        target: element.getAttribute('target') || '',
+                        target: element.getAttribute('target'),
+                        rel: element.getAttribute('rel'),
+                        title: element.getAttribute('title'),
                         text: element.textContent || '',
                         element: element
                     };

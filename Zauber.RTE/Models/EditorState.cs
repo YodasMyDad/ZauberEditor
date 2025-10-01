@@ -161,7 +161,17 @@ public class LinkInfo
     /// <summary>
     /// The target attribute of the link
     /// </summary>
-    public string Target { get; set; } = string.Empty;
+    public string? Target { get; set; }
+
+    /// <summary>
+    /// The rel attribute of the link
+    /// </summary>
+    public string? Rel { get; set; }
+
+    /// <summary>
+    /// The title attribute of the link
+    /// </summary>
+    public string? Title { get; set; }
 
     /// <summary>
     /// The text content of the link
