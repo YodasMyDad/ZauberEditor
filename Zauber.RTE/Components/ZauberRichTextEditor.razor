@@ -148,9 +148,8 @@
             };
             await OnPaste.InvokeAsync(pasteArgs);
         }
-        catch (Exception ex)
+        catch
         {
-            Console.Error.WriteLine($"Failed to handle paste callback: {ex.Message}");
         }
     }
 
@@ -162,9 +161,8 @@
             // Show resize handles for the clicked image
             await JsRuntime.Image.ShowResizeHandlesAsync(_editorId, imageId);
         }
-        catch (Exception ex)
+        catch
         {
-            Console.Error.WriteLine($"Failed to handle image click callback: {ex.Message}");
         }
     }
 
@@ -210,8 +208,11 @@
             // Set up paste event listener
             await JSRuntime.InvokeVoidAsync("ZauberRTE.clipboard.setupPasteListener", _editorId);
 
-            // Set up Enter key event listener
-            await JSRuntime.InvokeVoidAsync("ZauberRTE.selection.setupEnterKeyListener", _editorId);
+            // Set up Enter key event listener with callback for content updates
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.selection.setupEnterKeyListener", 
+                _editorId,
+                DotNetObjectReference.Create(this),
+                nameof(OnContentModifiedAsync));
 
             // Set up image focus/click event listeners for resize handles
             await JSRuntime.InvokeVoidAsync("ZauberRTE.image.setupImageListeners", _editorId,
@@ -239,10 +240,9 @@
 
             _isInitialized = true;
         }
-        catch (Exception ex)
+        catch
         {
             // Log error but don't throw - editor should still work
-            Console.Error.WriteLine($"Failed to initialize editor: {ex.Message}");
         }
     }
 
@@ -406,8 +406,8 @@
         var api = new EditorApiImpl(this, JsRuntime, _editorId);
         await item.ExecuteAsync(api);
 
-        // Update content after toolbar command execution
-        await UpdateContentAsync();
+        // Update content after toolbar command execution (force update for style changes)
+        await UpdateContentAsync(forceUpdate: true);
         
         // Update editor state to reflect changes
         await UpdateStateAsync();
@@ -452,13 +452,13 @@
         return false;
     }
 
-    private async Task UpdateContentAsync()
+    private async Task UpdateContentAsync(bool forceUpdate = false)
     {
         var html = await JsRuntime.Mutation.GetHtmlAsync(_editorId);
-        if (html != _currentHtml)
+        if (forceUpdate || html != _currentHtml)
         {
             // Record the previous state for undo before changing
-            if (_currentHtml != null)
+            if (_currentHtml != null && html != _currentHtml)
             {
                 await JsRuntime.History.RecordStateAsync(_editorId);
             }
@@ -490,6 +490,7 @@
 
     // Public API methods for EditorApiImpl
     internal EditorState GetCurrentState() => _currentState;
+    internal EditorSettings GetEditorSettings() => Settings;
     internal SelectionInfo? GetCurrentSelection()
     {
         try
@@ -517,6 +518,11 @@
         if (_slideOutPanel != null)
         {
             await _slideOutPanel.CloseAsync();
+            
+            // Update content after panel closes (panel may have inserted/modified content)
+            await UpdateContentAsync();
+            await UpdateStateAsync();
+            StateHasChanged();
         }
     }
 
@@ -535,6 +541,9 @@
             
             // Wait a moment for the component to render
             await Task.Delay(50);
+            
+            // Re-setup the resize handle since DOM has changed
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.resize.setupResizeHandle", _editorId);
             
             // Now set the HTML content
             if (!string.IsNullOrEmpty(contentToRestore))
@@ -555,6 +564,12 @@
             _isSourceView = true;
             _currentState.IsSourceView = true;
             StateHasChanged();
+            
+            // Wait a moment for the component to render
+            await Task.Delay(50);
+            
+            // Re-setup the resize handle for the source view textarea
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.resize.setupResizeHandle", _editorId);
         }
         
         await UpdateStateAsync();
@@ -563,13 +578,19 @@
     internal async Task ShowToastAsync(string message, ToastType type = ToastType.Info)
     {
         // Would show toast notification - placeholder implementation
-        Console.WriteLine($"Toast ({type}): {message}");
         await Task.CompletedTask;
     }
 
     internal async Task FocusAsync()
     {
         await JsRuntime.Mutation.StartObservingAsync(_editorId); // Placeholder
+    }
+
+    [Microsoft.JSInterop.JSInvokable]
+    public async Task OnContentModifiedAsync()
+    {
+        // Called from JavaScript when content is modified (e.g., Enter key, Tab, etc.)
+        await UpdateContentAsync();
     }
 
     public void Dispose()

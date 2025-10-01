@@ -23,10 +23,12 @@ public class CodeItem : ToolbarItemBase
 
     public override async Task ExecuteAsync(EditorApi api)
     {
+        // Get fresh state from DOM
+        var currentBlockType = await api.GetCurrentBlockTypeAsync();
         var state = api.GetState();
 
         // If currently in a code block, toggle it off to paragraph
-        if (state.CurrentBlockType == "pre" || state.CurrentBlockType == "codeblock")
+        if (currentBlockType == "pre" || currentBlockType == "codeblock")
         {
             await api.SetBlockTypeAsync("p", null);
         }

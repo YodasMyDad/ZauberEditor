@@ -249,6 +249,32 @@ internal class SelectionInteropImpl(IJSRuntime jsRuntime, ILogger logger) : Sele
             return false;
         }
     }
+
+    public async Task<ImageInfo?> GetImageAtCursorAsync(string editorId)
+    {
+        try
+        {
+            return await jsRuntime.InvokeAsync<ImageInfo?>("ZauberRTE.selection.getImageAtCursor", editorId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get image at cursor for editor {EditorId}", editorId);
+            return null;
+        }
+    }
+
+    public async Task<bool> SelectImageAtCursorAsync(string editorId)
+    {
+        try
+        {
+            return await jsRuntime.InvokeAsync<bool>("ZauberRTE.selection.selectImageAtCursor", editorId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to select image at cursor for editor {EditorId}", editorId);
+            return false;
+        }
+    }
 }
 
 /// <summary>

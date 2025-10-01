@@ -87,8 +87,6 @@
                 _rel = existingLink.Rel ?? string.Empty;
                 _title = existingLink.Title ?? string.Empty;
                 _originalSelection = new SelectionInfo { SelectedText = existingLink.Text };
-                Console.WriteLine($"Editing existing link: {_url}");
-                
                 // Select the entire link so we can replace it when inserting
                 await Api.SelectLinkAtCursorAsync();
             }
@@ -111,15 +109,8 @@
 
     private async Task InsertAsync()
     {
-        Console.WriteLine("=== LinkPanel.InsertAsync START ===");
-        Console.WriteLine($"Api is null: {Api == null}");
-        Console.WriteLine($"URL: '{_url}'");
-        Console.WriteLine($"Text: '{_text}'");
-        Console.WriteLine($"Original selection: {_originalSelection?.SelectedText ?? "null"}");
-        
         if (Api == null || string.IsNullOrWhiteSpace(_url)) 
         {
-            Console.WriteLine("Early return due to validation");
             return;
         }
 
@@ -162,43 +153,31 @@
             // Check if we had an original selection when the panel opened
             if (_originalSelection != null && !string.IsNullOrEmpty(_originalSelection.SelectedText))
             {
-                Console.WriteLine("Have original selection, restoring and replacing...");
                 // Restore the saved selection range
                 var restored = await Api.RestoreSelectionRangeAsync();
-                Console.WriteLine($"Range restored: {restored}");
-                
                 if (restored)
                 {
                     // Now insert the link, which will replace the restored selection
-                    Console.WriteLine($"Inserting HTML to replace selection: {htmlToInsert}");
                     await Api.InsertHtmlAsync(htmlToInsert);
                 }
                 else
                 {
                     // Fallback: just insert at current position
-                    Console.WriteLine("Could not restore range, inserting at current position");
                     await Api.InsertHtmlAsync(htmlToInsert);
                 }
             }
             else
             {
                 // No original selection - just insert new link at current position
-                Console.WriteLine($"No original selection, inserting HTML: {htmlToInsert}");
                 await Api.InsertHtmlAsync(htmlToInsert);
             }
             
             // Clear the saved range
             await Api.ClearSavedSelectionRangeAsync();
-            Console.WriteLine("Saved range cleared");
-            
-            Console.WriteLine("Closing panel...");
             await Api.ClosePanelAsync();
-            Console.WriteLine("=== LinkPanel.InsertAsync END ===");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"ERROR: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             // Log error and show toast
             await Api.ShowToastAsync($"Failed to insert link: {ex.Message}", ToastType.Error);
         }

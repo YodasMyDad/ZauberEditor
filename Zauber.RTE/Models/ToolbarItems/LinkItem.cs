@@ -14,5 +14,15 @@ public class LinkItem : ToolbarItemBase
     public override string Shortcut => "Control+k";
     public override ToolbarPlacement Placement => ToolbarPlacement.Insert;
 
-    public override Task ExecuteAsync(EditorApi api) => api.OpenPanelAsync(typeof(LinkPanel));
+    public override async Task ExecuteAsync(EditorApi api)
+    {
+        // Only open panel if there's selected text or cursor is on a link
+        var selection = await api.GetSelectionAsync();
+        var existingLink = await api.GetLinkAtCursorAsync();
+        
+        if ((selection != null && !string.IsNullOrWhiteSpace(selection.SelectedText)) || existingLink != null)
+        {
+            await api.OpenPanelAsync(typeof(LinkPanel));
+        }
+    }
 }

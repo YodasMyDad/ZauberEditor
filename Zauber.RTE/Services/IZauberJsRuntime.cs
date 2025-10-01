@@ -133,6 +133,16 @@ public interface SelectionInterop
     /// Selects the entire link element at the cursor position
     /// </summary>
     Task<bool> SelectLinkAtCursorAsync(string editorId);
+
+    /// <summary>
+    /// Gets information about an image at the current cursor position
+    /// </summary>
+    Task<ImageInfo?> GetImageAtCursorAsync(string editorId);
+
+    /// <summary>
+    /// Selects the image element at the cursor position
+    /// </summary>
+    Task<bool> SelectImageAtCursorAsync(string editorId);
 }
 
 /// <summary>

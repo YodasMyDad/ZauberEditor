@@ -1,15 +1,12 @@
 // Zauber RTE JavaScript Runtime
 // This provides the browser-side functionality for the rich text editor
 
-console.log('ZauberRTE JavaScript loaded');
-
 window.ZauberRTE = {
     // Shortcuts API
     shortcuts: {
         _registeredShortcuts: new Map(), // editorId -> Set of shortcut strings
         
         registerShortcuts: function(editorId, shortcuts) {
-            console.log('Registering shortcuts for', editorId, shortcuts);
             this._registeredShortcuts.set(editorId, new Set(shortcuts));
         },
         
@@ -30,7 +27,6 @@ window.ZauberRTE = {
             for (const shortcut of shortcuts) {
                 const normalizedShortcut = shortcut.toLowerCase().replace('ctrl', 'control').replace('cmd', 'control');
                 if (normalizedShortcut === eventShortcut) {
-                    console.log('Preventing default for shortcut:', eventShortcut);
                     return true;
                 }
             }
@@ -60,16 +56,13 @@ window.ZauberRTE = {
         },
         
         saveRange: function(editorId) {
-            console.log('saveRange called for', editorId);
             const editor = document.getElementById(editorId + '-content');
             if (!editor) {
-                console.log('Editor not found');
                 return;
             }
 
             const selection = window.getSelection();
             if (!selection.rangeCount) {
-                console.log('No selection to save');
                 return;
             }
 
@@ -78,24 +71,19 @@ window.ZauberRTE = {
             // Only save if the selection is within the editor
             if (editor.contains(range.commonAncestorContainer)) {
                 this._savedRanges.set(editorId, range.cloneRange());
-                console.log('Range saved:', range);
             } else {
-                console.log('Selection not in editor');
             }
         },
         
         restoreRange: function(editorId) {
-            console.log('restoreRange called for', editorId);
             const savedRange = this._savedRanges.get(editorId);
             if (!savedRange) {
-                console.log('No saved range found');
                 return false;
             }
 
             const selection = window.getSelection();
             selection.removeAllRanges();
             selection.addRange(savedRange);
-            console.log('Range restored');
             return true;
         },
         
@@ -104,18 +92,11 @@ window.ZauberRTE = {
         },
 
         getLinkAtCursor: function(editorId) {
-            console.log('getLinkAtCursor called');
             const editor = document.getElementById(editorId + '-content');
-            if (!editor) {
-                console.log('Editor not found');
-                return null;
-            }
+            if (!editor) return null;
 
             const selection = window.getSelection();
-            if (!selection.rangeCount) {
-                console.log('No selection');
-                return null;
-            }
+            if (!selection.rangeCount) return null;
 
             const range = selection.getRangeAt(0);
             let element = range.commonAncestorContainer;
@@ -128,7 +109,6 @@ window.ZauberRTE = {
             // Walk up the DOM to find an <a> tag
             while (element && element !== editor) {
                 if (element.tagName && element.tagName.toLowerCase() === 'a') {
-                    console.log('Found link:', element);
                     return {
                         href: element.getAttribute('href') || '',
                         target: element.getAttribute('target'),
@@ -141,23 +121,15 @@ window.ZauberRTE = {
                 element = element.parentElement;
             }
 
-            console.log('No link found at cursor');
             return null;
         },
 
         selectLinkAtCursor: function(editorId) {
-            console.log('selectLinkAtCursor called');
             const editor = document.getElementById(editorId + '-content');
-            if (!editor) {
-                console.log('Editor not found');
-                return false;
-            }
+            if (!editor) return false;
 
             const selection = window.getSelection();
-            if (!selection.rangeCount) {
-                console.log('No selection');
-                return false;
-            }
+            if (!selection.rangeCount) return false;
 
             const range = selection.getRangeAt(0);
             let element = range.commonAncestorContainer;
@@ -170,7 +142,6 @@ window.ZauberRTE = {
             // Walk up the DOM to find an <a> tag
             while (element && element !== editor) {
                 if (element.tagName && element.tagName.toLowerCase() === 'a') {
-                    console.log('Found link, selecting it:', element);
                     // Select the entire link element
                     const newRange = document.createRange();
                     newRange.selectNodeContents(element);
@@ -180,8 +151,76 @@ window.ZauberRTE = {
                 }
                 element = element.parentElement;
             }
+            return false;
+        },
 
-            console.log('No link found at cursor to select');
+        getImageAtCursor: function(editorId) {
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) {
+                return null;
+            }
+
+            const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                return null;
+            }
+
+            const range = selection.getRangeAt(0);
+            let element = range.commonAncestorContainer;
+            
+            // If it's a text node, get the parent element
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement;
+            }
+
+            // Walk up the DOM to find an <img> tag
+            while (element && element !== editor) {
+                if (element.tagName && element.tagName.toLowerCase() === 'img') {
+                    const src = element.getAttribute('src') || '';
+                    return {
+                        src: src,
+                        alt: element.getAttribute('alt'),
+                        width: element.getAttribute('width') || element.style.width,
+                        height: element.getAttribute('height') || element.style.height,
+                        isDataUrl: src.startsWith('data:')
+                    };
+                }
+                element = element.parentElement;
+            }
+            return null;
+        },
+
+        selectImageAtCursor: function(editorId) {
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) {
+                return false;
+            }
+
+            const selection = window.getSelection();
+            if (!selection.rangeCount) {
+                return false;
+            }
+
+            const range = selection.getRangeAt(0);
+            let element = range.commonAncestorContainer;
+            
+            // If it's a text node, get the parent element
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement;
+            }
+
+            // Walk up the DOM to find an <img> tag
+            while (element && element !== editor) {
+                if (element.tagName && element.tagName.toLowerCase() === 'img') {
+                    // Select the entire image element
+                    const newRange = document.createRange();
+                    newRange.selectNode(element);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    return true;
+                }
+                element = element.parentElement;
+            }
             return false;
         },
 
@@ -499,16 +538,9 @@ window.ZauberRTE = {
         },
 
         insertHtml: function(editorId, html) {
-            console.log('=== JS insertHtml called ===');
-            console.log('editorId:', editorId);
-            console.log('html:', html);
-            
             // Get the editor content element
             const editor = document.getElementById(editorId + '-content');
-            console.log('editor element:', editor);
-            
             if (!editor) {
-                console.log('Editor not found, returning early');
                 return;
             }
 
@@ -516,11 +548,8 @@ window.ZauberRTE = {
             editor.focus();
             
             const selection = window.getSelection();
-            console.log('selection.rangeCount:', selection.rangeCount);
-            
             let range;
             if (!selection.rangeCount || !editor.contains(selection.anchorNode)) {
-                console.log('No valid range in editor, creating one at end');
                 // Create a new range at the end of the editor
                 range = document.createRange();
                 const lastChild = editor.lastChild;
@@ -536,24 +565,14 @@ window.ZauberRTE = {
             } else {
                 range = selection.getRangeAt(0);
             }
-            
-            console.log('range:', range);
-            console.log('range.startContainer:', range.startContainer);
-            console.log('range.endContainer:', range.endContainer);
-            
             range.deleteContents();
 
             const fragment = range.createContextualFragment(html);
-            console.log('fragment created:', fragment);
-            
             range.insertNode(fragment);
-            console.log('fragment inserted');
-
             // Move cursor to end of inserted content
             range.collapse(false);
             selection.removeAllRanges();
             selection.addRange(range);
-            console.log('=== JS insertHtml complete ===');
         },
 
         getActiveMarks: function(editorId) {
@@ -742,16 +761,13 @@ window.ZauberRTE = {
         },
 
         selectMarkAtCursor: function(editorId, markName) {
-            console.log('selectMarkAtCursor called for', markName);
             const editor = document.getElementById(editorId + '-content');
             if (!editor) {
-                console.log('Editor not found');
                 return false;
             }
 
             const selection = window.getSelection();
             if (!selection.rangeCount) {
-                console.log('No selection');
                 return false;
             }
 
@@ -759,7 +775,6 @@ window.ZauberRTE = {
             
             // Only proceed if range is collapsed (cursor only)
             if (!range.collapsed) {
-                console.log('Range not collapsed, selection exists');
                 return false;
             }
 
@@ -775,7 +790,6 @@ window.ZauberRTE = {
             // Walk up the DOM to find the mark tag
             while (element && element !== editor) {
                 if (element.tagName && element.tagName.toLowerCase() === tagName) {
-                    console.log('Found mark element, selecting it:', element);
                     // Select the entire mark element
                     const newRange = document.createRange();
                     newRange.selectNodeContents(element);
@@ -785,18 +799,12 @@ window.ZauberRTE = {
                 }
                 element = element.parentElement;
             }
-
-            console.log('No mark element found at cursor');
             return false;
         },
 
         toggleMark: function(editorId, markName) {
-            console.log('=== TOGGLE MARK START ===');
-            console.log('toggleMark called with:', markName, 'editorId:', editorId);
-
             const editor = document.getElementById(editorId);
             if (!editor) {
-                console.log('Editor not found:', editorId);
                 return;
             }
 
@@ -810,13 +818,10 @@ window.ZauberRTE = {
 
             // Check if the mark exists anywhere in the selection
             const hasMarkInSelection = this.hasMarkInSelection(editorId, markName);
-            console.log('Has', markName, 'in selection:', hasMarkInSelection);
-
             if (hasMarkInSelection) {
                 // REMOVING the mark
                 // If range is collapsed (cursor only) and we're inside a mark, select it first
                 if (range.collapsed) {
-                    console.log('Range collapsed, selecting mark at cursor');
                     this.selectMarkAtCursor(editorId, markName);
                 }
                 
@@ -831,7 +836,6 @@ window.ZauberRTE = {
                 // ADDING the mark
                 // Only apply if there's an actual selection (not just a cursor)
                 if (range.collapsed) {
-                    console.log('Cannot apply mark with collapsed range (no selection)');
                     return;
                 }
                 
@@ -1204,29 +1208,51 @@ window.ZauberRTE = {
             if (!selection.rangeCount) return;
 
             const range = selection.getRangeAt(0);
-            const editor = document.getElementById(editorId);
+            const editor = document.getElementById(editorId + '-content');
             if (!editor) return;
 
-            // Find the current block element
-            let currentBlock = range.commonAncestorContainer;
-            if (currentBlock.nodeType === Node.TEXT_NODE) {
-                currentBlock = currentBlock.parentElement;
-            }
-
             const blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li'];
-            while (currentBlock && currentBlock.id !== editorId && !blockTags.includes(currentBlock.tagName?.toLowerCase())) {
-                currentBlock = currentBlock.parentElement;
+            
+            // Get all block elements within the selection
+            const blocks = [];
+            
+            // If selection is collapsed (just cursor), find the current block
+            if (range.collapsed) {
+                let currentBlock = range.commonAncestorContainer;
+                if (currentBlock.nodeType === Node.TEXT_NODE) {
+                    currentBlock = currentBlock.parentElement;
+                }
+                
+                while (currentBlock && currentBlock !== editor && !blockTags.includes(currentBlock.tagName?.toLowerCase())) {
+                    currentBlock = currentBlock.parentElement;
+                }
+                
+                if (currentBlock && currentBlock !== editor) {
+                    blocks.push(currentBlock);
+                }
+            } else {
+                // Selection spans content - find all blocks within selection
+                const allBlocks = editor.querySelectorAll(blockTags.join(','));
+                
+                for (let block of allBlocks) {
+                    // Check if this block intersects with the selection
+                    const blockRange = document.createRange();
+                    blockRange.selectNodeContents(block);
+                    
+                    // Check if ranges intersect
+                    if (range.compareBoundaryPoints(Range.START_TO_END, blockRange) > 0 &&
+                        range.compareBoundaryPoints(Range.END_TO_START, blockRange) < 0) {
+                        blocks.push(block);
+                    }
+                }
             }
 
-            if (!currentBlock || currentBlock.id === editorId) {
-                // No block found, can't apply style
-                return;
-            }
-
-            // Apply styles to the current block
-            if (styles) {
-                Object.keys(styles).forEach(property => {
-                    currentBlock.style.setProperty(property, styles[property]);
+            // Apply styles to all selected blocks
+            if (styles && blocks.length > 0) {
+                blocks.forEach(block => {
+                    Object.keys(styles).forEach(property => {
+                        block.style.setProperty(property, styles[property]);
+                    });
                 });
             }
         },
@@ -1313,9 +1339,23 @@ window.ZauberRTE = {
             }
         },
 
-        setupEnterKeyListener: function(editorId) {
+        _notifyContentModified: function(editorId) {
+            // Notify Blazor that content has been modified
+            const callback = window.ZauberRTE._contentCallbacks?.[editorId];
+            if (callback && callback.dotNetRef && callback.callbackMethod) {
+                callback.dotNetRef.invokeMethodAsync(callback.callbackMethod);
+            }
+        },
+
+        setupEnterKeyListener: function(editorId, dotNetRef, callbackMethod) {
             const editor = document.getElementById(editorId + '-content');
             if (editor) {
+                // Store the callback reference
+                if (!window.ZauberRTE._contentCallbacks) {
+                    window.ZauberRTE._contentCallbacks = {};
+                }
+                window.ZauberRTE._contentCallbacks[editorId] = { dotNetRef, callbackMethod };
+
                 // Ctrl+Click on links to open them
                 editor.addEventListener('click', (event) => {
                     if ((event.ctrlKey || event.metaKey) && event.target.tagName?.toLowerCase() === 'a') {
@@ -1344,16 +1384,22 @@ window.ZauberRTE = {
                                 selection.removeAllRanges();
                                 selection.addRange(range);
                             }
+                            // Notify Blazor of content change
+                            window.ZauberRTE.selection._notifyContentModified(editorId);
                         } else {
                             // Regular Enter - new paragraph/list item
                             event.preventDefault();
                             event.stopPropagation();
                             this.handleEnterKey(editorId);
+                            // Notify Blazor of content change
+                            window.ZauberRTE.selection._notifyContentModified(editorId);
                         }
                     } else if (event.key === 'Tab') {
                         // Tab/Shift+Tab in lists and tables
                         event.preventDefault();
                         if (this.handleTabKey(editorId, event.shiftKey)) {
+                            // Notify Blazor of content change after Tab handling
+                            window.ZauberRTE.selection._notifyContentModified(editorId);
                             return;
                         }
                     } else if (window.ZauberRTE.shortcuts.shouldPreventDefault(editorId, event)) {
@@ -1364,6 +1410,8 @@ window.ZauberRTE = {
                     } else if (event.key === 'Backspace' && !event.shiftKey) {
                         // Backspace at start of list item
                         if (this.handleBackspaceInList(editorId, event)) {
+                            // Notify Blazor of content change
+                            window.ZauberRTE.selection._notifyContentModified(editorId);
                             return;
                         }
                         // Handle deletion of empty paragraphs
@@ -2107,8 +2155,8 @@ window.ZauberRTE = {
             handlesContainer.className = 'rte-image-resize-handles';
             handlesContainer.setAttribute('data-editor-id', editorId);
 
-            // Create 8 resize handles (corners and edges)
-            const positions = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+            // Create 4 corner resize handles only
+            const positions = ['nw', 'ne', 'se', 'sw'];
 
             positions.forEach(pos => {
                 const handle = document.createElement('div');
@@ -2360,7 +2408,7 @@ window.ZauberRTE = {
         },
 
         setupImageListeners: function(editorId, dotNetRef) {
-            const editor = document.getElementById(editorId);
+            const editor = document.getElementById(editorId + '-content');
             if (!editor) return;
 
             // Use event delegation for dynamically added images
@@ -2377,20 +2425,25 @@ window.ZauberRTE = {
                         target.id = 'img-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
                     }
 
-                    // Call the .NET callback
-                    if (dotNetRef && dotNetRef.invokeMethodAsync) {
-                        dotNetRef.invokeMethodAsync('OnImageClickCallbackAsync', target.id);
-                    }
-                } else {
-                    // Hide resize handles when clicking elsewhere
+                    // Select the image in the DOM so it can be detected by getImageAtCursor
+                    const selection = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNode(target);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+
+                    // Show resize handles directly
+                    this.showResizeHandles(editorId, target.id);
+                } else if (!event.target.closest('.rte-image-resize-handles')) {
+                    // Hide resize handles when clicking elsewhere (but not on handles themselves)
                     this.hideResizeHandles();
                 }
             });
 
-            // Hide resize handles when clicking outside images
+            // Hide resize handles when clicking outside editor
             document.addEventListener('click', (event) => {
-                const editor = document.getElementById(editorId);
-                if (editor && !editor.contains(event.target)) {
+                const editorContent = document.getElementById(editorId + '-content');
+                if (editorContent && !editorContent.contains(event.target) && !event.target.closest('.rte-image-resize-handles')) {
                     this.hideResizeHandles();
                 }
             });
@@ -2400,11 +2453,9 @@ window.ZauberRTE = {
     // Mutation API
     mutation: {
         startObserving: function(editorId) {
-            console.log(`Start observing mutations for ${editorId}`);
         },
 
         stopObserving: function(editorId) {
-            console.log(`Stop observing mutations for ${editorId}`);
         },
 
         getHtml: function(editorId) {
@@ -2478,16 +2529,11 @@ window.ZauberRTE = {
         },
 
         setHtml: function(editorId, html) {
-            console.log('setHtml called with:', html);
             const contentEditable = document.getElementById(editorId + '-content');
-            console.log('contentEditable found:', !!contentEditable);
             if (contentEditable) {
-                console.log('Setting innerHTML to:', html);
                 contentEditable.innerHTML = html;
-                console.log('innerHTML after setting:', contentEditable.innerHTML);
                 // Ensure proper structure after setting HTML
                 this.ensureParagraphStructure(contentEditable);
-                console.log('innerHTML after ensureParagraphStructure:', contentEditable.innerHTML);
             }
         },
 
@@ -2500,19 +2546,15 @@ window.ZauberRTE = {
     // Panel API
     panel: {
         open: function(editorId, panelId) {
-            console.log(`Open panel ${panelId} for ${editorId}`);
         },
 
         close: function(editorId, panelId) {
-            console.log(`Close panel ${panelId} for ${editorId}`);
         },
 
         trapFocus: function(panelId) {
-            console.log(`Trap focus in ${panelId}`);
         },
 
         releaseFocus: function(panelId) {
-            console.log(`Release focus from ${panelId}`);
         }
     },
 

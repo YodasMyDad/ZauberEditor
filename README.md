@@ -43,8 +43,21 @@ var builder = WebApplication.CreateBuilder(args);
 // Add Zauber RTE services
 builder.Services.AddZauberRte();
 
+// IMPORTANT: If using base64 image uploads (AllowBase64ImageUpload = true),
+// increase SignalR message size limit to support large images
+builder.Services.AddSignalR(options =>
+{
+    options.MaximumReceiveMessageSize = 1 * 1024 * 1024; // 1 MB
+});
+
 var app = builder.Build();
 ```
+
+**Note about SignalR Configuration:**
+- Base64-encoded images can be large (a 50KB image becomes ~67KB when base64-encoded)
+- The default SignalR message size limit is 32KB
+- If you enable base64 image uploads, you must increase this limit
+- Set `AllowBase64ImageUpload = false` in `ImageConstraints` if you only want URL-based images
 
 ### 2. Add to Your Page
 
@@ -108,7 +121,9 @@ var settings = new EditorSettings
     {
         MaxWidth = 800,
         MaxHeight = 600,
-        MaintainAspectRatio = true
+        MaintainAspectRatio = true,
+        AllowBase64ImageUpload = true, // Enable file uploads as base64
+        AllowedImageTypes = new() { ".jpg", ".jpeg", ".gif", ".png" }
     }
 };
 ```

@@ -11,6 +11,21 @@ public interface EditorApi
     EditorState GetState();
 
     /// <summary>
+    /// Gets the editor settings
+    /// </summary>
+    EditorSettings GetSettings();
+
+    /// <summary>
+    /// Gets the current block type at the cursor position
+    /// </summary>
+    Task<string> GetCurrentBlockTypeAsync();
+
+    /// <summary>
+    /// Gets the current heading level at the cursor position (0 if not a heading)
+    /// </summary>
+    Task<int> GetCurrentHeadingLevelAsync();
+
+    /// <summary>
     /// Inserts HTML content at the current caret position
     /// </summary>
     Task InsertHtmlAsync(string html);
@@ -149,6 +164,16 @@ public interface EditorApi
     /// Selects the entire link element if the cursor is inside a link
     /// </summary>
     Task<bool> SelectLinkAtCursorAsync();
+
+    /// <summary>
+    /// Gets information about an image at the current cursor position (if any)
+    /// </summary>
+    Task<ImageInfo?> GetImageAtCursorAsync();
+
+    /// <summary>
+    /// Selects the image element at the cursor position
+    /// </summary>
+    Task<bool> SelectImageAtCursorAsync();
 }
 
 /// <summary>

@@ -14,6 +14,14 @@ internal class EditorApiImpl(ZauberRichTextEditor editor, IZauberJsRuntime jsRun
 
     public EditorState GetState() => _editor.GetCurrentState();
 
+    public EditorSettings GetSettings() => _editor.GetEditorSettings();
+
+    public async Task<string> GetCurrentBlockTypeAsync() =>
+        await _jsRuntime.Selection.GetCurrentBlockTypeAsync(_editorId) ?? "p";
+
+    public async Task<int> GetCurrentHeadingLevelAsync() =>
+        await _jsRuntime.Selection.GetCurrentHeadingLevelAsync(_editorId) ?? 0;
+
     public async Task InsertHtmlAsync(string html) =>
         await _jsRuntime.Selection.InsertHtmlAsync(_editorId, html);
 
@@ -97,4 +105,10 @@ internal class EditorApiImpl(ZauberRichTextEditor editor, IZauberJsRuntime jsRun
 
     public async Task<bool> SelectLinkAtCursorAsync() =>
         await _jsRuntime.Selection.SelectLinkAtCursorAsync(_editorId);
+
+    public async Task<ImageInfo?> GetImageAtCursorAsync() =>
+        await _jsRuntime.Selection.GetImageAtCursorAsync(_editorId);
+
+    public async Task<bool> SelectImageAtCursorAsync() =>
+        await _jsRuntime.Selection.SelectImageAtCursorAsync(_editorId);
 }

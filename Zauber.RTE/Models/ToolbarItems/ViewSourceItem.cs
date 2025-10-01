@@ -10,7 +10,7 @@ public class ViewSourceItem : ToolbarItemBase
 {
     public override string Id => "viewSource";
     public override string Label => "View Source";
-    public override string IconCss => "fa-code";
+    public override string IconCss => "fa-file-code";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
 

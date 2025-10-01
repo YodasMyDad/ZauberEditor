@@ -15,5 +15,19 @@ public class BlockquoteItem : ToolbarItemBase
     public override bool IsToggle => true;
 
     public override bool IsActive(EditorState state) => state.CurrentBlockType == "blockquote";
-    public override Task ExecuteAsync(EditorApi api) => api.SetBlockTypeAsync("blockquote");
+    public override async Task ExecuteAsync(EditorApi api)
+    {
+        // Get current block type directly to check if we're toggling off
+        var currentBlockType = await api.GetCurrentBlockTypeAsync();
+        
+        // Toggle: if already blockquote, convert to paragraph
+        if (currentBlockType == "blockquote")
+        {
+            await api.SetBlockTypeAsync("p", null);
+        }
+        else
+        {
+            await api.SetBlockTypeAsync("blockquote");
+        }
+    }
 }

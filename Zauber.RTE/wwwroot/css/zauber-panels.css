@@ -250,3 +250,51 @@
     }
 }
 
+/* Image Resize Handles */
+.rte-image-resize-handles {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.rte-resize-handle {
+    position: fixed;
+    width: 12px;
+    height: 12px;
+    background: white;
+    border: 2px solid #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    pointer-events: all;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rte-resize-handle:hover {
+    transform: scale(1.2);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Corner-specific cursors */
+.rte-resize-handle-nw {
+    cursor: nw-resize;
+}
+
+.rte-resize-handle-ne {
+    cursor: ne-resize;
+}
+
+.rte-resize-handle-se {
+    cursor: se-resize;
+}
+
+.rte-resize-handle-sw {
+    cursor: sw-resize;
+}
+
+/* Selected image styling */
+img.rte-image-selected {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+

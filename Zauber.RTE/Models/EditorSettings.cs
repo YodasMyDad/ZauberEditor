@@ -175,6 +175,21 @@ public class ImageConstraints
     /// Whether to maintain aspect ratio during resize
     /// </summary>
     public bool MaintainAspectRatio { get; set; } = true;
+
+    /// <summary>
+    /// Allowed image file types for upload (case insensitive)
+    /// </summary>
+    public HashSet<string> AllowedImageTypes { get; set; } = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".gif", ".png"
+    };
+
+    /// <summary>
+    /// Whether to allow uploading images from disk as base64 data URLs.
+    /// If false, only URL-based image insertion is available.
+    /// Note: Enabling this requires increasing SignalR MaximumReceiveMessageSize (see documentation).
+    /// </summary>
+    public bool AllowBase64ImageUpload { get; set; } = true;
 }
 
 /// <summary>
@@ -200,16 +215,16 @@ public class HtmlPolicy
     {
         ["*"] = new(StringComparer.OrdinalIgnoreCase) { "class", "id" },
         ["a"] = new(StringComparer.OrdinalIgnoreCase) { "href", "target", "rel" },
-        ["img"] = new(StringComparer.OrdinalIgnoreCase) { "src", "alt", "width", "height", "max-width" },
+        ["img"] = new(StringComparer.OrdinalIgnoreCase) { "src", "alt", "width", "height", "max-width", "style" },
         ["table"] = new(StringComparer.OrdinalIgnoreCase) { "border", "cellpadding", "cellspacing" },
         ["td"] = new(StringComparer.OrdinalIgnoreCase) { "colspan", "rowspan", "align", "valign" },
         ["th"] = new(StringComparer.OrdinalIgnoreCase) { "colspan", "rowspan", "align", "valign" }
     };
 
     /// <summary>
-    /// Whether to allow data URLs in images
+    /// Whether to allow data URLs in images (base64 encoded images)
     /// </summary>
-    public bool AllowDataUrls { get; set; }
+    public bool AllowDataUrls { get; set; } = true;
 
     /// <summary>
     /// Whether to allow external images

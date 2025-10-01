@@ -178,3 +178,34 @@ public class LinkInfo
     /// </summary>
     public string Text { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Information about an image element
+/// </summary>
+public class ImageInfo
+{
+    /// <summary>
+    /// The src attribute of the image (URL or base64 data)
+    /// </summary>
+    public string Src { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The alt attribute of the image
+    /// </summary>
+    public string? Alt { get; set; }
+
+    /// <summary>
+    /// The width attribute or style width
+    /// </summary>
+    public string? Width { get; set; }
+
+    /// <summary>
+    /// The height attribute or style height
+    /// </summary>
+    public string? Height { get; set; }
+
+    /// <summary>
+    /// Whether the image source is a data URL (base64)
+    /// </summary>
+    public bool IsDataUrl { get; set; }
+}

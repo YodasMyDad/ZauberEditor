@@ -17,8 +17,12 @@ public class Heading3Item : ToolbarItemBase
     public override bool IsActive(EditorState state) => state.CurrentBlockType == "heading" && state.CurrentHeadingLevel == 3;
     public override async Task ExecuteAsync(EditorApi api)
     {
+        // Get current block type directly to check if we're toggling off
+        var currentBlockType = await api.GetCurrentBlockTypeAsync();
+        var currentHeadingLevel = await api.GetCurrentHeadingLevelAsync();
+        
         // Toggle: if already H3, convert to paragraph
-        if (IsActive(api.GetState()))
+        if (currentBlockType == "heading" && currentHeadingLevel == 3)
         {
             await api.SetBlockTypeAsync("p", null);
         }
