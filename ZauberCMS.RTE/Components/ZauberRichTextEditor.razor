@@ -4,9 +4,6 @@
 @inject ToolbarDiscoveryService ToolbarDiscovery
 @inject IJSRuntime JSRuntime
 
-<link href="_content/ZauberCMS.RTE/css/fontawesome.min.css" rel="stylesheet" />
-<link href="_content/ZauberCMS.RTE/css/zauber-panels.css" rel="stylesheet" />
-
 <div class="zauber-rte @GetThemeClass()" id="@_editorId">
     <div class="rte-toolbar" role="toolbar" aria-label="Rich text editor toolbar">
         <ToolbarHost ToolbarLayout="Settings.ToolbarLayout"
@@ -626,6 +623,3 @@
         }
     }
 }
-
-<script src="_content/ZauberCMS.RTE/js/lib/purify.min.js"></script>
-<script src="_content/ZauberCMS.RTE/js/zauber-rte.js"></script>

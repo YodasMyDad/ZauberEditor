@@ -83,7 +83,26 @@ var app = builder.Build();
 }
 ```
 
-That's it! Styles are automatically included via CSS isolation and bundled into your project's stylesheet.
+### 3. Include Required Assets
+
+Add the required CSS and JavaScript files to your `App.razor` (or `_Host.cshtml` for Blazor Server):
+
+```html
+<head>
+    <!-- Other head content -->
+    <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/zauber-panels.css" />
+</head>
+
+<body>
+    <!-- Your app content -->
+    <script src="_framework/blazor.web.js"></script>
+    <script src="_content/ZauberCMS.RTE/js/lib/purify.min.js"></script>
+    <script src="_content/ZauberCMS.RTE/js/zauber-rte.js"></script>
+</body>
+```
+
+**Note**: The Zauber RTE scripts should be loaded after the Blazor framework script.
 
 ## Configuration
 
