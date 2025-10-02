@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{73AEE2ED-B
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
 		QUICK_START_EXTENDING.md = QUICK_START_EXTENDING.md
+		build-nuget.ps1 = build-nuget.ps1
 	EndProjectSection
 EndProject
 Global

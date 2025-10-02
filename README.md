@@ -20,13 +20,13 @@ A modern, extensible rich-text editor component for Blazor applications. Built w
 ### NuGet Package
 
 ```bash
-dotnet add package Zauber.RTE
+dotnet add package ZauberCMS.RTE
 ```
 
 ### Manual Installation
 
-1. Clone or download the Zauber.RTE project
-2. Reference the `Zauber.RTE.csproj` in your Blazor project
+1. Clone or download the ZauberCMS.RTE project
+2. Reference the `ZauberCMS.RTE.csproj` in your Blazor project
 3. Ensure static web assets are served correctly
 
 ## Quick Start
@@ -36,7 +36,7 @@ dotnet add package Zauber.RTE
 In your `Program.cs`:
 
 ```csharp
-using Zauber.RTE.Services;
+using ZauberCMS.RTE.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,8 +62,8 @@ var app = builder.Build();
 ### 2. Add to Your Page
 
 ```razor
-@using Zauber.RTE.Components
-@using Zauber.RTE.Models
+@using ZauberCMS.RTE.Components
+@using ZauberCMS.RTE.Models
 
 <ZauberRichTextEditor @bind-Value="editorContent"
                       Settings="editorSettings"
@@ -295,7 +295,7 @@ Create custom slide-out panels by inheriting from `PanelBase`:
 
 ```razor
 <!-- CustomPanel.razor -->
-@using Zauber.RTE.Models
+@using ZauberCMS.RTE.Models
 @inherits PanelBase
 
 <div class="rte-panel-content">
