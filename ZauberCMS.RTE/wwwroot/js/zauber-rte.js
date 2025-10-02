@@ -2447,7 +2447,7 @@ window.ZauberRTE = {
         },
 
         insertCleanedHtml: function(editorId, html) {
-            this.selection.insertHtml(editorId, html);
+            window.ZauberRTE.selection.insertHtml(editorId, html);
         },
 
         setupPasteListener: function(editorId) {

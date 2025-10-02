@@ -258,7 +258,7 @@ button.rte-toolbar-btn {
 
 /* Content Editable */
 .rte-content {
-    padding: 1.25rem;
+    padding: 0.875rem;
     min-height: 220px;
     outline: none;
     line-height: 1.7;

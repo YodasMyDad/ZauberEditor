@@ -136,6 +136,9 @@
             // Insert the cleaned HTML
             await JsRuntime.Clipboard.InsertCleanedHtmlAsync(_editorId, cleanedHtml);
 
+            // Sync content after paste
+            await UpdateContentAsync();
+
             var pasteArgs = new PasteArgs
             {
                 OriginalHtml = pastedContent,
