@@ -1,5 +1,9 @@
 # Blazor Rich Text Editor
 
+[![NuGet](https://img.shields.io/nuget/v/ZauberCMS.RTE.svg)](https://www.nuget.org/packages/ZauberCMS.RTE/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/)
+
 **This project is in Beta release, so I am still testing and fixing any bugs. Please report any issues you find.**
 
 A modern, extensible rich-text editor component for Blazor applications. Built with performance, accessibility, and developer experience in mind.
@@ -90,19 +94,26 @@ Add the required CSS and JavaScript files to your `App.razor` (or `_Host.cshtml`
 ```html
 <head>
     <!-- Other head content -->
+    
+    <!-- Zauber RTE Styles (required) -->
     <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/fontawesome.min.css" />
-    <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/zauber-panels.css" />
+    <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/zauber-editor.css" />
 </head>
 
 <body>
     <!-- Your app content -->
     <script src="_framework/blazor.web.js"></script>
+    
+    <!-- Zauber RTE Scripts (required) -->
     <script src="_content/ZauberCMS.RTE/js/lib/purify.min.js"></script>
     <script src="_content/ZauberCMS.RTE/js/zauber-rte.js"></script>
 </body>
 ```
 
-**Note**: The Zauber RTE scripts should be loaded after the Blazor framework script.
+**Important Notes:**
+- The Zauber RTE scripts must be loaded after the Blazor framework script
+- Font Awesome is bundled for the toolbar icons
+- All editor, panel, and component styles are consolidated in `zauber-editor.css`
 
 ## Configuration
 
