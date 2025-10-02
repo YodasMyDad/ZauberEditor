@@ -10,6 +10,8 @@ public class SuperscriptItem : ToolbarItemBase
     public override string IconCss => "fa-superscript";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
+    public override string[] TrackedTags => ["sup"];
+    public override string PrimaryTag => "sup";
 
     public override bool IsActive(EditorState state) => state.ActiveMarks.Contains("sup");
     public override Task ExecuteAsync(IEditorApi api) => api.ToggleMarkAsync("sup");

@@ -198,6 +198,32 @@
                 .ToArray();
             await JSRuntime.InvokeVoidAsync("ZauberRTE.shortcuts.registerShortcuts", _editorId, shortcuts);
 
+            // Register all tracked tags from toolbar items for dynamic mark detection
+            var trackedTags = ToolbarDiscovery.GetAllItems().Values
+                .Where(item => item.TrackedTags.Length > 0)
+                .SelectMany(item => item.TrackedTags)
+                .Distinct()
+                .ToArray();
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.selection.registerTrackedTags", _editorId, trackedTags);
+
+            // Build tag normalization map (alternate tag -> primary tag)
+            var tagNormalizationMap = new Dictionary<string, string>();
+            foreach (var item in ToolbarDiscovery.GetAllItems().Values.Where(i => i.TrackedTags.Length > 0))
+            {
+                var primaryTag = item.PrimaryTag ?? item.Id;
+                
+                foreach (var tag in item.TrackedTags)
+                {
+                    // Map all tags (including alternates) to the primary tag
+                    // E.g., "b" -> "strong", "strong" -> "strong"
+                    tagNormalizationMap[tag] = primaryTag;
+                }
+            }
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.selection.registerTagNormalization", _editorId, tagNormalizationMap);
+
+            // Register block-level tags
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.selection.registerBlockTags", _editorId, Settings.BlockTags.ToArray());
+
             // Set up paste callback
             await JSRuntime.InvokeVoidAsync("ZauberRTE.clipboard.setPasteCallback",
                 DotNetObjectReference.Create(this),
@@ -282,7 +308,7 @@
             styles.Add($"width: {Settings.Dimensions.Width}");
 
         if (!string.IsNullOrEmpty(Settings.Dimensions.Height))
-            styles.Add($"min-height: {Settings.Dimensions.Height ?? "200px"}");
+            styles.Add($"min-height: {Settings.Dimensions.Height}");
 
         return string.Join("; ", styles);
     }

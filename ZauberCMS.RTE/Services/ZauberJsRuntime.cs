@@ -124,12 +124,9 @@ internal class SelectionInteropImpl(IJSRuntime jsRuntime, ILogger logger) : Sele
 
     public async Task ToggleMarkAsync(string editorId, string markName)
     {
-        logger.LogInformation("C#: ToggleMarkAsync called with editorId={EditorId}, markName={MarkName}", editorId, markName);
         try
         {
-            logger.LogInformation("C#: About to call InvokeVoidAsync");
             await jsRuntime.InvokeVoidAsync("ZauberRTE.selection.toggleMark", editorId, markName);
-            logger.LogInformation("C#: InvokeVoidAsync completed successfully");
         }
         catch (Exception ex)
         {

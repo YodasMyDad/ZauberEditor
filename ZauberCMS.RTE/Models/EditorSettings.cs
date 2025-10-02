@@ -42,6 +42,17 @@ public class EditorSettings
     public Theme DefaultTheme { get; set; } = Theme.Auto;
 
     /// <summary>
+    /// Block-level HTML tags recognized by the editor.
+    /// These are used for navigation, selection, and formatting operations.
+    /// Customize this to support custom block elements.
+    /// </summary>
+    public HashSet<string> BlockTags { get; set; } = 
+    [
+        "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", 
+        "blockquote", "pre", "li", "td", "th", "ul", "ol", "table"
+    ];
+
+    /// <summary>
     /// Creates a default settings configuration suitable for CMS usage
     /// </summary>
     public static EditorSettings CmsDefault() => new()

@@ -12,6 +12,8 @@ public class BoldItem : ToolbarItemBase
     public override string Shortcut => "Control+b";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
+    public override string[] TrackedTags => ["strong", "b"];
+    public override string PrimaryTag => "strong";
     public override bool IsActive(EditorState state) => state.ActiveMarks.Contains("strong");
     public override Task ExecuteAsync(IEditorApi api) => api.ToggleMarkAsync("strong");
 }

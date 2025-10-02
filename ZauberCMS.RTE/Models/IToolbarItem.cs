@@ -41,6 +41,21 @@ public interface IToolbarItem
     bool IsToggle { get; }
 
     /// <summary>
+    /// HTML tag names this toolbar item tracks for active state detection.
+    /// For example, BoldItem returns ["strong", "b"], LinkItem returns ["a"].
+    /// Used to dynamically detect which marks are active in the editor.
+    /// </summary>
+    string[] TrackedTags { get; }
+
+    /// <summary>
+    /// The primary (canonical) HTML tag for this toolbar item.
+    /// For example, BoldItem uses "strong" as primary even though it also tracks "b".
+    /// Used for mark operations (toggle, wrap, etc.) to ensure consistent output.
+    /// If not specified, defaults to the item's Id.
+    /// </summary>
+    string? PrimaryTag { get; }
+
+    /// <summary>
     /// Determines if this item should be enabled given the current editor state
     /// </summary>
     bool IsEnabled(EditorState state);
@@ -74,6 +89,8 @@ public abstract class ToolbarItemBase : IToolbarItem
     public virtual string? Shortcut => null;
     public virtual bool IsToggle => false;
     public virtual Type? PanelComponent => null;
+    public virtual string[] TrackedTags => [];
+    public virtual string? PrimaryTag => null;
 
     public virtual bool IsEnabled(EditorState state) => true;
     public virtual bool IsActive(EditorState state) => false;

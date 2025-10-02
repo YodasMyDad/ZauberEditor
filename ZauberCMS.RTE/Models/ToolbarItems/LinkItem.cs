@@ -13,6 +13,10 @@ public class LinkItem : ToolbarItemBase
     public override string IconCss => "fa-link";
     public override string Shortcut => "Control+k";
     public override ToolbarPlacement Placement => ToolbarPlacement.Insert;
+    public override bool IsToggle => true;
+    public override string[] TrackedTags => ["a"];
+    public override string PrimaryTag => "a";
+    public override bool IsActive(EditorState state) => state.ActiveMarks.Contains("a");
 
     public override async Task ExecuteAsync(IEditorApi api)
     {

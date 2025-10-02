@@ -153,24 +153,12 @@
             // Check if we had an original selection when the panel opened
             if (_originalSelection != null && !string.IsNullOrEmpty(_originalSelection.SelectedText))
             {
-                // Restore the saved selection range
-                var restored = await Api.RestoreSelectionRangeAsync();
-                if (restored)
-                {
-                    // Now insert the link, which will replace the restored selection
-                    await Api.InsertHtmlAsync(htmlToInsert);
-                }
-                else
-                {
-                    // Fallback: just insert at current position
-                    await Api.InsertHtmlAsync(htmlToInsert);
-                }
+                // Restore the saved selection range before inserting
+                await Api.RestoreSelectionRangeAsync();
             }
-            else
-            {
-                // No original selection - just insert new link at current position
-                await Api.InsertHtmlAsync(htmlToInsert);
-            }
+            
+            // Insert the link (either at restored selection or current position)
+            await Api.InsertHtmlAsync(htmlToInsert);
             
             // Clear the saved range
             await Api.ClearSavedSelectionRangeAsync();

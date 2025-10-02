@@ -12,6 +12,8 @@ public class UnderlineItem : ToolbarItemBase
     public override string Shortcut => "Control+u";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
+    public override string[] TrackedTags => ["u"];
+    public override string PrimaryTag => "u";
 
     public override bool IsActive(EditorState state) => state.ActiveMarks.Contains("u");
     public override Task ExecuteAsync(IEditorApi api) => api.ToggleMarkAsync("u");

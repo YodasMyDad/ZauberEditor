@@ -12,6 +12,8 @@ public class CodeItem : ToolbarItemBase
     public override string IconCss => "fa-code";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
+    public override string[] TrackedTags => ["code"];
+    public override string PrimaryTag => "code";
 
     public override bool IsActive(EditorState state) => 
         state.ActiveMarks.Contains("code") || 

@@ -12,6 +12,8 @@ public class ItalicItem : ToolbarItemBase
     public override string Shortcut => "Control+i";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
+    public override string[] TrackedTags => ["em", "i"];
+    public override string PrimaryTag => "em";
 
     public override bool IsActive(EditorState state) => state.ActiveMarks.Contains("em");
     public override Task ExecuteAsync(IEditorApi api) => api.ToggleMarkAsync("em");

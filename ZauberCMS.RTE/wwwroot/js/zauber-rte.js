@@ -38,6 +38,26 @@ window.ZauberRTE = {
     // Selection API
     selection: {
         _savedRanges: new Map(), // editorId -> saved range
+        _trackedTags: new Map(), // editorId -> Set of tag names to track
+        _tagNormalizationMap: new Map(), // editorId -> { tagName: primaryTag } (unified normalization)
+        _blockTags: new Map(), // editorId -> Set of block-level tag names
+        
+        registerTrackedTags: function(editorId, tags) {
+            this._trackedTags.set(editorId, new Set(tags.map(t => t.toLowerCase())));
+        },
+        
+        registerTagNormalization: function(editorId, tagNormalizationMap) {
+            // Normalize map keys to lowercase for case-insensitive lookups
+            const normalizedMap = {};
+            for (const [key, value] of Object.entries(tagNormalizationMap)) {
+                normalizedMap[key.toLowerCase()] = value.toLowerCase();
+            }
+            this._tagNormalizationMap.set(editorId, normalizedMap);
+        },
+        
+        registerBlockTags: function(editorId, blockTags) {
+            this._blockTags.set(editorId, new Set(blockTags.map(t => t.toLowerCase())));
+        },
         
         get: function(editorId) {
             const editor = document.getElementById(editorId);
@@ -260,6 +280,62 @@ window.ZauberRTE = {
             // If range is collapsed (just a cursor), don't wrap anything
             if (range.collapsed) return;
 
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) return;
+
+            const blockTags = this._blockTags.get(editorId) || new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li', 'td', 'th', 'ul', 'ol', 'table']);
+
+            // Find all block-level elements that intersect with the selection
+            const affectedBlocks = [];
+            const allBlocks = editor.querySelectorAll(Array.from(blockTags).join(','));
+            
+            allBlocks.forEach(block => {
+                if (range.intersectsNode(block)) {
+                    affectedBlocks.push(block);
+                }
+            });
+
+            // If selection spans multiple blocks, wrap content in each block separately
+            if (affectedBlocks.length > 1) {
+                // Process blocks in reverse order to avoid range invalidation issues
+                const wrappedElements = [];
+                
+                affectedBlocks.forEach((block, index) => {
+                    try {
+                        // Wrap all content in this block
+                        const wrapper = document.createElement(tagName);
+                        
+                        if (attributes) {
+                            Object.keys(attributes).forEach(key => {
+                                wrapper.setAttribute(key, attributes[key]);
+                            });
+                        }
+                        
+                        // Move all child nodes into the wrapper
+                        while (block.firstChild) {
+                            wrapper.appendChild(block.firstChild);
+                        }
+                        
+                        // Put the wrapper inside the block
+                        block.appendChild(wrapper);
+                        wrappedElements.push(block);
+                    } catch (e) {
+                        console.warn('Could not wrap content in block:', e);
+                    }
+                });
+                
+                // Restore selection to span all affected blocks
+                if (affectedBlocks.length > 0) {
+                    const newRange = document.createRange();
+                    newRange.setStartBefore(affectedBlocks[0].firstChild || affectedBlocks[0]);
+                    newRange.setEndAfter(affectedBlocks[affectedBlocks.length - 1].lastChild || affectedBlocks[affectedBlocks.length - 1]);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                }
+                return;
+            }
+
+            // Single block or no block - use original logic
             const element = document.createElement(tagName);
 
             if (attributes) {
@@ -297,7 +373,7 @@ window.ZauberRTE = {
             if (!selection.rangeCount) return;
 
             const range = selection.getRangeAt(0);
-            const editor = document.getElementById(editorId);
+            const editor = document.getElementById(editorId + '-content');
             if (!editor) return;
 
             // If range is collapsed, nothing to unwrap
@@ -312,6 +388,8 @@ window.ZauberRTE = {
                     elementsToUnwrap.push(element);
                 }
             });
+
+            if (elementsToUnwrap.length === 0) return;
 
             // Sort by depth (deepest first) to unwrap from inside out
             elementsToUnwrap.sort((a, b) => {
@@ -331,69 +409,51 @@ window.ZauberRTE = {
                 return depthB - depthA;
             });
 
-            // Collect all text nodes that will be unwrapped
-            const textNodesToSelect = [];
-
-            elementsToUnwrap.forEach(element => {
-                // Check if the element is fully contained within the selection
-                const elementRange = document.createRange();
-                elementRange.selectNode(element);
-
-                const isFullySelected = range.compareBoundaryPoints(Range.START_TO_START, elementRange) <= 0 &&
-                                       range.compareBoundaryPoints(Range.END_TO_END, elementRange) >= 0;
-
-                if (isFullySelected || range.intersectsNode(element)) {
-                    // Collect all text nodes inside this element
-                    const walker = document.createTreeWalker(
-                        element,
-                        NodeFilter.SHOW_TEXT,
-                        null,
-                        false
-                    );
-                    let textNode;
-                    while (textNode = walker.nextNode()) {
-                        if (textNode.textContent && textNode.textContent.trim()) {
-                            textNodesToSelect.push(textNode);
-                        }
-                    }
-                }
-            });
+            // Track blocks for selection restoration
+            const blockTags = this._blockTags.get(editorId) || new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li', 'td', 'th', 'ul', 'ol', 'table']);
+            const affectedBlocks = new Set();
 
             // Unwrap each element
             elementsToUnwrap.forEach(element => {
-                // Check if the element is fully contained within the selection
-                const elementRange = document.createRange();
-                elementRange.selectNode(element);
+                const parent = element.parentNode;
+                if (!parent) return;
 
-                const isFullySelected = range.compareBoundaryPoints(Range.START_TO_START, elementRange) <= 0 &&
-                                       range.compareBoundaryPoints(Range.END_TO_END, elementRange) >= 0;
-
-                if (isFullySelected) {
-                    // Element is fully selected - unwrap it completely
-                    const parent = element.parentNode;
-                    while (element.firstChild) {
-                        parent.insertBefore(element.firstChild, element);
-                    }
-                    parent.removeChild(element);
-                } else if (range.intersectsNode(element)) {
-                    // Element is partially selected - unwrap only the selected portion
-                    // This is more complex, so for now we'll unwrap the whole element
-                    // if it's the same type and intersects with selection
-                    const parent = element.parentNode;
-                    while (element.firstChild) {
-                        parent.insertBefore(element.firstChild, element);
-                    }
-                    parent.removeChild(element);
+                // Track which block this belongs to
+                let block = parent;
+                while (block && block !== editor && !blockTags.has(block.tagName?.toLowerCase())) {
+                    block = block.parentElement;
                 }
+                if (block && block !== editor) {
+                    affectedBlocks.add(block);
+                }
+
+                // Collect child nodes before unwrapping
+                const childNodes = Array.from(element.childNodes);
+                
+                // Insert all children before the element
+                childNodes.forEach(child => {
+                    parent.insertBefore(child, element);
+                });
+                
+                // Remove the now-empty wrapper element
+                parent.removeChild(element);
             });
 
-            // Restore selection to the unwrapped text nodes
-            if (textNodesToSelect.length > 0) {
+            // Normalize all affected blocks to merge text nodes
+            affectedBlocks.forEach(block => {
+                block.normalize();
+            });
+
+            // Restore selection to span the affected blocks
+            if (affectedBlocks.size > 0) {
                 try {
+                    const blocks = Array.from(affectedBlocks);
+                    const firstBlock = blocks[0];
+                    const lastBlock = blocks[blocks.length - 1];
+                    
                     const newRange = document.createRange();
-                    newRange.setStart(textNodesToSelect[0], 0);
-                    const lastNode = textNodesToSelect[textNodesToSelect.length - 1];
-                    newRange.setEnd(lastNode, lastNode.textContent.length);
+                    newRange.setStartBefore(firstBlock.firstChild || firstBlock);
+                    newRange.setEndAfter(lastBlock.lastChild || lastBlock);
                     selection.removeAllRanges();
                     selection.addRange(newRange);
                 } catch (e) {
@@ -417,8 +477,8 @@ window.ZauberRTE = {
             }
 
             // Find the block-level parent
-            const blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li'];
-            while (currentBlock && currentBlock !== contentEditable && !blockTags.includes(currentBlock.tagName?.toLowerCase())) {
+            const blockTags = this._blockTags.get(editorId) || new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li', 'td', 'th', 'ul', 'ol', 'table']);
+            while (currentBlock && currentBlock !== contentEditable && !blockTags.has(currentBlock.tagName?.toLowerCase())) {
                 currentBlock = currentBlock.parentElement;
             }
 
@@ -581,6 +641,11 @@ window.ZauberRTE = {
 
             const range = selection.getRangeAt(0);
             const marks = new Set();
+            const trackedTags = this._trackedTags.get(editorId);
+            
+            if (!trackedTags || trackedTags.size === 0) {
+                return [];
+            }
 
             // Check for marks at the current position
             let element = range.commonAncestorContainer;
@@ -588,39 +653,28 @@ window.ZauberRTE = {
                 element = element.parentElement;
             }
 
-            // Walk up the DOM to find active marks
+            // Walk up the DOM to find active marks dynamically
             while (element && element.id !== editorId) {
                 const tagName = element.tagName ? element.tagName.toLowerCase() : '';
-                switch (tagName) {
-                    case 'strong':
-                    case 'b':
-                        marks.add('strong');
-                        break;
-                    case 'em':
-                    case 'i':
-                        marks.add('em');
-                        break;
-                    case 'u':
-                        marks.add('u');
-                        break;
-                    case 's':
-                    case 'strike':
-                        marks.add('s');
-                        break;
-                    case 'code':
-                        marks.add('code');
-                        break;
-                    case 'sub':
-                        marks.add('sub');
-                        break;
-                    case 'sup':
-                        marks.add('sup');
-                        break;
+                
+                // Check if this tag is being tracked by any toolbar item
+                if (tagName && trackedTags.has(tagName)) {
+                    // Normalize certain tags to their canonical form
+                    const normalizedTag = this._normalizeTagName(editorId, tagName);
+                    marks.add(normalizedTag);
                 }
+                
                 element = element.parentElement;
             }
 
             return Array.from(marks);
+        },
+        
+        _normalizeTagName: function(editorId, tagName) {
+            // Normalize tag names to their canonical form using registered map
+            // E.g., "b" -> "strong", "strong" -> "strong", "i" -> "em", "em" -> "em"
+            const tagMap = this._tagNormalizationMap.get(editorId) || {};
+            return tagMap[tagName.toLowerCase()] || tagName;
         },
 
         hasMarkInSelection: function(editorId, markName) {
@@ -638,7 +692,7 @@ window.ZauberRTE = {
             }
 
             // For non-collapsed selections, check if any part contains the mark
-            const tagName = this.getTagForMark(markName);
+            const tagName = this.getTagForMark(editorId, markName);
             const container = range.commonAncestorContainer;
             
             // Get the container element
@@ -674,17 +728,10 @@ window.ZauberRTE = {
             return false;
         },
 
-        getTagForMark: function(markName) {
-            const tagMap = {
-                'strong': 'strong',
-                'em': 'em',
-                'u': 'u',
-                's': 's',
-                'code': 'code',
-                'sub': 'sub',
-                'sup': 'sup'
-            };
-            return tagMap[markName] || markName;
+        getTagForMark: function(editorId, markName) {
+            // Mark names are already tag names (e.g., "strong", "em")
+            // Just normalize them to handle any edge cases
+            return this._normalizeTagName(editorId, markName);
         },
 
         getCurrentBlockType: function(editorId) {
@@ -701,9 +748,9 @@ window.ZauberRTE = {
             // Find the block-level element
             while (element && element.id !== editorId) {
                 const tagName = element.tagName ? element.tagName.toLowerCase() : '';
-                const blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li', 'td', 'th'];
+                const blockTags = this._blockTags.get(editorId) || new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li', 'td', 'th', 'ul', 'ol', 'table']);
 
-                if (blockTags.includes(tagName)) {
+                if (blockTags.has(tagName)) {
                     // Handle heading levels
                     if (tagName.startsWith('h') && tagName.length === 2) {
                         const level = parseInt(tagName.substring(1));
@@ -785,7 +832,7 @@ window.ZauberRTE = {
                 element = element.parentElement;
             }
 
-            const tagName = this.getTagForMark(markName);
+            const tagName = this.getTagForMark(editorId, markName);
 
             // Walk up the DOM to find the mark tag
             while (element && element !== editor) {
@@ -826,7 +873,7 @@ window.ZauberRTE = {
                 }
                 
                 // Remove all instances of the mark from the selection
-                this.unwrap(editorId, this.getTagForMark(markName));
+                this.unwrap(editorId, this.getTagForMark(editorId, markName));
                 // Clean up any spans that might have been created during unwrapping
                 const editor = document.getElementById(editorId);
                 if (editor) {
@@ -840,7 +887,7 @@ window.ZauberRTE = {
                 }
                 
                 // Apply the mark to the selection
-                this.wrap(editorId, this.getTagForMark(markName));
+                this.wrap(editorId, this.getTagForMark(editorId, markName));
             }
         },
 
@@ -852,7 +899,7 @@ window.ZauberRTE = {
             const editor = document.getElementById(editorId);
             if (!editor) return;
 
-            const tagName = this.getTagForMark(markName);
+            const tagName = this.getTagForMark(editorId, markName);
 
             // If range is collapsed, try to find and remove marks at cursor position
             if (range.collapsed) {
@@ -938,6 +985,153 @@ window.ZauberRTE = {
             });
 
             return selectedLis;
+        },
+
+        convertSingleBlock: function(block, targetType, attributes, blockTags) {
+            if (!block || !block.parentNode) return null;
+
+            const currentType = block.tagName?.toLowerCase();
+            
+            // Handle heading comparisons specially (current='h1', target='heading' with level='1')
+            if (targetType === 'heading' && currentType.match(/^h[1-6]$/)) {
+                const currentLevel = currentType.substring(1);
+                const targetLevel = attributes?.level || '1';
+                if (currentLevel === targetLevel) {
+                    // Same heading level - toggle to paragraph
+                    targetType = 'p';
+                }
+                // Otherwise, fall through to convert to different heading level
+            }
+            // Check if we're trying to convert to the exact same type
+            else if (currentType === targetType) {
+                // For blockquote, pre - toggle back to paragraph
+                if (currentType === 'blockquote' || currentType === 'pre') {
+                    targetType = 'p';
+                } else if (currentType === 'p') {
+                    // Already paragraph, no change needed
+                    return block;
+                } else {
+                    // Already the target type and no special toggle behavior
+                    return block;
+                }
+            }
+
+            // Handle list items specially
+            if (currentType === 'li') {
+                const parentList = block.parentElement;
+                if (!parentList) return block;
+                
+                const listType = parentList.tagName?.toLowerCase();
+                
+                // If trying to convert to the same list type, convert to paragraph
+                if (targetType === listType) {
+                    const newParagraph = document.createElement('p');
+                    while (block.firstChild) {
+                        newParagraph.appendChild(block.firstChild);
+                    }
+                    
+                    if (parentList.children.length === 1) {
+                        // Last item in list - replace entire list
+                        parentList.parentNode.replaceChild(newParagraph, parentList);
+                    } else {
+                        // Multiple items - insert paragraph and remove this li
+                        parentList.parentNode.insertBefore(newParagraph, parentList);
+                        parentList.removeChild(block);
+                    }
+                    return newParagraph;
+                }
+                
+                // Converting to different list type - convert the parent list
+                if (targetType === 'ul' || targetType === 'ol') {
+                    const newList = document.createElement(targetType);
+                    while (parentList.firstChild) {
+                        newList.appendChild(parentList.firstChild);
+                    }
+                    parentList.parentNode.replaceChild(newList, parentList);
+                    return newList.querySelector('li'); // Return the converted li element
+                }
+                
+                return block;
+            }
+
+            // Handle converting paragraphs to lists
+            if ((targetType === 'ul' || targetType === 'ol') && blockTags.has(currentType)) {
+                const newList = document.createElement(targetType);
+                const li = document.createElement('li');
+                
+                // Move CONTENT from block to li (unwrap any nested block tags)
+                while (block.firstChild) {
+                    const child = block.firstChild;
+                    // If child is a block element (like nested p tags), unwrap it
+                    if (child.nodeType === Node.ELEMENT_NODE && blockTags.has(child.tagName?.toLowerCase())) {
+                        // Extract content from nested block
+                        while (child.firstChild) {
+                            li.appendChild(child.firstChild);
+                        }
+                        block.removeChild(child);
+                    } else {
+                        li.appendChild(child);
+                    }
+                }
+                
+                newList.appendChild(li);
+                block.parentNode.replaceChild(newList, block);
+                return newList;
+            }
+
+            // Standard block conversion (p, h1-h6, blockquote, etc.)
+            let newBlock;
+            if (targetType === 'heading') {
+                const level = attributes?.level || '1';
+                newBlock = document.createElement(`h${level}`);
+            } else if (targetType === 'codeblock') {
+                newBlock = document.createElement('pre');
+                const code = document.createElement('code');
+                newBlock.appendChild(code);
+            } else {
+                newBlock = document.createElement(targetType || 'p');
+            }
+
+            // Copy attributes
+            if (attributes) {
+                Object.keys(attributes).forEach(key => {
+                    if (key !== 'level') { // Skip 'level' as it's handled above
+                        newBlock.setAttribute(key, attributes[key]);
+                    }
+                });
+            }
+
+            // Move content
+            if (currentType === 'pre') {
+                // Extract from code element if present
+                const codeElement = block.querySelector('code');
+                if (codeElement) {
+                    while (codeElement.firstChild) {
+                        if (targetType === 'codeblock' && newBlock.firstChild) {
+                            newBlock.firstChild.appendChild(codeElement.firstChild);
+                        } else {
+                            newBlock.appendChild(codeElement.firstChild);
+                        }
+                    }
+                } else {
+                    while (block.firstChild) {
+                        newBlock.appendChild(block.firstChild);
+                    }
+                }
+            } else {
+                // Normal content transfer
+                while (block.firstChild) {
+                    if (targetType === 'codeblock' && newBlock.firstChild) {
+                        newBlock.firstChild.appendChild(block.firstChild);
+                    } else {
+                        newBlock.appendChild(block.firstChild);
+                    }
+                }
+            }
+
+            // Replace old block with new block
+            block.parentNode.replaceChild(newBlock, block);
+            return newBlock;
         },
 
         convertSelectedListItems: function(selectedLis, blockType, range, selection) {
@@ -1044,8 +1238,16 @@ window.ZauberRTE = {
             if (!selection.rangeCount) return;
 
             const range = selection.getRangeAt(0);
-            const editor = document.getElementById(editorId);
+            const editor = document.getElementById(editorId + '-content');
             if (!editor) return;
+
+            // Normalize heading tags (h1, h2, etc.) to internal format
+            if (blockType && blockType.match(/^h[1-6]$/)) {
+                const level = blockType.substring(1);
+                attributes = attributes || {};
+                attributes.level = level;
+                blockType = 'heading';
+            }
 
             // Check if selection spans multiple elements and contains list items
             if (!range.collapsed) {
@@ -1057,22 +1259,107 @@ window.ZauberRTE = {
                 }
             }
 
+            const blockTags = this._blockTags.get(editorId) || new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li', 'td', 'th', 'ul', 'ol', 'table']);
+
             // Find the current block element
             let currentBlock = range.commonAncestorContainer;
             if (currentBlock.nodeType === Node.TEXT_NODE) {
                 currentBlock = currentBlock.parentElement;
             }
 
-            const blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li'];
-            while (currentBlock && currentBlock.id !== editorId && !blockTags.includes(currentBlock.tagName?.toLowerCase())) {
+            // Check if selection spans multiple block elements at the root level
+            if (currentBlock && currentBlock.id === (editorId + '-content') && !range.collapsed) {
+                // Selection spans multiple blocks - handle each block separately
+                const affectedBlocks = [];
+                const allBlocks = editor.querySelectorAll(Array.from(blockTags).join(','));
+                
+                allBlocks.forEach(block => {
+                    if (range.intersectsNode(block)) {
+                        affectedBlocks.push(block);
+                    }
+                });
+
+                if (affectedBlocks.length > 0) {
+                    // Special handling for list conversion - merge into a single list
+                    if (blockType === 'ul' || blockType === 'ol') {
+                        const newList = document.createElement(blockType);
+                        
+                        affectedBlocks.forEach(block => {
+                            const li = document.createElement('li');
+                            
+                            // Extract content from block, unwrapping any nested blocks
+                            while (block.firstChild) {
+                                const child = block.firstChild;
+                                if (child.nodeType === Node.ELEMENT_NODE && blockTags.has(child.tagName?.toLowerCase())) {
+                                    // Unwrap nested block elements
+                                    while (child.firstChild) {
+                                        li.appendChild(child.firstChild);
+                                    }
+                                    block.removeChild(child);
+                                } else {
+                                    li.appendChild(child);
+                                }
+                            }
+                            
+                            newList.appendChild(li);
+                        });
+                        
+                        // Replace the first affected block with the list
+                        affectedBlocks[0].parentNode.replaceChild(newList, affectedBlocks[0]);
+                        
+                        // Remove the remaining affected blocks
+                        for (let i = 1; i < affectedBlocks.length; i++) {
+                            if (affectedBlocks[i].parentNode) {
+                                affectedBlocks[i].parentNode.removeChild(affectedBlocks[i]);
+                            }
+                        }
+                        
+                        // Restore selection to the new list
+                        const newRange = document.createRange();
+                        newRange.selectNodeContents(newList);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                        return;
+                    }
+                    
+                    // For non-list conversions, convert each block individually
+                    const convertedBlocks = [];
+                    
+                    affectedBlocks.forEach(block => {
+                        const converted = this.convertSingleBlock(block, blockType, attributes, blockTags);
+                        if (converted) {
+                            convertedBlocks.push(converted);
+                        }
+                    });
+
+                    // Restore selection across all converted blocks
+                    if (convertedBlocks.length > 0) {
+                        const newRange = document.createRange();
+                        newRange.setStartBefore(convertedBlocks[0]);
+                        newRange.setEndAfter(convertedBlocks[convertedBlocks.length - 1]);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                    return;
+                }
+            }
+
+            // Find the specific block containing the selection
+            while (currentBlock && currentBlock.id !== (editorId + '-content') && !blockTags.has(currentBlock.tagName?.toLowerCase())) {
                 currentBlock = currentBlock.parentElement;
             }
 
-            if (!currentBlock || currentBlock.id === editorId) {
-                // No block found, create a paragraph
-                currentBlock = document.createElement('p');
-                range.insertNode(currentBlock);
-                range.selectNodeContents(currentBlock);
+            if (!currentBlock || currentBlock.id === (editorId + '-content')) {
+                // No block found or at editor root with collapsed selection
+                if (range.collapsed) {
+                    // Create a paragraph for collapsed cursor at root
+                    currentBlock = document.createElement('p');
+                    range.insertNode(currentBlock);
+                    range.selectNodeContents(currentBlock);
+                } else {
+                    // Should not reach here, but handle gracefully
+                    return;
+                }
             }
 
             // Handle special case: converting from list item
@@ -1211,7 +1498,7 @@ window.ZauberRTE = {
             const editor = document.getElementById(editorId + '-content');
             if (!editor) return;
 
-            const blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li'];
+            const blockTags = this._blockTags.get(editorId) || new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li', 'td', 'th', 'ul', 'ol', 'table']);
             
             // Get all block elements within the selection
             const blocks = [];
@@ -1223,7 +1510,7 @@ window.ZauberRTE = {
                     currentBlock = currentBlock.parentElement;
                 }
                 
-                while (currentBlock && currentBlock !== editor && !blockTags.includes(currentBlock.tagName?.toLowerCase())) {
+                while (currentBlock && currentBlock !== editor && !blockTags.has(currentBlock.tagName?.toLowerCase())) {
                     currentBlock = currentBlock.parentElement;
                 }
                 
@@ -1232,7 +1519,7 @@ window.ZauberRTE = {
                 }
             } else {
                 // Selection spans content - find all blocks within selection
-                const allBlocks = editor.querySelectorAll(blockTags.join(','));
+                const allBlocks = editor.querySelectorAll(Array.from(blockTags).join(','));
                 
                 for (let block of allBlocks) {
                     // Check if this block intersects with the selection
@@ -1518,11 +1805,13 @@ window.ZauberRTE = {
                         style.indexOf('font-family: inherit') !== -1) {
                         // This span has the common default styles, unwrap it
                         const parent = span.parentNode;
-                        while (span.firstChild) {
-                            parent.insertBefore(span.firstChild, span);
+                        if (parent) {
+                            while (span.firstChild) {
+                                parent.insertBefore(span.firstChild, span);
+                            }
+                            parent.removeChild(span);
+                            i--; // Adjust index since we removed an element
                         }
-                        parent.removeChild(span);
-                        i--; // Adjust index since we removed an element
                     }
                 }
             }
@@ -2552,13 +2841,13 @@ window.ZauberRTE = {
             // Ensure proper paragraph structure for clean HTML output
             const hasBlockElements = contentEditable.querySelector('p, div, h1, h2, h3, h4, h5, h6, blockquote, pre, ul, ol, li, table');
             if (!hasBlockElements && contentEditable.textContent?.trim()) {
-                this.ensureParagraphStructure(contentEditable);
+                this.ensureParagraphStructure(editorId, contentEditable);
             }
 
             return contentEditable.innerHTML;
         },
 
-        ensureParagraphStructure: function(contentEditable) {
+        ensureParagraphStructure: function(editorId, contentEditable) {
             // If content is empty, add a default paragraph
             if (!contentEditable.innerHTML.trim()) {
                 contentEditable.innerHTML = '<p><br></p>';
@@ -2566,10 +2855,10 @@ window.ZauberRTE = {
             }
 
             const children = Array.from(contentEditable.children);
-            const blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'ul', 'ol', 'li', 'table'];
+            const blockTags = window.ZauberRTE.selection._blockTags.get(editorId) || new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'ul', 'ol', 'li', 'table']);
 
             // Check if we have any block-level elements
-            const hasBlocks = children.some(child => blockTags.includes(child.tagName?.toLowerCase()));
+            const hasBlocks = children.some(child => blockTags.has(child.tagName?.toLowerCase()));
 
             if (!hasBlocks) {
                 // Wrap all content in a paragraph
@@ -2590,7 +2879,7 @@ window.ZauberRTE = {
                         currentParagraph.appendChild(node);
                     } else if (node.nodeType === Node.ELEMENT_NODE) {
                         const tagName = node.tagName.toLowerCase();
-                        if (blockTags.includes(tagName)) {
+                        if (blockTags.has(tagName)) {
                             // Block element - start new paragraph context
                             currentParagraph = null;
                             fragment.appendChild(node);
@@ -2620,7 +2909,7 @@ window.ZauberRTE = {
             if (contentEditable) {
                 contentEditable.innerHTML = html;
                 // Ensure proper structure after setting HTML
-                this.ensureParagraphStructure(contentEditable);
+                this.ensureParagraphStructure(editorId, contentEditable);
             }
         },
 

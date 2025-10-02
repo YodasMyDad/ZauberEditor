@@ -12,13 +12,13 @@
                 <button type="button"
                         class="rte-btn @(_sourceType == "url" ? "rte-btn-primary" : "rte-btn-secondary")"
                         style="flex: 1;"
-                        @onclick="SelectUrlSource">
+                        @onclick='() => _sourceType = "url"'>
                     From URL
                 </button>
                 <button type="button"
                         class="rte-btn @(_sourceType == "file" ? "rte-btn-primary" : "rte-btn-secondary")"
                         style="flex: 1;"
-                        @onclick="SelectFileSource">
+                        @onclick='() => _sourceType = "file"'>
                     From File
                 </button>
             </div>
@@ -140,16 +140,6 @@
         }
         
         return Task.CompletedTask;
-    }
-
-    private void SelectUrlSource()
-    {
-        _sourceType = "url";
-    }
-
-    private void SelectFileSource()
-    {
-        _sourceType = "file";
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

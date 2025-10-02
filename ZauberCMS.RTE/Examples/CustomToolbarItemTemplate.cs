@@ -42,7 +42,30 @@ public class CustomToolbarItemTemplate : ToolbarItemBase
     public override bool IsToggle => false;
 
     /// <summary>
-    /// Determines if this item should be enabled given the current editor state
+    /// HTML tag names this toolbar item tracks for active state detection.
+    /// Used for toggle items to automatically highlight when cursor is inside the tag.
+    /// Example: BoldItem tracks ["strong", "b"], LinkItem tracks ["a"]
+    /// Default: Empty array (no tags tracked)
+    /// </summary>
+    public override string[] TrackedTags => [];
+    
+    /// <summary>
+    /// The primary (canonical) HTML tag for this toolbar item.
+    /// Used when applying/toggling the mark to ensure consistent output.
+    /// Example: BoldItem uses "strong" as primary even though it also tracks "b"
+    /// Default: null (defaults to the item's Id)
+    /// </summary>
+    public override string? PrimaryTag => null;
+    
+    // Example for a toggle item that wraps text in <mark> tags:
+    // public override bool IsToggle => true;
+    // public override string[] TrackedTags => ["mark"];
+    // public override string PrimaryTag => "mark";
+    // public override bool IsActive(EditorState state) => state.ActiveMarks.Contains("mark");
+
+    /// <summary>
+    /// Determines if this item should be enabled given the current editor state.
+    /// IMPORTANT: This is called frequently during rendering.
     /// Example: Only enable when text is selected
     /// Default: Always enabled
     /// </summary>
@@ -50,6 +73,9 @@ public class CustomToolbarItemTemplate : ToolbarItemBase
     {
         // Example: Only enable when text is selected
         // return state.HasSelection;
+        
+        // Example: Only enable when cursor is in a specific mark
+        // return state.ActiveMarks.Contains("customMark");
         
         return true; // Always enabled
     }

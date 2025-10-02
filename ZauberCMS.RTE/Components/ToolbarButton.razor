@@ -2,9 +2,9 @@
 
 <button type="button"
         class="rte-toolbar-btn @GetButtonClasses()"
-        @onclick="HandleClick"
-        @onclick:preventDefault="true"
-        @onclick:stopPropagation="true"
+        @onmousedown="HandleClick"
+        @onmousedown:preventDefault="true"
+        @onmousedown:stopPropagation="true"
         disabled="@(!IsEnabled)"
         aria-pressed="@(Item.IsToggle ? IsActive.ToString().ToLower() : null)"
         aria-label="@Item.Label"
@@ -42,15 +42,8 @@
         return string.Join(" ", classes);
     }
 
-    private string? GetTooltipText()
-    {
-        if (!string.IsNullOrEmpty(Item.Tooltip))
-        {
-            return Item.Tooltip;
-        }
-
-        return Item.Label;
-    }
+    private string GetTooltipText() => 
+        !string.IsNullOrEmpty(Item.Tooltip) ? Item.Tooltip : Item.Label;
 
     private async Task HandleClick()
     {

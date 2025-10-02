@@ -11,6 +11,8 @@ public class StrikeItem : ToolbarItemBase
     public override string IconCss => "fa-strikethrough";
     public override ToolbarPlacement Placement => ToolbarPlacement.Inline;
     public override bool IsToggle => true;
+    public override string[] TrackedTags => ["s", "strike"];
+    public override string PrimaryTag => "s";
 
     public override bool IsActive(EditorState state) => state.ActiveMarks.Contains("s");
     public override Task ExecuteAsync(IEditorApi api) => api.ToggleMarkAsync("s");

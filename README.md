@@ -1,4 +1,6 @@
-# Zauber Rich Text Editor
+# Blazor Rich Text Editor
+
+**This project is in Beta release, so I am still testing and fixing any bugs. Please report any issues you find.**
 
 A modern, extensible rich-text editor component for Blazor applications. Built with performance, accessibility, and developer experience in mind.
 
@@ -12,7 +14,7 @@ A modern, extensible rich-text editor component for Blazor applications. Built w
 - 📱 **Responsive**: Mobile-friendly with touch support
 - 🎯 **Accessible**: ARIA compliant with screen reader support
 - 🧩 **Extensible**: Plugin architecture for custom toolbar items and functionality
-- 🎨 **Themes**: Light, dark, and auto theme support
+- 🎨 **Themes**: Light, dark theme support
 - 📝 **Source View**: Toggle between rich text and HTML source editing
 
 ## Installation
