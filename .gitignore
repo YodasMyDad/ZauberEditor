@@ -9,3 +9,4 @@ riderModule.iml
 ImageGen.Web/wwwroot/images/*
 /ImageGen.Web/appsettings.Development.json
 /ZauberRTE.Web/appsettings.Development.json
+/ZauberCMS.RTE/node_modules/*

@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zauber.RTE", "Zauber.RTE\Zauber.RTE.csproj", "{C11AD806-0586-458D-B60C-16BCEA336432}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZauberCMS.RTE", "ZauberCMS.RTE\ZauberCMS.RTE.csproj", "{C11AD806-0586-458D-B60C-16BCEA336432}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZauberRTE.Web", "ZauberRTE.Web\ZauberRTE.Web.csproj", "{A93DEEEC-9299-4445-A262-8F96AFF6785F}"
 EndProject

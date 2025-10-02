@@ -1,0 +1,62 @@
+@using ZauberCMS.RTE.Models
+
+<button type="button"
+        class="rte-toolbar-btn @GetButtonClasses()"
+        @onclick="HandleClick"
+        @onclick:preventDefault="true"
+        @onclick:stopPropagation="true"
+        disabled="@(!IsEnabled)"
+        aria-pressed="@(Item.IsToggle ? IsActive.ToString().ToLower() : null)"
+        aria-label="@Item.Label"
+        title="@GetTooltipText()">
+    @if (Item.Id == "h1" || Item.Id == "h2" || Item.Id == "h3")
+    {
+        <span class="rte-heading-label">@Item.Id.ToUpper()</span>
+    }
+    else
+    {
+        <i class="fas @Item.IconCss" aria-hidden="true"></i>
+    }
+</button>
+
+@code {
+    [Parameter] public IToolbarItem Item { get; set; } = null!;
+    [Parameter] public bool IsActive { get; set; }
+    [Parameter] public bool IsEnabled { get; set; } = true;
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private string GetButtonClasses()
+    {
+        var classes = new List<string>();
+
+        if (Item.IsToggle && IsActive)
+        {
+            classes.Add("rte-btn-active");
+        }
+
+        if (!IsEnabled)
+        {
+            classes.Add("rte-btn-disabled");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private string? GetTooltipText()
+    {
+        if (!string.IsNullOrEmpty(Item.Tooltip))
+        {
+            return Item.Tooltip;
+        }
+
+        return Item.Label;
+    }
+
+    private async Task HandleClick()
+    {
+        if (IsEnabled)
+        {
+            await OnClick.InvokeAsync();
+        }
+    }
+}

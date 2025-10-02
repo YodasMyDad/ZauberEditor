@@ -1,0 +1,190 @@
+@using ZauberCMS.RTE.Models
+@inherits PanelBase
+
+<div class="rte-panel-content">
+    <div class="rte-form-group">
+        <label for="link-url" class="rte-label">URL</label>
+        <input type="url"
+               id="link-url"
+               class="rte-input"
+               @bind="_url"
+               @bind:event="oninput"
+               placeholder="https://example.com" />
+    </div>
+
+    <div class="rte-form-group">
+        <label for="link-text" class="rte-label">Text to display</label>
+        <input type="text"
+               id="link-text"
+               class="rte-input"
+               @bind="_text"
+               @bind:event="oninput"
+               placeholder="Link text" />
+    </div>
+
+    <div class="rte-form-group">
+        <label for="link-title" class="rte-label">Title</label>
+        <input type="text"
+               id="link-title"
+               class="rte-input"
+               @bind="_title"
+               @bind:event="oninput"
+               placeholder="Optional" />
+    </div>
+
+    <div class="rte-form-group">
+        <label for="link-target" class="rte-label">Open link in...</label>
+        <select id="link-target" class="rte-select" @bind="_target">
+            <option value="">Current window</option>
+            <option value="_blank">New window</option>
+        </select>
+    </div>
+
+    <div class="rte-form-group">
+        <label for="link-rel" class="rte-label">Link list</label>
+        <select id="link-rel" class="rte-select" @bind="_rel">
+            <option value="">None</option>
+            <option value="nofollow">No follow</option>
+            <option value="noopener noreferrer">No opener (recommended for new windows)</option>
+        </select>
+    </div>
+
+    <div class="rte-panel-actions">
+        <button type="button"
+                class="rte-btn rte-btn-secondary"
+                @onclick="CancelAsync">
+            Cancel
+        </button>
+        <button type="button"
+                class="rte-btn rte-btn-primary"
+                @onclick="InsertAsync"
+                disabled="@(string.IsNullOrWhiteSpace(_url))">
+            Save
+        </button>
+    </div>
+</div>
+
+@code {
+    private string _url = string.Empty;
+    private string _text = string.Empty;
+    private string _title = string.Empty;
+    private string _target = string.Empty;
+    private string _rel = string.Empty;
+    private SelectionInfo? _originalSelection;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Api != null)
+        {
+            // Check if we're editing an existing link
+            var existingLink = await Api.GetLinkAtCursorAsync();
+            if (existingLink != null)
+            {
+                // Populate form with existing link data
+                _url = existingLink.Href;
+                _text = existingLink.Text;
+                _target = existingLink.Target ?? string.Empty;
+                _rel = existingLink.Rel ?? string.Empty;
+                _title = existingLink.Title ?? string.Empty;
+                _originalSelection = new SelectionInfo { SelectedText = existingLink.Text };
+                // Select the entire link so we can replace it when inserting
+                await Api.SelectLinkAtCursorAsync();
+            }
+            else
+            {
+                // Get the current selection to populate the text field
+                _originalSelection = await Api.GetSelectionAsync();
+                if (_originalSelection != null && !string.IsNullOrEmpty(_originalSelection.SelectedText))
+                {
+                    _text = _originalSelection.SelectedText;
+                }
+            }
+            
+            // Save the selection range so we can restore it later
+            await Api.SaveSelectionRangeAsync();
+            
+            StateHasChanged();
+        }
+    }
+
+    private async Task InsertAsync()
+    {
+        if (Api == null || string.IsNullOrWhiteSpace(_url)) 
+        {
+            return;
+        }
+
+        // If text is empty, use URL as the text
+        if (string.IsNullOrWhiteSpace(_text))
+        {
+            _text = _url;
+        }
+
+        try
+        {
+            var attrs = new Dictionary<string, string>
+            {
+                ["href"] = _url
+            };
+
+            if (!string.IsNullOrWhiteSpace(_target))
+            {
+                attrs["target"] = _target;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_rel))
+            {
+                attrs["rel"] = _rel;
+            }
+            else if (_target == "_blank")
+            {
+                // Auto-add security rel for new windows if not specified
+                attrs["rel"] = "noopener noreferrer";
+            }
+
+            if (!string.IsNullOrWhiteSpace(_title))
+            {
+                attrs["title"] = _title;
+            }
+
+            // Build the link HTML
+            var htmlToInsert = HtmlBuilder.Link(_url, _text).Attrs(attrs).Build();
+            
+            // Check if we had an original selection when the panel opened
+            if (_originalSelection != null && !string.IsNullOrEmpty(_originalSelection.SelectedText))
+            {
+                // Restore the saved selection range
+                var restored = await Api.RestoreSelectionRangeAsync();
+                if (restored)
+                {
+                    // Now insert the link, which will replace the restored selection
+                    await Api.InsertHtmlAsync(htmlToInsert);
+                }
+                else
+                {
+                    // Fallback: just insert at current position
+                    await Api.InsertHtmlAsync(htmlToInsert);
+                }
+            }
+            else
+            {
+                // No original selection - just insert new link at current position
+                await Api.InsertHtmlAsync(htmlToInsert);
+            }
+            
+            // Clear the saved range
+            await Api.ClearSavedSelectionRangeAsync();
+            await Api.ClosePanelAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log error and show toast
+            await Api.ShowToastAsync($"Failed to insert link: {ex.Message}", ToastType.Error);
+        }
+    }
+
+    private async Task CancelAsync()
+    {
+        await CloseAsync();
+    }
+}

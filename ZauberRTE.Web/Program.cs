@@ -1,4 +1,4 @@
-using Zauber.RTE.Services;
+using ZauberCMS.RTE.Services;
 using ZauberRTE.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);

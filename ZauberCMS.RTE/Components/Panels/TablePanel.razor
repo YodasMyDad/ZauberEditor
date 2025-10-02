@@ -1,0 +1,123 @@
+@using ZauberCMS.RTE.Models
+@inherits PanelBase
+
+<div class="rte-panel-content">
+    <h3 class="rte-panel-title">Insert Table</h3>
+
+    <div class="rte-form-group">
+        <label for="table-rows" class="rte-label">Rows</label>
+        <input type="number"
+               id="table-rows"
+               class="rte-input"
+               @bind="_rows"
+               min="1"
+               max="20" />
+    </div>
+
+    <div class="rte-form-group">
+        <label for="table-cols" class="rte-label">Columns</label>
+        <input type="number"
+               id="table-cols"
+               class="rte-input"
+               @bind="_cols"
+               min="1"
+               max="20" />
+    </div>
+
+    <div class="rte-form-group">
+        <label class="rte-checkbox-label">
+            <input type="checkbox" @bind="_hasHeader" />
+            <span class="rte-checkbox-mark"></span>
+            Include header row
+        </label>
+    </div>
+
+    <div class="rte-panel-actions">
+        <button type="button"
+                class="rte-btn rte-btn-secondary"
+                @onclick="CancelAsync">
+            Cancel
+        </button>
+        <button type="button"
+                class="rte-btn rte-btn-primary"
+                @onclick="InsertAsync">
+            Insert Table
+        </button>
+    </div>
+</div>
+
+@code {
+    private int _rows = 3;
+    private int _cols = 3;
+    private bool _hasHeader;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Api != null)
+        {
+            // Save the selection range so we insert at the correct position
+            await Api.SaveSelectionRangeAsync();
+        }
+    }
+
+    private async Task InsertAsync()
+    {
+        if (Api == null) return;
+
+        try
+        {
+            var tableHtml = GenerateTableHtml();
+            
+            // Restore the saved selection/cursor position before inserting
+            await Api.RestoreSelectionRangeAsync();
+            
+            await Api.InsertHtmlAsync(tableHtml);
+            
+            // Clear the saved range
+            await Api.ClearSavedSelectionRangeAsync();
+            
+            await Api.ClosePanelAsync();
+        }
+        catch (Exception ex)
+        {
+            // Log error and show toast
+            await Api.ShowToastAsync($"Failed to insert table: {ex.Message}", ToastType.Error);
+        }
+    }
+
+    private string GenerateTableHtml()
+    {
+        var html = new System.Text.StringBuilder();
+
+        html.Append("<table class=\"rte-table\">");
+
+        if (_hasHeader)
+        {
+            html.Append("<thead><tr>");
+            for (int i = 0; i < _cols; i++)
+            {
+                html.Append("<th>Header " + (i + 1) + "</th>");
+            }
+            html.Append("</tr></thead>");
+        }
+
+        html.Append("<tbody>");
+        for (int row = 0; row < (_hasHeader ? _rows - 1 : _rows); row++)
+        {
+            html.Append("<tr>");
+            for (int col = 0; col < _cols; col++)
+            {
+                html.Append("<td>Cell</td>");
+            }
+            html.Append("</tr>");
+        }
+        html.Append("</tbody></table>");
+
+        return html.ToString();
+    }
+
+    private async Task CancelAsync()
+    {
+        await CloseAsync();
+    }
+}

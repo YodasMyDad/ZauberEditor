@@ -7,7 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Zauber.RTE\Zauber.RTE.csproj" />
+        <ProjectReference Include="..\ZauberCMS.RTE\ZauberCMS.RTE.csproj" />
     </ItemGroup>
 
 </Project>

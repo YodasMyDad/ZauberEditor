@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>ZauberCMS.RTE</PackageId>
+    <Version>1.0.0-beta1</Version>
+    <Authors>Lee Messenger</Authors>
+    <Description>A modern, extensible rich-text editor component for Blazor applications</Description>
+    <PackageTags>blazor;richtext;editor;wysiwyg;html</PackageTags>
+    <RepositoryUrl>https://github.com/YodasMyDad/ZauberEditor</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <ContentTargetFolders>contentFiles</ContentTargetFolders>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <AssemblyName>ZauberCMS.RTE</AssemblyName>
+    <RootNamespace>ZauberCMS.RTE</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.9" />
+  </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+</Project>

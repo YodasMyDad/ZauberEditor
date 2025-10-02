@@ -1,0 +1,166 @@
+@using ZauberCMS.RTE.Models
+@inject ToolbarDiscoveryService ToolbarDiscovery
+
+@if (ToolbarLayout.Rows.Any())
+{
+    @foreach (var row in ToolbarLayout.Rows)
+    {
+        <div class="rte-toolbar-row">
+            @foreach (var itemId in GetVisibleItems(row))
+            {
+                var item = ToolbarDiscovery.GetItem(itemId);
+                if (item != null && IsItemEnabled(item))
+                {
+                    <ToolbarButton Item="item"
+                                   IsActive="item.IsActive(EditorState)"
+                                   IsEnabled="item.IsEnabled(EditorState)"
+                                   OnClick="() => OnItemExecuted.InvokeAsync(itemId)" />
+                }
+            }
+
+            @if (HasOverflowItems(row))
+            {
+                <div class="rte-toolbar-overflow">
+                    <button type="button"
+                            class="rte-toolbar-overflow-btn"
+                            @onclick="() => ToggleOverflowMenu(row)"
+                            aria-label="More tools"
+                            title="More tools">
+                        <svg class="rte-toolbar-icon" aria-hidden="true">
+                            <use href="#icon-more" />
+                        </svg>
+                    </button>
+
+                    @if (IsOverflowMenuOpen(row))
+                    {
+                        <div class="rte-overflow-menu">
+                            @foreach (var itemId in GetOverflowItems(row))
+                            {
+                                var item = ToolbarDiscovery.GetItem(itemId);
+                                if (item != null && IsItemEnabled(item))
+                                {
+                                    <button type="button"
+                                            class="rte-overflow-item"
+                                            @onclick="() => HandleOverflowItemClick(itemId)"
+                                            disabled="!item.IsEnabled(EditorState)"
+                                            title="@item.Tooltip">
+                                        <i class="fas @item.IconCss" aria-hidden="true"></i>
+                                        <span>@item.Label</span>
+                                    </button>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public ToolbarLayout ToolbarLayout { get; set; } = ToolbarLayout.Default;
+    [Parameter] public EditorCapabilities Capabilities { get; set; } = new();
+    [Parameter] public EditorState EditorState { get; set; } = new();
+    [Parameter] public EventCallback<string> OnItemExecuted { get; set; }
+
+    private List<string> _openOverflowMenus = new();
+
+    private bool IsItemEnabled(IToolbarItem item)
+    {
+        // Check capabilities based on item placement
+        return item.Placement switch
+        {
+            ToolbarPlacement.Inline => Capabilities.TextFormatting,
+            ToolbarPlacement.Block => Capabilities.TextFormatting,
+            ToolbarPlacement.Insert => Capabilities.InteractiveElements,
+            ToolbarPlacement.Media => Capabilities.EmbedsAndMedia,
+            _ => true
+        };
+    }
+
+    private IEnumerable<string> GetVisibleItems(string[] row)
+    {
+        // On mobile/tablet, show only high-priority items
+        // Priority is determined by item placement and common usage
+        var enabledItems = row.Where(itemId =>
+        {
+            var item = ToolbarDiscovery.GetItem(itemId);
+            return item != null && IsItemEnabled(item);
+        }).ToList();
+
+        // For mobile (< 768px), show max 6 items
+        // For tablet (768px - 1024px), show max 8 items
+        // For desktop (> 1024px), show all items
+
+        // This is a simplified approach - in a real implementation,
+        // you'd use JavaScript to detect screen size and pass it as a parameter
+        // For now, we'll assume desktop and show all items
+        // The CSS will handle the actual responsive behavior
+
+        return enabledItems;
+    }
+
+    private IEnumerable<string> GetOverflowItems(string[] row)
+    {
+        // Return items that should be in the overflow menu
+        // This would be calculated based on screen size and priority
+        // For now, return empty - the CSS handles the responsive behavior
+        return [];
+    }
+
+    private bool HasOverflowItems(string[] row)
+    {
+        // Check if there are items that should be in overflow
+        // This would be determined by screen size detection
+        return false; // Simplified - CSS handles this
+    }
+
+    private bool IsOverflowMenuOpen(string[] row)
+    {
+        // Check if the overflow menu for this row is open
+        var rowKey = GetRowKey(row);
+        return _openOverflowMenus.Contains(rowKey);
+    }
+
+    private void ToggleOverflowMenu(string[] row)
+    {
+        var rowKey = GetRowKey(row);
+        if (_openOverflowMenus.Contains(rowKey))
+        {
+            _openOverflowMenus.Remove(rowKey);
+        }
+        else
+        {
+            // Close other menus first
+            _openOverflowMenus.Clear();
+            _openOverflowMenus.Add(rowKey);
+        }
+        StateHasChanged();
+    }
+
+    private async Task HandleOverflowItemClick(string itemId)
+    {
+        // Close the overflow menu
+        _openOverflowMenus.Clear();
+
+        // Execute the item
+        await OnItemExecuted.InvokeAsync(itemId);
+    }
+
+    private string GetRowKey(string[] row)
+    {
+        // Create a unique key for the row based on its contents
+        return string.Join(",", row);
+    }
+
+
+    // Close overflow menus when clicking outside
+    private void CloseAllOverflowMenus()
+    {
+        if (_openOverflowMenus.Any())
+        {
+            _openOverflowMenus.Clear();
+            StateHasChanged();
+        }
+    }
+}
