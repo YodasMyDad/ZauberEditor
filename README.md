@@ -447,20 +447,3 @@ builder.Services.AddZauberRte(options =>
 
 **[→ Extension Guide](QUICK_START_EXTENDING.md)** - Full documentation with copy-paste templates for toolbar items and custom panels
 
-## Roadmap
-
-- [ ] Table editing improvements
-- [ ] Collaborative editing support
-- [ ] Plugin marketplace
-- [ ] Voice-to-text integration
-- [ ] Advanced image editing
-- [ ] Export to PDF/Word
-- [ ] Version history
-- [ ] Real-time collaboration
-
-## Support
-
-- 📖 [Documentation](https://github.com/zauber-rte/zauber-rte/wiki)
-- 💬 [Discussions](https://github.com/zauber-rte/zauber-rte/discussions)
-- 🐛 [Issue Tracker](https://github.com/zauber-rte/zauber-rte/issues)
-- 📧 [Email Support](mailto:support@zauber-rte.com)
