@@ -492,25 +492,54 @@ window.ZauberRTE = {
                 if (isEmpty) {
                     // Empty list item - exit the list
                     const parentList = currentBlock.parentElement;
-                    const newParagraph = document.createElement('p');
-                    newParagraph.innerHTML = '<br>';
                     
-                    // Insert paragraph after the list
-                    parentList.parentNode.insertBefore(newParagraph, parentList.nextSibling);
+                    // Check if this list is nested inside another list item
+                    const grandParentLi = parentList.parentElement?.closest('li');
                     
-                    // Remove the empty list item
-                    parentList.removeChild(currentBlock);
-                    
-                    // If list is now empty, remove it
-                    if (parentList.children.length === 0) {
-                        parentList.parentNode.removeChild(parentList);
+                    if (grandParentLi) {
+                        // We're in a nested list - create a new list item at parent level
+                        const newLi = document.createElement('li');
+                        newLi.innerHTML = '<br>';
+                        
+                        // Insert new list item after the grandparent li
+                        const grandParentList = grandParentLi.parentElement;
+                        grandParentList.insertBefore(newLi, grandParentLi.nextSibling);
+                        
+                        // Remove the empty nested list item
+                        parentList.removeChild(currentBlock);
+                        
+                        // If nested list is now empty, remove it
+                        if (parentList.children.length === 0) {
+                            parentList.remove();
+                        }
+                        
+                        // Move cursor to new list item
+                        range.setStart(newLi, 0);
+                        range.setEnd(newLi, 0);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    } else {
+                        // We're at top level - exit to paragraph
+                        const newParagraph = document.createElement('p');
+                        newParagraph.innerHTML = '<br>';
+                        
+                        // Insert paragraph after the list
+                        parentList.parentNode.insertBefore(newParagraph, parentList.nextSibling);
+                        
+                        // Remove the empty list item
+                        parentList.removeChild(currentBlock);
+                        
+                        // If list is now empty, remove it
+                        if (parentList.children.length === 0) {
+                            parentList.parentNode.removeChild(parentList);
+                        }
+                        
+                        // Move cursor to new paragraph
+                        range.setStart(newParagraph, 0);
+                        range.setEnd(newParagraph, 0);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
                     }
-                    
-                    // Move cursor to new paragraph
-                    range.setStart(newParagraph, 0);
-                    range.setEnd(newParagraph, 0);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
                 } else {
                     // Non-empty list item - create new list item
                     const newLi = document.createElement('li');
@@ -2076,7 +2105,33 @@ window.ZauberRTE = {
                 if (listItem.tagName?.toLowerCase() === 'li') {
                     const parentList = listItem.parentElement;
                     
-                    // Check if this is the first item
+                    // Check if we're in a nested list (has a grandparent list item)
+                    const grandParentLi = parentList.parentElement?.closest('li');
+                    
+                    if (grandParentLi) {
+                        // We're in a nested list - un-indent (outdent) instead of converting to paragraph
+                        event.preventDefault();
+                        
+                        // Move list item up one level (same logic as Shift+Tab)
+                        const grandParentList = grandParentLi.parentElement;
+                        grandParentList.insertBefore(listItem, grandParentLi.nextSibling);
+                        
+                        // Clean up empty nested list
+                        if (parentList.children.length === 0) {
+                            parentList.remove();
+                        }
+                        
+                        // Preserve cursor position at start of list item
+                        const newRange = document.createRange();
+                        newRange.setStart(listItem, 0);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                        
+                        return true;
+                    }
+                    
+                    // Not nested - check if this is the first item
                     if (listItem === parentList.firstElementChild) {
                         event.preventDefault();
                         
