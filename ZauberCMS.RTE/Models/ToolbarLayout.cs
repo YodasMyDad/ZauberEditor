@@ -38,25 +38,15 @@ public class ToolbarLayout
     /// Full toolbar layout - all features logically grouped
     /// </summary>
     public static ToolbarLayout Full => FromItems(
-        new ToolbarBlock("undo", "redo"),
-        new ToolbarSeparator(),
-        new ToolbarBlock("viewSource"),
+        new ToolbarBlock("bold", "italic", "underline", "strike", "code", "subscript", "superscript"),
         new ToolbarSeparator(),
         new ToolbarBlock("headings", "blockquote"),
         new ToolbarSeparator(),
-        new ToolbarBlock("bold", "italic", "underline", "strike", "code"),
-        new ToolbarSeparator(),
-        new ToolbarBlock("subscript", "superscript"),
+        new ToolbarBlock("ul", "ol", "link", "unlink", "image"),
         new ToolbarSeparator(),
         new ToolbarBlock("alignLeft", "alignCenter", "alignRight", "justified"),
         new ToolbarSeparator(),
-        new ToolbarBlock("ul", "ol"),
-        new ToolbarSeparator(),
-        new ToolbarBlock("link", "unlink"),
-        new ToolbarSeparator(),
-        new ToolbarBlock("image", "table"),
-        new ToolbarSeparator(),
-        new ToolbarBlock("clear")
+        new ToolbarBlock("clear", "undo", "redo", "viewSource", "themeToggle")
     );
 
     /// <summary>
@@ -65,22 +55,9 @@ public class ToolbarLayout
     public static ToolbarLayout Default => Simple;
 
     /// <summary>
-    /// Minimal toolbar layout
-    /// </summary>
-    public static ToolbarLayout Minimal => FromItems(
-        new ToolbarBlock("bold", "italic", "link")
-    );
-
-    /// <summary>
     /// CMS-focused toolbar layout
     /// </summary>
-    public static ToolbarLayout Cms => FromItems(
-        new ToolbarBlock("viewSource", "headings", "bold", "italic", "underline", "strike", "clear"),
-        new ToolbarSeparator(),
-        new ToolbarBlock("alignLeft", "alignCenter", "alignRight", "justified"),
-        new ToolbarSeparator(),
-        new ToolbarBlock("ul", "ol", "blockquote", "code", "table", "link", "unlink", "image")
-    );
+    public static ToolbarLayout Cms => Full;
 
     /// <summary>
     /// Serializes the layout to JSON
