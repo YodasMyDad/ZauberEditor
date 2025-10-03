@@ -8,7 +8,6 @@
     <div class="rte-toolbar" role="toolbar" aria-label="Rich text editor toolbar">
         <ToolbarHost @ref="_toolbarHost"
                      ToolbarLayout="Settings.ToolbarLayout"
-                     Capabilities="Settings.Capabilities"
                      EditorState="_currentState"
                      OnItemExecuted="HandleToolbarCommandAsync" />
     </div>
@@ -55,12 +54,9 @@
                 </svg>
             </div>
 
-            @if (Settings.Capabilities.EmbedsAndMedia)
-            {
-                <div class="rte-drop-zone" style="display: none;" @ondrop="HandleDropAsync" @ondragover="HandleDragOverAsync">
-                    <span>Drop images here</span>
-                </div>
-            }
+            <div class="rte-drop-zone" style="display: none;" @ondrop="HandleDropAsync" @ondragover="HandleDragOverAsync">
+                <span>Drop images here</span>
+            </div>
         }
     </div>
 

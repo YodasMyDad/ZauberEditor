@@ -50,9 +50,9 @@ public class ToolbarLayout
     );
 
     /// <summary>
-    /// Default toolbar layout (points to Simple for backward compatibility)
+    /// Default toolbar layout
     /// </summary>
-    public static ToolbarLayout Default => Simple;
+    public static ToolbarLayout Default => Full;
 
     /// <summary>
     /// CMS-focused toolbar layout

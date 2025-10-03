@@ -6,11 +6,6 @@ namespace ZauberCMS.RTE.Models;
 public class EditorSettings
 {
     /// <summary>
-    /// Capabilities that can be enabled/disabled
-    /// </summary>
-    public EditorCapabilities Capabilities { get; set; } = new();
-
-    /// <summary>
     /// Toolbar layout configuration
     /// </summary>
     public ToolbarLayout ToolbarLayout { get; set; } = ToolbarLayout.Default;
@@ -53,22 +48,11 @@ public class EditorSettings
     ];
 
     /// <summary>
-    /// Creates a default settings configuration suitable for CMS usage
+    /// Creates a default settings configuration suitable for CMS usage with full toolbar
     /// </summary>
     public static EditorSettings CmsDefault() => new()
     {
-        Capabilities = new EditorCapabilities
-        {
-            TextFormatting = true,
-            InteractiveElements = true,
-            EmbedsAndMedia = true,
-            Subscript = true,
-            Superscript = true,
-            TextAlign = true,
-            Underline = true,
-            Strike = true,
-            ClearFormatting = true
-        },
+        ToolbarLayout = ToolbarLayout.Full,
         ImageConstraints = new ImageConstraints
         {
             MaxWidth = 800,
@@ -77,66 +61,12 @@ public class EditorSettings
     };
 
     /// <summary>
-    /// Creates a minimal settings configuration
+    /// Creates a minimal settings configuration with simple toolbar
     /// </summary>
     public static EditorSettings Minimal() => new()
     {
-        Capabilities = new EditorCapabilities
-        {
-            TextFormatting = true
-        }
+        ToolbarLayout = ToolbarLayout.Simple
     };
-}
-
-/// <summary>
-/// Capabilities that can be enabled/disabled in the editor
-/// </summary>
-public class EditorCapabilities
-{
-    /// <summary>
-    /// Rich text formatting (bold, italic, etc.)
-    /// </summary>
-    public bool TextFormatting { get; set; } = true;
-
-    /// <summary>
-    /// Interactive elements (links, tables)
-    /// </summary>
-    public bool InteractiveElements { get; set; } = true;
-
-    /// <summary>
-    /// Embeds and media (images, videos, etc.)
-    /// </summary>
-    public bool EmbedsAndMedia { get; set; } = true;
-
-    /// <summary>
-    /// Subscript formatting
-    /// </summary>
-    public bool Subscript { get; set; }
-
-    /// <summary>
-    /// Superscript formatting
-    /// </summary>
-    public bool Superscript { get; set; }
-
-    /// <summary>
-    /// Text alignment controls
-    /// </summary>
-    public bool TextAlign { get; set; }
-
-    /// <summary>
-    /// Underline formatting
-    /// </summary>
-    public bool Underline { get; set; }
-
-    /// <summary>
-    /// Strike-through formatting
-    /// </summary>
-    public bool Strike { get; set; }
-
-    /// <summary>
-    /// Clear formatting button
-    /// </summary>
-    public bool ClearFormatting { get; set; }
 }
 
 /// <summary>

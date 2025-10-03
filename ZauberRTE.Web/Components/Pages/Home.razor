@@ -45,7 +45,7 @@
     <h2>Zauber Rich Text Editor Demo</h2>
     <ZauberRichTextEditor @bind-Value="_editorContent"
                          OnChange="HandleEditorChange"
-                         Theme="_currentTheme"
+                         Theme="Theme.Light"
                          Settings="@_editorSettings" />
 
     <h3>Current Content:</h3>
@@ -59,21 +59,8 @@
 
 @code {
     private string _editorContent = "<p>Welcome to the <strong>Zauber Rich Text Editor</strong>!</p><p>This is a simple demo showing basic functionality.</p>";
-    private Theme _currentTheme = Theme.Light;
-    private EditorSettings _editorSettings = new()
+    private readonly EditorSettings _editorSettings = new()
     {
-        Capabilities = new EditorCapabilities
-        {
-            TextFormatting = true,
-            InteractiveElements = true,
-            EmbedsAndMedia = true,
-            Subscript = true,
-            Superscript = true,
-            TextAlign = true,
-            Underline = true,
-            Strike = true,
-            ClearFormatting = true
-        },
         ToolbarLayout = ToolbarLayout.Full
     };
 

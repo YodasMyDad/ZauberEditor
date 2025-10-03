@@ -15,7 +15,7 @@
                 @foreach (var itemId in block.Items)
                 {
                     var item = ToolbarDiscovery.GetItem(itemId);
-                    if (item != null && IsItemEnabled(item))
+                    if (item != null)
                     {
                         @if (item.ItemType == ToolbarItemType.Dropdown)
                         {
@@ -44,7 +44,7 @@
         else if (layoutItem is ToolbarItemReference itemRef)
         {
             var item = ToolbarDiscovery.GetItem(itemRef.ItemId);
-            if (item != null && IsItemEnabled(item))
+            if (item != null)
             {
                 <div class="rte-toolbar-single-item @itemRef.CssClass">
                     @if (item.ItemType == ToolbarItemType.Dropdown)
@@ -71,24 +71,10 @@
 
 @code {
     [Parameter] public ToolbarLayout ToolbarLayout { get; set; } = ToolbarLayout.Default;
-    [Parameter] public EditorCapabilities Capabilities { get; set; } = new();
     [Parameter] public EditorState EditorState { get; set; } = new();
     [Parameter] public EventCallback<string> OnItemExecuted { get; set; }
 
     private List<ToolbarDropdown> _dropdownRefs = [];
-
-    private bool IsItemEnabled(IToolbarItem item)
-    {
-        // Check capabilities based on item placement
-        return item.Placement switch
-        {
-            ToolbarPlacement.Inline => Capabilities.TextFormatting,
-            ToolbarPlacement.Block => Capabilities.TextFormatting,
-            ToolbarPlacement.Insert => Capabilities.InteractiveElements,
-            ToolbarPlacement.Media => Capabilities.EmbedsAndMedia,
-            _ => true
-        };
-    }
 
     private async Task HandleDropdownChildClick(IToolbarItem childItem)
     {

@@ -122,19 +122,8 @@ Add the required CSS and JavaScript files to your `App.razor` (or `_Host.cshtml`
 ```csharp
 var settings = new EditorSettings
 {
-    // Configure capabilities
-    Capabilities = new EditorCapabilities
-    {
-        TextFormatting = true,
-        InteractiveElements = true,
-        EmbedsAndMedia = true,
-        Subscript = true,
-        Superscript = true,
-        TextAlign = true,
-        Underline = true,
-        Strike = true,
-        ClearFormatting = true
-    },
+    // Configure toolbar layout - controls which buttons appear
+    ToolbarLayout = ToolbarLayout.Full,  // or Simple, Minimal, Cms
 
     // Set dimensions
     Dimensions = new EditorDimensions
@@ -144,9 +133,6 @@ var settings = new EditorSettings
         MinHeight = 100,
         MaxHeight = 600
     },
-
-    // Configure toolbar layout
-    ToolbarLayout = ToolbarLayout.Default,
 
     // Image constraints
     ImageConstraints = new ImageConstraints
@@ -163,11 +149,21 @@ var settings = new EditorSettings
 ### Predefined Configurations
 
 ```csharp
-// CMS-ready configuration with all features
+// CMS-ready configuration with full toolbar
 var cmsSettings = EditorSettings.CmsDefault();
 
-// Minimal configuration for basic text editing
+// Minimal configuration with simple toolbar (bold, italic, underline, align)
 var minimalSettings = EditorSettings.Minimal();
+
+// Or customize the toolbar layout directly
+var customSettings = new EditorSettings
+{
+    ToolbarLayout = ToolbarLayout.FromItems(
+        new ToolbarBlock("bold", "italic", "underline"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("link", "image")
+    )
+};
 ```
 
 ### HTML Sanitization
