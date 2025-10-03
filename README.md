@@ -154,7 +154,7 @@ var settings = new EditorSettings
         MaxWidth = 800,
         MaxHeight = 600,
         MaintainAspectRatio = true,
-        AllowBase64ImageUpload = true, // Enable file uploads as base64
+        AllowBase64ImageUpload = false, // Set to true to enable file uploads as base64 (requires SignalR config)
         AllowedImageTypes = new() { ".jpg", ".jpeg", ".gif", ".png" }
     }
 };
@@ -257,9 +257,9 @@ The editor comes with comprehensive toolbar items:
 
 **Alignment**: Left, Center, Right, Justified
 
-**Insert**: Link, Image, Table
+**Insert**: Link, Image
 
-**Utilities**: Clear Formatting, Undo, Redo, View Source, Settings
+**Utilities**: Clear Formatting, Undo, Redo, View Source, Theme Toggle
 
 ### Toolbar Item Types
 
@@ -294,9 +294,9 @@ var customLayout = ToolbarLayout.FromItems(
     new ToolbarBlock("link", "image")
 );
 
-// Advanced: individual items with custom CSS
+// Advanced: individual items with custom CSS (use IEnumerable for cssClass parameter)
 var advancedLayout = ToolbarLayout.FromItems(
-    new ToolbarBlock("my-custom-class", "undo", "redo"),
+    new ToolbarBlock("my-custom-class", new[] { "undo", "redo" }),
     new ToolbarSeparator("my-separator-style"),
     new ToolbarItemReference("link", "my-link-style"),
     new ToolbarBlock("bold", "italic")
@@ -326,8 +326,8 @@ ToolbarLayout = ToolbarLayout.FromItems(
 The headings dropdown automatically:
 - Shows the currently active heading (H1, H2, etc.)
 - Highlights the selected heading in the dropdown menu
-- Provides a "Headings" label option that resets to paragraph text
 - Displays heading previews with appropriate font sizes
+- Closes when clicking outside the dropdown
 
 ### Layout Examples
 

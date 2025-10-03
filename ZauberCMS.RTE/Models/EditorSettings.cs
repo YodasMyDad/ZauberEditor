@@ -198,7 +198,7 @@ public class ImageConstraints
     /// If false, only URL-based image insertion is available.
     /// Note: Enabling this requires increasing SignalR MaximumReceiveMessageSize (see documentation).
     /// </summary>
-    public bool AllowBase64ImageUpload { get; set; } = true;
+    public bool AllowBase64ImageUpload { get; set; } = false;
 }
 
 /// <summary>

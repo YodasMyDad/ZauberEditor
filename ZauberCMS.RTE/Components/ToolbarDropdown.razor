@@ -24,10 +24,9 @@
             @foreach (var childItem in Item.ChildItems)
             {
                 var isChildActive = childItem.IsActive(EditorState);
-                var cssClass = childItem.IsDropdownLabel ? "rte-dropdown-label-item" : "rte-dropdown-item";
                 
                 <button type="button"
-                        class="@cssClass @(isChildActive ? "rte-dropdown-item-active" : "") rte-dropdown-@childItem.Id"
+                        class="rte-dropdown-item @(isChildActive ? "rte-dropdown-item-active" : "") rte-dropdown-@childItem.Id"
                         @onclick="() => HandleChildClick(childItem)"
                         disabled="@(!childItem.IsEnabled(EditorState))"
                         title="@(childItem.Tooltip ?? childItem.Label)">
@@ -54,14 +53,17 @@
     [Parameter] public bool IsEnabled { get; set; } = true;
     [Parameter] public EditorState EditorState { get; set; } = new();
     [Parameter] public EventCallback<IToolbarItem> OnChildItemClick { get; set; }
+    [Parameter] public EventCallback<ToolbarDropdown> OnDropdownCreated { get; set; }
 
     private bool _isOpen;
     private ElementReference _dropdownRef;
 
-    protected override void OnInitialized()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Close dropdown when clicking outside
-        // This would be handled by JS interop in a real implementation
+        if (firstRender)
+        {
+            await OnDropdownCreated.InvokeAsync(this);
+        }
     }
 
     private string GetButtonClasses()
@@ -92,7 +94,7 @@
     private string GetCurrentIconCss()
     {
         // If a child item is active and has an icon, use it; otherwise use parent's icon
-        var activeChild = Item.ChildItems?.FirstOrDefault(c => !c.IsDropdownLabel && c.IsActive(EditorState));
+        var activeChild = Item.ChildItems?.FirstOrDefault(c => c.IsActive(EditorState));
         
         // Check if activeChild has a non-empty icon, otherwise fall back to parent's icon
         if (activeChild != null && !string.IsNullOrWhiteSpace(activeChild.IconCss))
@@ -105,11 +107,11 @@
 
     private string? GetActiveChildLabel()
     {
-        // Show active child's label in the dropdown trigger (optional - only if there's an active non-label item)
+        // Show active child's label in the dropdown trigger
         if (Item.ChildItems == null || Item.ChildItems.Count == 0)
             return null;
             
-        var activeChild = Item.ChildItems.FirstOrDefault(c => !c.IsDropdownLabel && c.IsActive(EditorState));
+        var activeChild = Item.ChildItems.FirstOrDefault(c => c.IsActive(EditorState));
         
         // Return the label of the active child item, or null to show parent's icon only
         return activeChild?.Label;

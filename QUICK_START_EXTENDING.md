@@ -37,8 +37,8 @@ builder.Services.AddZauberRte(options =>
 ```csharp
 var settings = new EditorSettings
 {
-    ToolbarLayout = ToolbarLayout.FromRows(
-        new[] { "bold", "italic", "emoji" } // Add your item!
+    ToolbarLayout = ToolbarLayout.FromItems(
+        new ToolbarBlock("bold", "italic", "emoji") // Add your item!
     )
 };
 ```
@@ -74,7 +74,7 @@ public class BoldItem : ToolbarItemBase
 ```
 
 **Overridable Built-in IDs:**
-`bold`, `italic`, `underline`, `strike`, `code`, `subscript`, `superscript`, `heading1`, `heading2`, `heading3`, `blockquote`, `ul`, `ol`, `alignLeft`, `alignCenter`, `alignRight`, `justified`, `link`, `unlink`, `image`, `table`, `clearFormatting`, `undo`, `redo`, `viewSource`, `settings`, `themeToggle`
+`bold`, `italic`, `underline`, `strike`, `code`, `subscript`, `superscript`, `h1`, `h2`, `h3`, `h4`, `h5`, `h6`, `headings`, `blockquote`, `ul`, `ol`, `alignLeft`, `alignCenter`, `alignRight`, `justified`, `link`, `unlink`, `image`, `clear`, `undo`, `redo`, `viewSource`, `themeToggle`
 
 By default, overrides are enabled. To disable:
 ```csharp

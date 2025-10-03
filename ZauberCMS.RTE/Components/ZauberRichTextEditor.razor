@@ -4,9 +4,10 @@
 @inject ToolbarDiscoveryService ToolbarDiscovery
 @inject IJSRuntime JSRuntime
 
-<div class="zauber-rte @GetThemeClass()" id="@_editorId">
+<div class="zauber-rte @GetThemeClass()" id="@_editorId" @onclick="HandleEditorClick">
     <div class="rte-toolbar" role="toolbar" aria-label="Rich text editor toolbar">
-        <ToolbarHost ToolbarLayout="Settings.ToolbarLayout"
+        <ToolbarHost @ref="_toolbarHost"
+                     ToolbarLayout="Settings.ToolbarLayout"
                      Capabilities="Settings.Capabilities"
                      EditorState="_currentState"
                      OnItemExecuted="HandleToolbarCommandAsync" />
@@ -70,6 +71,7 @@
 @code {
     private ElementReference _contentEditableRef;
     private SlideOutPanel? _slideOutPanel;
+    private ToolbarHost? _toolbarHost;
     private readonly string _editorId = $"zauber-rte-{Guid.NewGuid():N}";
     private readonly EditorState _currentState = new();
     private IEditorApi? _editorApi;
@@ -409,9 +411,15 @@
         await Task.CompletedTask;
     }
 
+    private void HandleEditorClick()
+    {
+        // Close any open dropdowns when clicking anywhere in the editor
+        _toolbarHost?.CloseAllDropdowns();
+    }
+
     private async Task HandleToolbarCommandAsync(string commandId)
     {
-        // Handle theme toggle specially
+        // Handle theme toggle specially (doesn't require editor focus)
         if (commandId == "themeToggle")
         {
             _activeTheme = _activeTheme switch
@@ -422,6 +430,11 @@
             StateHasChanged();
             return;
         }
+
+        // CRITICAL: Ensure editor is focused before executing commands
+        // This prevents toolbar from modifying HTML outside the editor
+        var contentId = _isSourceView ? $"{_editorId}-source" : $"{_editorId}-content";
+        await JSRuntime.InvokeVoidAsync("eval", $"document.getElementById('{contentId}')?.focus()");
 
         var item = ToolbarDiscovery.GetItem(commandId);
         if (item == null) return;

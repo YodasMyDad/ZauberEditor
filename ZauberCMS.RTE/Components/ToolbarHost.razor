@@ -23,7 +23,8 @@
                                            IsActive="item.IsActive(EditorState)"
                                            IsEnabled="item.IsEnabled(EditorState)"
                                            EditorState="EditorState"
-                                           OnChildItemClick="HandleDropdownChildClick" />
+                                           OnChildItemClick="HandleDropdownChildClick"
+                                           OnDropdownCreated="RegisterDropdown" />
                         }
                         else
                         {
@@ -52,7 +53,8 @@
                                        IsActive="item.IsActive(EditorState)"
                                        IsEnabled="item.IsEnabled(EditorState)"
                                        EditorState="EditorState"
-                                       OnChildItemClick="HandleDropdownChildClick" />
+                                       OnChildItemClick="HandleDropdownChildClick"
+                                       OnDropdownCreated="RegisterDropdown" />
                     }
                     else
                     {
@@ -73,6 +75,8 @@
     [Parameter] public EditorState EditorState { get; set; } = new();
     [Parameter] public EventCallback<string> OnItemExecuted { get; set; }
 
+    private List<ToolbarDropdown> _dropdownRefs = [];
+
     private bool IsItemEnabled(IToolbarItem item)
     {
         // Check capabilities based on item placement
@@ -90,5 +94,21 @@
     {
         // Execute the child item
         await OnItemExecuted.InvokeAsync(childItem.Id);
+    }
+
+    public void RegisterDropdown(ToolbarDropdown dropdown)
+    {
+        if (!_dropdownRefs.Contains(dropdown))
+        {
+            _dropdownRefs.Add(dropdown);
+        }
+    }
+
+    public void CloseAllDropdowns()
+    {
+        foreach (var dropdown in _dropdownRefs)
+        {
+            dropdown.CloseDropdown();
+        }
     }
 }

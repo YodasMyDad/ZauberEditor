@@ -7,7 +7,6 @@ public class HeadingsDropdownItem : ToolbarItemBase
 {
     private static readonly List<IToolbarItem> _childItems =
     [
-        new HeadingsLabelItem(),
         new Heading1Item(),
         new Heading2Item(),
         new Heading3Item(),
