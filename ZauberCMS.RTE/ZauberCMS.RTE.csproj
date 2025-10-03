@@ -34,4 +34,13 @@
         <None Include="..\README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Exclude Node.js files from NuGet package -->
+        <Content Remove="package.json" />
+        <Content Remove="package-lock.json" />
+        <Content Remove="node_modules\**" />
+        <None Remove="package.json" />
+        <None Remove="package-lock.json" />
+    </ItemGroup>
+
 </Project>
