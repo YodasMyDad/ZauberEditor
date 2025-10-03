@@ -26,12 +26,6 @@ public class EditorSettings
     public HtmlPolicy HtmlPolicy { get; set; } = new();
 
     /// <summary>
-    /// Keyboard shortcuts configuration (OBSOLETE: Use Shortcut property on IToolbarItem instead)
-    /// </summary>
-    [Obsolete("Keyboard shortcuts are now defined on IToolbarItem. This property is no longer used.")]
-    public ShortcutMap Shortcuts { get; set; } = new();
-
-    /// <summary>
     /// Default theme for the editor
     /// </summary>
     public Theme DefaultTheme { get; set; } = Theme.Auto;
@@ -169,46 +163,4 @@ public class HtmlPolicy
     /// Whether to allow external images
     /// </summary>
     public bool AllowExternalImages { get; set; } = true;
-}
-
-/// <summary>
-/// Keyboard shortcuts configuration (OBSOLETE: Use Shortcut property on IToolbarItem instead)
-/// </summary>
-[Obsolete("Keyboard shortcuts are now defined on IToolbarItem. This class is no longer used.")]
-public class ShortcutMap
-{
-    /// <summary>
-    /// Bold shortcut (default: Ctrl+B)
-    /// </summary>
-    public string Bold { get; set; } = "Control+b";
-
-    /// <summary>
-    /// Italic shortcut (default: Ctrl+I)
-    /// </summary>
-    public string Italic { get; set; } = "Control+i";
-
-    /// <summary>
-    /// Underline shortcut (default: Ctrl+U)
-    /// </summary>
-    public string Underline { get; set; } = "Control+u";
-
-    /// <summary>
-    /// Link shortcut (default: Ctrl+K)
-    /// </summary>
-    public string Link { get; set; } = "Control+k";
-
-    /// <summary>
-    /// Unordered list shortcut (default: Ctrl+Shift+8)
-    /// </summary>
-    public string UnorderedList { get; set; } = "Control+Shift+8";
-
-    /// <summary>
-    /// Ordered list shortcut (default: Ctrl+Shift+7)
-    /// </summary>
-    public string OrderedList { get; set; } = "Control+Shift+7";
-
-    /// <summary>
-    /// Save shortcut (default: Ctrl+S)
-    /// </summary>
-    public string Save { get; set; } = "Control+s";
 }
