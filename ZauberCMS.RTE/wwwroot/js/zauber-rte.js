@@ -593,8 +593,8 @@ window.ZauberRTE = {
                 range = document.createRange();
                 const lastChild = editor.lastChild;
                 if (lastChild) {
-                    range.selectNodeContents(lastChild);
-                    range.collapse(false); // Collapse to end
+                    range.setStartAfter(lastChild);
+                    range.setEndAfter(lastChild);
                 } else {
                     range.selectNodeContents(editor);
                     range.collapse(false);
@@ -2361,19 +2361,62 @@ window.ZauberRTE = {
                 return html;
             }
 
-            // Configure DOMPurify with the policy
+            // Remove HTML comments first (including StartFragment/EndFragment)
+            html = html.replace(/<!--[\s\S]*?-->/g, '');
+
+            // Configure DOMPurify to be very strict - only allow minimal attributes
             const config = {
-                ALLOWED_TAGS: policy.allowedTags || ['p', 'br', 'div', 'span', 'strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup', 'h1', 'h2', 'h3', 'blockquote', 'pre', 'code', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a', 'img', 'figure', 'figcaption', 'hr'],
-                ALLOWED_ATTR: this.buildAllowedAttributes(policy)
+                ALLOWED_TAGS: policy.allowedTags || ['p', 'br', 'div', 'span', 'strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a', 'img', 'figure', 'figcaption', 'hr'],
+                ALLOWED_ATTR: ['href', 'src', 'alt', 'colspan', 'rowspan'], // Only truly essential attributes
+                KEEP_CONTENT: true,
+                ALLOW_DATA_ATTR: false
             };
 
-            // Clean the HTML
+            // Clean the HTML with DOMPurify
             let cleaned = DOMPurify.sanitize(html, config);
 
             // Apply Word cleaner if it's a Word document
             cleaned = this.cleanWordHtml(cleaned);
 
-            return cleaned;
+            // Additional aggressive cleaning - remove ALL remaining styles and attributes
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = cleaned;
+            
+            // Strip all unwanted attributes from all elements
+            const allElements = tempDiv.querySelectorAll('*');
+            allElements.forEach(element => {
+                const tagName = element.tagName.toLowerCase();
+                const attributesToKeep = [];
+                
+                // Define which attributes to keep per tag
+                if (tagName === 'a') {
+                    attributesToKeep.push('href');
+                } else if (tagName === 'img') {
+                    attributesToKeep.push('src', 'alt');
+                } else if (tagName === 'td' || tagName === 'th') {
+                    attributesToKeep.push('colspan', 'rowspan');
+                }
+                
+                // Remove all attributes except those in the keep list
+                const attributesToRemove = [];
+                for (let i = 0; i < element.attributes.length; i++) {
+                    const attr = element.attributes[i];
+                    if (!attributesToKeep.includes(attr.name)) {
+                        attributesToRemove.push(attr.name);
+                    }
+                }
+                attributesToRemove.forEach(attr => element.removeAttribute(attr));
+            });
+
+            // Remove empty tags (except br, img, hr)
+            const emptyElements = tempDiv.querySelectorAll('*:not(br):not(img):not(hr)');
+            emptyElements.forEach(element => {
+                if (!element.textContent.trim() && element.children.length === 0) {
+                    element.remove();
+                }
+            });
+
+            return tempDiv.innerHTML;
         },
 
         buildAllowedAttributes: function(policy) {
