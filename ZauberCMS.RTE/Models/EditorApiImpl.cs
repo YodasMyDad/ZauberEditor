@@ -72,6 +72,9 @@ internal class EditorApi(ZauberRichTextEditor editor, IZauberJsRuntime jsRuntime
     public async Task ClearFormattingAsync() =>
         await jsRuntime.Selection.ClearFormattingAsync(editorId);
 
+    public async Task CleanHtmlAsync() =>
+        await jsRuntime.Selection.CleanHtmlAsync(editorId);
+
     public string? GetHtml() =>
         editor.GetCurrentHtml();
 

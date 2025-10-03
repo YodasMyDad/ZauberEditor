@@ -29,7 +29,7 @@ public class ToolbarLayout
     public static ToolbarLayout Simple => FromItems(
         new ToolbarBlock("bold", "italic", "underline"),
         new ToolbarSeparator(),
-        new ToolbarBlock("clear"),
+        new ToolbarBlock("clean-html"),
         new ToolbarSeparator(),
         new ToolbarBlock("alignLeft", "alignCenter", "alignRight")
     );
@@ -46,7 +46,7 @@ public class ToolbarLayout
         new ToolbarSeparator(),
         new ToolbarBlock("alignLeft", "alignCenter", "alignRight", "justified"),
         new ToolbarSeparator(),
-        new ToolbarBlock("clear", "undo", "redo", "viewSource", "themeToggle")
+        new ToolbarBlock("clean-html", "undo", "redo", "viewSource", "themeToggle")
     );
 
     /// <summary>

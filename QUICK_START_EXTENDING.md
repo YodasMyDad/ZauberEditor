@@ -74,7 +74,7 @@ public class BoldItem : ToolbarItemBase
 ```
 
 **Overridable Built-in IDs:**
-`bold`, `italic`, `underline`, `strike`, `code`, `subscript`, `superscript`, `h1`, `h2`, `h3`, `h4`, `h5`, `h6`, `headings`, `blockquote`, `ul`, `ol`, `alignLeft`, `alignCenter`, `alignRight`, `justified`, `link`, `unlink`, `image`, `clear`, `undo`, `redo`, `viewSource`, `themeToggle`
+`bold`, `italic`, `underline`, `strike`, `code`, `subscript`, `superscript`, `h1`, `h2`, `h3`, `h4`, `h5`, `h6`, `headings`, `blockquote`, `ul`, `ol`, `alignLeft`, `alignCenter`, `alignRight`, `justified`, `link`, `unlink`, `image`, `clean-html`, `undo`, `redo`, `viewSource`, `themeToggle`
 
 By default, overrides are enabled. To disable:
 ```csharp

@@ -184,6 +184,18 @@ internal class SelectionInteropImpl(IJSRuntime jsRuntime, ILogger logger) : Sele
         }
     }
 
+    public async Task CleanHtmlAsync(string editorId)
+    {
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("ZauberRTE.selection.cleanHtml", editorId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to clean HTML for editor {EditorId}", editorId);
+        }
+    }
+
     public async Task SaveRangeAsync(string editorId)
     {
         try

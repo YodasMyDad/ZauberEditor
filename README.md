@@ -255,7 +255,7 @@ The editor comes with comprehensive toolbar items:
 
 **Insert**: Link, Image
 
-**Utilities**: Clear Formatting, Undo, Redo, View Source, Theme Toggle
+**Utilities**: Clean Html, Undo, Redo, View Source, Theme Toggle
 
 ### Toolbar Item Types
 

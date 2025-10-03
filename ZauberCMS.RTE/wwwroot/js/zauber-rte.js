@@ -283,59 +283,7 @@ window.ZauberRTE = {
             const editor = document.getElementById(editorId + '-content');
             if (!editor) return;
 
-            const blockTags = this._blockTags.get(editorId) || new Set(['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'li', 'td', 'th', 'ul', 'ol', 'table']);
-
-            // Find all block-level elements that intersect with the selection
-            const affectedBlocks = [];
-            const allBlocks = editor.querySelectorAll(Array.from(blockTags).join(','));
-            
-            allBlocks.forEach(block => {
-                if (range.intersectsNode(block)) {
-                    affectedBlocks.push(block);
-                }
-            });
-
-            // If selection spans multiple blocks, wrap content in each block separately
-            if (affectedBlocks.length > 1) {
-                // Process blocks in reverse order to avoid range invalidation issues
-                const wrappedElements = [];
-                
-                affectedBlocks.forEach((block, index) => {
-                    try {
-                        // Wrap all content in this block
-                        const wrapper = document.createElement(tagName);
-                        
-                        if (attributes) {
-                            Object.keys(attributes).forEach(key => {
-                                wrapper.setAttribute(key, attributes[key]);
-                            });
-                        }
-                        
-                        // Move all child nodes into the wrapper
-                        while (block.firstChild) {
-                            wrapper.appendChild(block.firstChild);
-                        }
-                        
-                        // Put the wrapper inside the block
-                        block.appendChild(wrapper);
-                        wrappedElements.push(block);
-                    } catch (e) {
-                        console.warn('Could not wrap content in block:', e);
-                    }
-                });
-                
-                // Restore selection to span all affected blocks
-                if (affectedBlocks.length > 0) {
-                    const newRange = document.createRange();
-                    newRange.setStartBefore(affectedBlocks[0].firstChild || affectedBlocks[0]);
-                    newRange.setEndAfter(affectedBlocks[affectedBlocks.length - 1].lastChild || affectedBlocks[affectedBlocks.length - 1]);
-                    selection.removeAllRanges();
-                    selection.addRange(newRange);
-                }
-                return;
-            }
-
-            // Single block or no block - use original logic
+            // Create the wrapper element
             const element = document.createElement(tagName);
 
             if (attributes) {
@@ -345,6 +293,7 @@ window.ZauberRTE = {
             }
 
             try {
+                // Try to use surroundContents first (works for simple cases)
                 range.surroundContents(element);
 
                 // Restore selection to the wrapped element
@@ -352,19 +301,20 @@ window.ZauberRTE = {
                 selection.removeAllRanges();
                 selection.addRange(range);
             } catch (e) {
-                // surroundContents can fail if the range spans multiple elements
-                // In such cases, we need to handle it differently
-                console.warn('surroundContents failed, using alternative approach');
+                // surroundContents fails when range partially selects nodes or crosses element boundaries
+                // Use a more robust approach: extract, wrap, and reinsert
+                try {
+                    const contents = range.extractContents();
+                    element.appendChild(contents);
+                    range.insertNode(element);
 
-                // Extract contents and wrap them
-                const contents = range.extractContents();
-                element.appendChild(contents);
-                range.insertNode(element);
-
-                // Select the wrapped content
-                range.selectNodeContents(element);
-                selection.removeAllRanges();
-                selection.addRange(range);
+                    // Select the wrapped content
+                    range.selectNodeContents(element);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                } catch (innerError) {
+                    console.warn('Failed to wrap selection:', innerError);
+                }
             }
         },
 
@@ -1013,7 +963,18 @@ window.ZauberRTE = {
                 }
             });
 
-            return selectedLis;
+            // Filter out parent list items if their children are also selected
+            // We only want the "deepest" list items that are actually selected
+            const filteredLis = selectedLis.filter(li => {
+                // Check if any of this li's children are also in the selected list
+                const hasSelectedChild = selectedLis.some(otherLi => 
+                    otherLi !== li && li.contains(otherLi)
+                );
+                // Only include this li if none of its children are selected
+                return !hasSelectedChild;
+            });
+
+            return filteredLis;
         },
 
         convertSingleBlock: function(block, targetType, attributes, blockTags) {
@@ -1052,8 +1013,41 @@ window.ZauberRTE = {
                 
                 const listType = parentList.tagName?.toLowerCase();
                 
-                // If trying to convert to the same list type, convert to paragraph
+                // If trying to convert to the same list type, convert to paragraph or promote
                 if (targetType === listType) {
+                    // Check if this is a nested list (parent of list is an LI)
+                    const parentListItem = parentList.parentElement;
+                    const isNestedList = parentListItem?.tagName?.toLowerCase() === 'li';
+                    
+                    if (isNestedList) {
+                        // For nested lists, promote the item to the parent list level
+                        const grandparentList = parentListItem.parentElement; // The top-level UL/OL
+                        
+                        // Create a new list item at the parent level with the content
+                        const promotedLi = document.createElement('li');
+                        while (block.firstChild) {
+                            promotedLi.appendChild(block.firstChild);
+                        }
+                        
+                        // Insert the promoted item right after the parent list item
+                        if (grandparentList && parentListItem.nextSibling) {
+                            grandparentList.insertBefore(promotedLi, parentListItem.nextSibling);
+                        } else if (grandparentList) {
+                            grandparentList.appendChild(promotedLi);
+                        }
+                        
+                        // Remove the original nested item
+                        block.remove();
+                        
+                        // If the nested list is now empty, remove it
+                        if (parentList.children.length === 0) {
+                            parentList.remove();
+                        }
+                        
+                        return promotedLi;
+                    }
+                    
+                    // Not a nested list - normal conversion to paragraph
                     const newParagraph = document.createElement('p');
                     while (block.firstChild) {
                         newParagraph.appendChild(block.firstChild);
@@ -1190,7 +1184,42 @@ window.ZauberRTE = {
                 // Process each list group
                 listGroups.forEach((lisInList, list) => {
                     const allLisInList = Array.from(list.children).filter(child => child.tagName?.toLowerCase() === 'li');
+                    const parentListItem = list.parentElement;
+                    const isNestedList = parentListItem?.tagName?.toLowerCase() === 'li';
 
+                    // For nested lists, promote items to parent level
+                    if (isNestedList) {
+                        const grandparentList = parentListItem.parentElement; // The top-level UL/OL
+                        
+                        if (grandparentList) {
+                            // Promote each selected nested item to the parent level
+                            lisInList.forEach(li => {
+                                // Create a new list item at the parent level
+                                const promotedLi = document.createElement('li');
+                                while (li.firstChild) {
+                                    promotedLi.appendChild(li.firstChild);
+                                }
+                                
+                                // Insert after the parent list item
+                                if (parentListItem.nextSibling) {
+                                    grandparentList.insertBefore(promotedLi, parentListItem.nextSibling);
+                                } else {
+                                    grandparentList.appendChild(promotedLi);
+                                }
+                                
+                                // Remove the original
+                                li.remove();
+                            });
+                            
+                            // If the nested list is now empty, remove it
+                            if (list.children.length === 0) {
+                                list.remove();
+                            }
+                        }
+                        return;
+                    }
+
+                    // Not a nested list - normal conversion to paragraphs
                     // If all list items in the list are selected, replace the entire list
                     if (lisInList.length === allLisInList.length) {
                         // Create paragraphs for each li and replace the whole list
@@ -1653,6 +1682,114 @@ window.ZauberRTE = {
             while (cleanupEmpty(editor.lastElementChild)) {
                 editor.lastElementChild.remove();
             }
+        },
+
+        cleanHtml: function(editorId) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            const range = selection.getRangeAt(0);
+            const editor = document.getElementById(editorId + '-content');
+            if (!editor) return;
+
+            // If selection is collapsed, nothing to clean
+            if (range.collapsed) return;
+
+            // Get the selected content
+            const fragment = range.extractContents();
+
+            // Create a temporary container
+            const tempDiv = document.createElement('div');
+            tempDiv.appendChild(fragment);
+
+            // Extract text from block-level elements to preserve structure
+            const blockElements = ['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'PRE', 'TD', 'TH'];
+            const lines = [];
+
+            // Helper to get only direct text content (excluding nested block elements)
+            const getDirectTextContent = (element) => {
+                let text = '';
+                for (const node of element.childNodes) {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        text += node.textContent;
+                    } else if (node.nodeType === Node.ELEMENT_NODE) {
+                        // Skip nested block elements (like nested UL/OL)
+                        if (!['UL', 'OL'].includes(node.tagName)) {
+                            // For inline elements, get their text
+                            text += node.textContent;
+                        }
+                    }
+                }
+                return text.trim();
+            };
+
+            // Recursive function to extract text from block elements
+            const extractTextLines = (element) => {
+                for (const node of element.childNodes) {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        const text = node.textContent?.trim();
+                        if (text) {
+                            lines.push(text);
+                        }
+                    } else if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (blockElements.includes(node.tagName)) {
+                            // Block element - extract only its direct text (not nested blocks)
+                            const text = getDirectTextContent(node);
+                            if (text) {
+                                lines.push(text);
+                            }
+                            // Only recurse if this block might contain other blocks (like LI with nested UL)
+                            const hasNestedLists = node.querySelector('ul, ol');
+                            if (hasNestedLists) {
+                                extractTextLines(node);
+                            }
+                        } else if (['UL', 'OL'].includes(node.tagName)) {
+                            // List container - recurse into it to find LI elements
+                            extractTextLines(node);
+                        } else {
+                            // Inline element or other - recurse to find block children
+                            extractTextLines(node);
+                        }
+                    }
+                }
+            };
+
+            extractTextLines(tempDiv);
+
+            // Create clean paragraph elements
+            const cleanFragment = document.createDocumentFragment();
+            
+            if (lines.length === 0) {
+                // If no text, insert a single paragraph
+                const p = document.createElement('p');
+                p.appendChild(document.createElement('br'));
+                cleanFragment.appendChild(p);
+            } else {
+                lines.forEach(line => {
+                    const p = document.createElement('p');
+                    p.textContent = line;
+                    cleanFragment.appendChild(p);
+                });
+            }
+
+            // Collect nodes before insertion (as they'll be moved from fragment to DOM)
+            const nodesToInsert = Array.from(cleanFragment.childNodes);
+
+            // Insert the cleaned content back
+            range.insertNode(cleanFragment);
+
+            // Update selection to cover the inserted content
+            if (nodesToInsert.length > 0) {
+                const newRange = document.createRange();
+                newRange.setStartBefore(nodesToInsert[0]);
+                newRange.setEndAfter(nodesToInsert[nodesToInsert.length - 1]);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+            }
+
+            // Clean up any empty lists left in the editor after extraction
+            const emptyLists = editor.querySelectorAll('ul:empty, ol:empty, ul:has(> li:empty:only-child), ol:has(> li:empty:only-child)');
+            emptyLists.forEach(list => list.remove());
         },
 
         _notifyContentModified: function(editorId) {
@@ -2899,7 +3036,29 @@ window.ZauberRTE = {
                 this.ensureParagraphStructure(editorId, contentEditable);
             }
 
-            return contentEditable.innerHTML;
+            // Clone the content to avoid modifying the actual editor
+            const clone = contentEditable.cloneNode(true);
+
+            // Helper function to check if an element is an empty paragraph
+            const isEmptyParagraph = (element) => {
+                if (!element || element.nodeType !== Node.ELEMENT_NODE) return false;
+                if (element.tagName !== 'P') return false;
+                
+                const html = element.innerHTML.trim();
+                return html === '' || html === '<br>' || html === '<br/>' || html === '&nbsp;';
+            };
+
+            // Remove trailing empty paragraphs
+            while (clone.lastElementChild && isEmptyParagraph(clone.lastElementChild)) {
+                clone.removeChild(clone.lastElementChild);
+            }
+
+            // Remove leading empty paragraphs
+            while (clone.firstElementChild && isEmptyParagraph(clone.firstElementChild)) {
+                clone.removeChild(clone.firstElementChild);
+            }
+
+            return clone.innerHTML;
         },
 
         ensureParagraphStructure: function(editorId, contentEditable) {

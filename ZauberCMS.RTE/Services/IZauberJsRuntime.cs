@@ -109,6 +109,11 @@ public interface SelectionInterop
     Task ClearFormattingAsync(string editorId);
 
     /// <summary>
+    /// Cleans HTML completely, removing all formatting and converting to plain paragraph tags
+    /// </summary>
+    Task CleanHtmlAsync(string editorId);
+
+    /// <summary>
     /// Saves the current selection range for later restoration
     /// </summary>
     Task SaveRangeAsync(string editorId);

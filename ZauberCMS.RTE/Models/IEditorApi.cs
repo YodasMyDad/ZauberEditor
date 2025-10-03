@@ -116,6 +116,11 @@ public interface IEditorApi
     Task ClearFormattingAsync();
 
     /// <summary>
+    /// Cleans HTML completely, removing all formatting and converting to plain paragraph tags
+    /// </summary>
+    Task CleanHtmlAsync();
+
+    /// <summary>
     /// Gets the current HTML content
     /// </summary>
     string? GetHtml();
