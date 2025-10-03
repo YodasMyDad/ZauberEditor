@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>ZauberCMS.RTE</PackageId>
-    <Version>1.0.0-beta5</Version>
+    <Version>1.0.0-beta6</Version>
     <Authors>Lee Messenger</Authors>
     <Description>A modern, extensible rich-text editor component for Blazor applications</Description>
     <PackageTags>blazor;richtext;editor;wysiwyg;html</PackageTags>
