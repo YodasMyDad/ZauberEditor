@@ -6,8 +6,9 @@ namespace ZauberCMS.RTE.Models.ToolbarItems;
 public class Heading3Item : ToolbarItemBase
 {
     public override string Id => "h3";
-    public override string Label => "Heading 3";
-    public override string IconCss => "fa-heading";
+    public override string Label => "H3";
+    public override string? Tooltip => "Heading 3";
+    public override string IconCss => ""; // Empty = show label as text in button
     public override ToolbarPlacement Placement => ToolbarPlacement.Block;
     public override bool IsToggle => true;
 

@@ -6,52 +6,80 @@ namespace ZauberCMS.RTE.Models;
 public class ToolbarLayout
 {
     /// <summary>
-    /// Rows of toolbar items, where each row is an array of item IDs
+    /// Flexible layout system using blocks, separators, and items
     /// </summary>
-    public List<string[]> Rows { get; set; } = [];
+    public List<ToolbarLayoutItem> LayoutItems { get; set; } = [];
 
     /// <summary>
-    /// Creates a toolbar layout from row arrays
+    /// Gets the effective layout items
     /// </summary>
-    public static ToolbarLayout FromRows(params string[][] rows) => new()
+    public List<ToolbarLayoutItem> GetEffectiveLayout() => LayoutItems;
+
+    /// <summary>
+    /// Creates a toolbar layout from layout items
+    /// </summary>
+    public static ToolbarLayout FromItems(params ToolbarLayoutItem[] items) => new()
     {
-        Rows = [..rows]
+        LayoutItems = [..items]
     };
 
     /// <summary>
-    /// Default toolbar layout with common items
+    /// Simple toolbar layout - basic formatting only
     /// </summary>
-    public static ToolbarLayout Default => FromRows(
-        ["bold", "italic", "underline", "strike"],
-        ["h1", "h2", "h3", "blockquote"],
-        ["ul", "ol", "link", "unlink", "image"],
-        ["alignLeft", "alignCenter", "alignRight"]
+    public static ToolbarLayout Simple => FromItems(
+        new ToolbarBlock("bold", "italic", "underline"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("clear"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("alignLeft", "alignCenter", "alignRight")
     );
+
+    /// <summary>
+    /// Full toolbar layout - all features logically grouped
+    /// </summary>
+    public static ToolbarLayout Full => FromItems(
+        new ToolbarBlock("undo", "redo"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("viewSource"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("headings", "blockquote"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("bold", "italic", "underline", "strike", "code"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("subscript", "superscript"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("alignLeft", "alignCenter", "alignRight", "justified"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("ul", "ol"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("link", "unlink"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("image", "table"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("clear")
+    );
+
+    /// <summary>
+    /// Default toolbar layout (points to Simple for backward compatibility)
+    /// </summary>
+    public static ToolbarLayout Default => Simple;
 
     /// <summary>
     /// Minimal toolbar layout
     /// </summary>
-    public static ToolbarLayout Minimal => FromRows(
-        ["bold", "italic", "link"]
-    );
-
-    /// <summary>
-    /// Full toolbar layout with all available items
-    /// </summary>
-    public static ToolbarLayout Full => FromRows(
-        ["undo", "redo", "viewSource", "themeToggle"],
-        ["h1", "h2", "h3", "paragraph", "bold", "italic", "underline", "strike", "subscript", "superscript", "code", "clear"],
-        ["alignLeft", "alignCenter", "alignRight", "justified"],
-        ["ul", "ol", "blockquote", "table", "link", "unlink", "image"]
+    public static ToolbarLayout Minimal => FromItems(
+        new ToolbarBlock("bold", "italic", "link")
     );
 
     /// <summary>
     /// CMS-focused toolbar layout
     /// </summary>
-    public static ToolbarLayout Cms => FromRows(
-        ["viewSource", "h1", "bold", "italic", "underline", "strike", "clear"],
-        ["alignLeft", "alignCenter", "alignRight", "justified"],
-        ["ul", "ol", "blockquote", "code", "table", "link", "unlink", "image", "upload"]
+    public static ToolbarLayout Cms => FromItems(
+        new ToolbarBlock("viewSource", "headings", "bold", "italic", "underline", "strike", "clear"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("alignLeft", "alignCenter", "alignRight", "justified"),
+        new ToolbarSeparator(),
+        new ToolbarBlock("ul", "ol", "blockquote", "code", "table", "link", "unlink", "image")
     );
 
     /// <summary>

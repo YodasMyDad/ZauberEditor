@@ -1,7 +1,7 @@
 @using ZauberCMS.RTE.Models
 
 <button type="button"
-        class="rte-toolbar-btn @GetButtonClasses()"
+        class="rte-toolbar-btn rte-btn-@Item.Id @GetButtonClasses()"
         @onmousedown="HandleClick"
         @onmousedown:preventDefault="true"
         @onmousedown:stopPropagation="true"
@@ -9,9 +9,9 @@
         aria-pressed="@(Item.IsToggle ? IsActive.ToString().ToLower() : null)"
         aria-label="@Item.Label"
         title="@GetTooltipText()">
-    @if (Item.Id == "h1" || Item.Id == "h2" || Item.Id == "h3")
+    @if (string.IsNullOrWhiteSpace(Item.IconCss))
     {
-        <span class="rte-heading-label">@Item.Id.ToUpper()</span>
+        <span class="rte-toolbar-btn-text">@Item.Label</span>
     }
     else
     {

@@ -1,0 +1,141 @@
+@using ZauberCMS.RTE.Models
+
+<div class="rte-toolbar-dropdown" @ref="_dropdownRef">
+    <button type="button"
+            class="rte-toolbar-btn rte-dropdown-trigger @GetButtonClasses()"
+            @onclick="ToggleDropdown"
+            @onclick:stopPropagation="true"
+            disabled="@(!IsEnabled)"
+            aria-haspopup="true"
+            aria-expanded="@_isOpen"
+            aria-label="@Item.Label"
+            title="@GetTooltipText()">
+        <i class="fas @GetCurrentIconCss()" aria-hidden="true"></i>
+        @if (GetActiveChildLabel() != null)
+        {
+            <span class="rte-dropdown-label">@GetActiveChildLabel()</span>
+        }
+        <i class="fas fa-caret-down rte-dropdown-caret" aria-hidden="true"></i>
+    </button>
+
+    @if (_isOpen && Item.ChildItems != null && Item.ChildItems.Any())
+    {
+        <div class="rte-dropdown-menu" @onclick:stopPropagation="true">
+            @foreach (var childItem in Item.ChildItems)
+            {
+                var isChildActive = childItem.IsActive(EditorState);
+                var cssClass = childItem.IsDropdownLabel ? "rte-dropdown-label-item" : "rte-dropdown-item";
+                
+                <button type="button"
+                        class="@cssClass @(isChildActive ? "rte-dropdown-item-active" : "") rte-dropdown-@childItem.Id"
+                        @onclick="() => HandleChildClick(childItem)"
+                        disabled="@(!childItem.IsEnabled(EditorState))"
+                        title="@(childItem.Tooltip ?? childItem.Label)">
+                    <span class="rte-dropdown-item-label">
+                        @if (!string.IsNullOrWhiteSpace(childItem.IconCss))
+                        {
+                            <i class="fas @childItem.IconCss" aria-hidden="true"></i>
+                        }
+                        @childItem.Label
+                    </span>
+                    @if (isChildActive)
+                    {
+                        <i class="fas fa-check rte-dropdown-check" aria-hidden="true"></i>
+                    }
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public IToolbarItem Item { get; set; } = null!;
+    [Parameter] public bool IsActive { get; set; }
+    [Parameter] public bool IsEnabled { get; set; } = true;
+    [Parameter] public EditorState EditorState { get; set; } = new();
+    [Parameter] public EventCallback<IToolbarItem> OnChildItemClick { get; set; }
+
+    private bool _isOpen;
+    private ElementReference _dropdownRef;
+
+    protected override void OnInitialized()
+    {
+        // Close dropdown when clicking outside
+        // This would be handled by JS interop in a real implementation
+    }
+
+    private string GetButtonClasses()
+    {
+        var classes = new List<string>();
+
+        if (IsActive)
+        {
+            classes.Add("rte-btn-active");
+        }
+
+        if (!IsEnabled)
+        {
+            classes.Add("rte-btn-disabled");
+        }
+
+        if (_isOpen)
+        {
+            classes.Add("rte-dropdown-open");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private string GetTooltipText() =>
+        !string.IsNullOrEmpty(Item.Tooltip) ? Item.Tooltip : Item.Label;
+
+    private string GetCurrentIconCss()
+    {
+        // If a child item is active and has an icon, use it; otherwise use parent's icon
+        var activeChild = Item.ChildItems?.FirstOrDefault(c => !c.IsDropdownLabel && c.IsActive(EditorState));
+        
+        // Check if activeChild has a non-empty icon, otherwise fall back to parent's icon
+        if (activeChild != null && !string.IsNullOrWhiteSpace(activeChild.IconCss))
+        {
+            return activeChild.IconCss;
+        }
+        
+        return Item.IconCss;
+    }
+
+    private string? GetActiveChildLabel()
+    {
+        // Show active child's label in the dropdown trigger (optional - only if there's an active non-label item)
+        if (Item.ChildItems == null || Item.ChildItems.Count == 0)
+            return null;
+            
+        var activeChild = Item.ChildItems.FirstOrDefault(c => !c.IsDropdownLabel && c.IsActive(EditorState));
+        
+        // Return the label of the active child item, or null to show parent's icon only
+        return activeChild?.Label;
+    }
+
+    private void ToggleDropdown()
+    {
+        if (IsEnabled)
+        {
+            _isOpen = !_isOpen;
+        }
+    }
+
+    private async Task HandleChildClick(IToolbarItem childItem)
+    {
+        _isOpen = false;
+        await OnChildItemClick.InvokeAsync(childItem);
+    }
+
+    public void CloseDropdown()
+    {
+        if (_isOpen)
+        {
+            _isOpen = false;
+            StateHasChanged();
+        }
+    }
+}
+

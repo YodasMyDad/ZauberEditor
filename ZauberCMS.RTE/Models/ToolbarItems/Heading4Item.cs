@@ -1,32 +1,32 @@
 namespace ZauberCMS.RTE.Models.ToolbarItems;
 
 /// <summary>
-/// Toolbar item for heading 2 block type
+/// Toolbar item for heading 4 block type
 /// </summary>
-public class Heading2Item : ToolbarItemBase
+public class Heading4Item : ToolbarItemBase
 {
-    public override string Id => "h2";
-    public override string Label => "H2";
-    public override string? Tooltip => "Heading 2";
+    public override string Id => "h4";
+    public override string Label => "H4";
+    public override string? Tooltip => "Heading 4";
     public override string IconCss => ""; // Empty = show label as text in button
     public override ToolbarPlacement Placement => ToolbarPlacement.Block;
     public override bool IsToggle => true;
 
-    public override bool IsActive(EditorState state) => state is { CurrentBlockType: "heading", CurrentHeadingLevel: 2 };
+    public override bool IsActive(EditorState state) => state is { CurrentBlockType: "heading", CurrentHeadingLevel: 4 };
+    
     public override async Task ExecuteAsync(IEditorApi api)
     {
-        // Get current block type directly to check if we're toggling off
         var currentBlockType = await api.GetCurrentBlockTypeAsync();
         var currentHeadingLevel = await api.GetCurrentHeadingLevelAsync();
         
-        // Toggle: if already H2, convert to paragraph
-        if (currentBlockType == "heading" && currentHeadingLevel == 2)
+        if (currentBlockType == "heading" && currentHeadingLevel == 4)
         {
             await api.SetBlockTypeAsync("p", null);
         }
         else
         {
-            await api.SetBlockTypeAsync("h2", null);
+            await api.SetBlockTypeAsync("h4", null);
         }
     }
 }
+

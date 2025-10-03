@@ -195,6 +195,15 @@ button.rte-toolbar-btn {
     fill: currentColor !important;
 }
 
+/* Text-based toolbar buttons (for items without icons) */
+.rte-toolbar-btn-text {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    color: inherit !important;
+}
+
 /* Font Awesome Icons */
 .rte-toolbar-btn i,
 .rte-toolbar-btn i.fas,
@@ -734,4 +743,205 @@ img.rte-image-selected {
     .rte-toolbar-row {
         justify-content: space-between;
     }
+}
+
+/* ===== New Flexible Layout System ===== */
+
+/* Toolbar Blocks */
+.rte-toolbar-block {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 0.125rem !important;
+    align-items: center !important;
+}
+
+/* Toolbar Separators */
+.rte-toolbar-separator {
+    width: 1px !important;
+    height: 2rem !important;
+    background: rgba(0, 0, 0, 0.1) !important;
+    margin: 0 0.5rem !important;
+}
+
+.rte-theme-dark .rte-toolbar-separator {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Single Item Wrapper */
+.rte-toolbar-single-item {
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* ===== Dropdown Styles ===== */
+
+.rte-toolbar-dropdown {
+    position: relative !important;
+    display: inline-block !important;
+}
+
+.rte-dropdown-trigger {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.25rem !important;
+    min-width: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    padding: 0 0.5rem !important;
+    white-space: nowrap !important;
+}
+
+.rte-dropdown-label {
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+}
+
+.rte-dropdown-caret {
+    font-size: 0.625rem !important;
+    margin-left: 0.125rem !important;
+    transition: transform 0.2s ease !important;
+}
+
+.rte-dropdown-open .rte-dropdown-caret {
+    transform: rotate(180deg) !important;
+}
+
+/* Dropdown Menu */
+.rte-dropdown-menu {
+    position: absolute !important;
+    top: calc(100% + 0.25rem) !important;
+    left: 0 !important;
+    min-width: 12rem !important;
+    background: white !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    z-index: 1000 !important;
+    padding: 0.25rem !important;
+    max-height: 20rem !important;
+    overflow-y: auto !important;
+}
+
+.rte-theme-dark .rte-dropdown-menu {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+/* Dropdown Items */
+.rte-dropdown-item,
+.rte-dropdown-label-item {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    padding: 0.5rem 0.75rem !important;
+    border: none !important;
+    border-radius: 0.375rem !important;
+    background: transparent !important;
+    color: #475569 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    text-align: left !important;
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+    font-weight: 400 !important;
+}
+
+.rte-dropdown-label-item {
+    font-weight: 600 !important;
+    color: #334155 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    margin-bottom: 0.25rem !important;
+    cursor: pointer !important;
+}
+
+.rte-theme-dark .rte-dropdown-label-item {
+    color: #f1f5f9 !important;
+    border-bottom-color: #334155 !important;
+}
+
+.rte-dropdown-item:hover {
+    background: #f1f5f9 !important;
+    color: #1e293b !important;
+}
+
+.rte-theme-dark .rte-dropdown-item {
+    color: #e2e8f0 !important;
+}
+
+.rte-theme-dark .rte-dropdown-item:hover {
+    background: #334155 !important;
+    color: #f8fafc !important;
+}
+
+.rte-dropdown-item-active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    font-weight: 500 !important;
+}
+
+.rte-theme-dark .rte-dropdown-item-active {
+    background: #1e3a8a !important;
+    color: #93c5fd !important;
+}
+
+.rte-dropdown-item:disabled {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+}
+
+.rte-dropdown-check {
+    font-size: 0.75rem !important;
+    color: #2563eb !important;
+    margin-left: 0.5rem !important;
+}
+
+.rte-theme-dark .rte-dropdown-check {
+    color: #93c5fd !important;
+}
+
+/* Dropdown Item Label */
+.rte-dropdown-item-label {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+}
+
+.rte-dropdown-item-label i {
+    font-size: 0.875rem !important;
+}
+
+/* Optional: Heading-specific styling (users can customize or remove) */
+/* Style heading items with visual hierarchy */
+.rte-dropdown-h1 .rte-dropdown-item-label {
+    font-size: 1.25rem !important;
+    font-weight: 600 !important;
+}
+
+.rte-dropdown-h2 .rte-dropdown-item-label {
+    font-size: 1.125rem !important;
+    font-weight: 600 !important;
+}
+
+.rte-dropdown-h3 .rte-dropdown-item-label {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+}
+
+.rte-dropdown-h4 .rte-dropdown-item-label {
+    font-size: 0.9375rem !important;
+    font-weight: 600 !important;
+}
+
+.rte-dropdown-h5 .rte-dropdown-item-label {
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+}
+
+.rte-dropdown-h6 .rte-dropdown-item-label {
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
 }

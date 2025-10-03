@@ -1,6 +1,27 @@
 namespace ZauberCMS.RTE.Models;
 
 /// <summary>
+/// Type of toolbar item
+/// </summary>
+public enum ToolbarItemType
+{
+    /// <summary>
+    /// Standard button item
+    /// </summary>
+    Button,
+    
+    /// <summary>
+    /// Dropdown menu with child items
+    /// </summary>
+    Dropdown,
+    
+    /// <summary>
+    /// Separator/divider (visual only)
+    /// </summary>
+    Separator
+}
+
+/// <summary>
 /// Interface for toolbar items that can be plugged into the editor
 /// </summary>
 public interface IToolbarItem
@@ -39,6 +60,21 @@ public interface IToolbarItem
     /// Whether this is a toggle item (can be on/off)
     /// </summary>
     bool IsToggle { get; }
+
+    /// <summary>
+    /// Type of toolbar item (Button, Dropdown, Separator)
+    /// </summary>
+    ToolbarItemType ItemType { get; }
+
+    /// <summary>
+    /// Child items for dropdown menus. Only applicable when ItemType is Dropdown.
+    /// </summary>
+    List<IToolbarItem> ChildItems { get; }
+
+    /// <summary>
+    /// For child items in dropdowns: indicates this is a label/header item that resets to default when selected
+    /// </summary>
+    bool IsDropdownLabel { get; }
 
     /// <summary>
     /// HTML tag names this toolbar item tracks for active state detection.
@@ -88,6 +124,9 @@ public abstract class ToolbarItemBase : IToolbarItem
     public abstract string IconCss { get; }
     public virtual string? Shortcut => null;
     public virtual bool IsToggle => false;
+    public virtual ToolbarItemType ItemType => ToolbarItemType.Button;
+    public virtual List<IToolbarItem> ChildItems => [];
+    public virtual bool IsDropdownLabel => false;
     public virtual Type? PanelComponent => null;
     public virtual string[] TrackedTags => [];
     public virtual string? PrimaryTag => null;

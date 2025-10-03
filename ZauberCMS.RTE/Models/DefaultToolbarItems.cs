@@ -22,6 +22,10 @@ public static class DefaultToolbarItems
         yield return new Heading1Item();
         yield return new Heading2Item();
         yield return new Heading3Item();
+        yield return new Heading4Item();
+        yield return new Heading5Item();
+        yield return new Heading6Item();
+        yield return new HeadingsDropdownItem();
         yield return new BlockquoteItem();
         yield return new UnorderedListItem();
         yield return new OrderedListItem();
@@ -36,7 +40,6 @@ public static class DefaultToolbarItems
         yield return new UndoItem();
         yield return new RedoItem();
         yield return new ViewSourceItem();
-        yield return new SettingsItem();
         yield return new ThemeToggleItem();
     }
 }

@@ -251,7 +251,7 @@ The editor comes with comprehensive toolbar items:
 
 **Text Formatting**: Bold, Italic, Underline, Strikethrough, Code, Subscript, Superscript
 
-**Headings**: H1, H2, H3, Paragraph
+**Headings**: H1-H6 (available as individual buttons or dropdown)
 
 **Lists**: Unordered List, Ordered List
 
@@ -261,28 +261,131 @@ The editor comes with comprehensive toolbar items:
 
 **Utilities**: Clear Formatting, Undo, Redo, View Source, Settings
 
+### Toolbar Item Types
+
+The editor supports three types of toolbar items:
+
+1. **Button** - Standard clickable button (Bold, Italic, etc.)
+2. **Dropdown** - Menu with child items (e.g., Headings dropdown with H1-H6)
+3. **Separator** - Visual divider between toolbar groups
+
+### Flexible Toolbar Layouts
+
+The new flexible layout system allows complete customization with blocks, separators, and individual items:
+
+```csharp
+using ZauberCMS.RTE.Models;
+
+// Use predefined layouts
+var settings = new EditorSettings
+{
+    ToolbarLayout = ToolbarLayout.Simple,  // Simple: basic formatting + alignment
+    // ToolbarLayout = ToolbarLayout.Full,    // Full: all features logically grouped
+    // ToolbarLayout = ToolbarLayout.Minimal, // Minimal: bold, italic, link only
+    // ToolbarLayout = ToolbarLayout.Cms,     // CMS-focused layout
+};
+
+// Create custom layout with blocks and separators
+var customLayout = ToolbarLayout.FromItems(
+    new ToolbarBlock("bold", "italic", "underline"),  // Block of buttons
+    new ToolbarSeparator(),                            // Visual separator
+    new ToolbarBlock("headings"),                      // Headings dropdown (H1-H6)
+    new ToolbarSeparator(),
+    new ToolbarBlock("link", "image")
+);
+
+// Advanced: individual items with custom CSS
+var advancedLayout = ToolbarLayout.FromItems(
+    new ToolbarBlock("my-custom-class", "undo", "redo"),
+    new ToolbarSeparator("my-separator-style"),
+    new ToolbarItemReference("link", "my-link-style"),
+    new ToolbarBlock("bold", "italic")
+);
+```
+
+### Headings Dropdown
+
+The new headings dropdown consolidates H1-H6 into a single dropdown menu:
+
+```csharp
+// Use the headings dropdown (recommended)
+ToolbarLayout = ToolbarLayout.FromItems(
+    new ToolbarBlock("bold", "italic"),
+    new ToolbarSeparator(),
+    new ToolbarBlock("headings")  // Dropdown with H1-H6 and reset option
+);
+
+// Or use individual heading buttons
+ToolbarLayout = ToolbarLayout.FromItems(
+    new ToolbarBlock("bold", "italic"),
+    new ToolbarSeparator(),
+    new ToolbarBlock("h1", "h2", "h3", "h4", "h5", "h6")  // Individual buttons
+);
+```
+
+The headings dropdown automatically:
+- Shows the currently active heading (H1, H2, etc.)
+- Highlights the selected heading in the dropdown menu
+- Provides a "Headings" label option that resets to paragraph text
+- Displays heading previews with appropriate font sizes
+
+### Layout Examples
+
+```csharp
+// Blog editor with all features
+public static ToolbarLayout BlogLayout => ToolbarLayout.FromItems(
+    new ToolbarBlock("undo", "redo", "viewSource"),
+    new ToolbarSeparator(),
+    new ToolbarBlock("headings", "blockquote"),
+    new ToolbarSeparator(),
+    new ToolbarBlock("bold", "italic", "underline", "strike", "code"),
+    new ToolbarSeparator(),
+    new ToolbarBlock("ul", "ol"),
+    new ToolbarSeparator(),
+    new ToolbarBlock("link", "unlink", "image"),
+    new ToolbarSeparator(),
+    new ToolbarBlock("alignLeft", "alignCenter", "alignRight")
+);
+
+// Simple comment editor
+public static ToolbarLayout CommentLayout => ToolbarLayout.FromItems(
+    new ToolbarBlock("bold", "italic", "link")
+);
+
+// Using helper methods
+var layout = ToolbarLayout.FromItems(
+    ToolbarLayoutExtensions.Block("bold", "italic"),
+    ToolbarLayoutExtensions.Separator(),
+    ToolbarLayoutExtensions.Item("headings")
+);
+```
+
 ### Custom Toolbar Items
 
 Create custom toolbar items by implementing `IToolbarItem`. See the **Extension Guide** section below for detailed examples.
 
-### Toolbar Layouts
+### Creating Custom Dropdowns
 
-Configure toolbar layout:
+You can create your own dropdown toolbar items:
 
 ```csharp
-// Use predefined layouts
-ToolbarLayout = ToolbarLayout.Default;
-ToolbarLayout = ToolbarLayout.Compact;
-ToolbarLayout = ToolbarLayout.Minimal;
-
-// Or create custom layout
-var customLayout = new ToolbarLayout
+public class MyDropdownItem : ToolbarItemBase
 {
-    ShowInlineFormatting = true,
-    ShowBlockFormatting = true,
-    ShowInsertItems = true,
-    // ... configure other options
-};
+    public override string Id => "myDropdown";
+    public override string Label => "My Options";
+    public override string IconCss => "fa-list";
+    public override ToolbarPlacement Placement => ToolbarPlacement.Custom;
+    public override ToolbarItemType ItemType => ToolbarItemType.Dropdown;
+    
+    public override List<IToolbarItem> ChildItems =>
+    [
+        new MyOption1Item(),
+        new MyOption2Item(),
+        new MyOption3Item()
+    ];
+    
+    public override Task ExecuteAsync(IEditorApi api) => Task.CompletedTask;
+}
 ```
 
 ## Advanced Usage
