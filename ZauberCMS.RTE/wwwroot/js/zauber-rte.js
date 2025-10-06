@@ -491,12 +491,31 @@ window.ZauberRTE = {
                         selection.addRange(range);
                     }
                 } else {
-                    // Non-empty list item - create new list item
+                    // Non-empty list item - split it at cursor position
+                    const splitRange = range.cloneRange();
+                    splitRange.setEndAfter(currentBlock.lastChild || currentBlock);
+                    const afterContent = splitRange.extractContents();
+                    
+                    // Create new list item with the content after cursor
                     const newLi = document.createElement('li');
-                    newLi.innerHTML = '<br>';
+                    newLi.appendChild(afterContent);
+                    
+                    // Clean both list items
+                    this.cleanUnnecessarySpans(currentBlock);
+                    this.cleanUnnecessarySpans(newLi);
+                    
+                    // Ensure both have content or br
+                    if (!currentBlock.textContent?.trim() && currentBlock.children.length === 0) {
+                        currentBlock.innerHTML = '<br>';
+                    }
+                    if (!newLi.textContent?.trim() && newLi.children.length === 0) {
+                        newLi.innerHTML = '<br>';
+                    }
+                    
+                    // Insert new list item after current one
                     currentBlock.parentNode.insertBefore(newLi, currentBlock.nextSibling);
 
-                    // Move cursor to new list item
+                    // Move cursor to start of new list item
                     range.setStart(newLi, 0);
                     range.setEnd(newLi, 0);
                     selection.removeAllRanges();
