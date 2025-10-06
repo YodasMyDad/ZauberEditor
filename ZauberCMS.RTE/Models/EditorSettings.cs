@@ -146,7 +146,7 @@ public class HtmlPolicy
     /// </summary>
     public Dictionary<string, HashSet<string>> AllowedAttributes { get; set; } = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["*"] = new(StringComparer.OrdinalIgnoreCase) { "class", "id", "data-*" },
+        ["*"] = new(StringComparer.OrdinalIgnoreCase) { "class", "id", "data-*", "title", "lang", "aria-*", "role", "dir", "tabindex" },
         ["a"] = new(StringComparer.OrdinalIgnoreCase) { "href", "target", "rel" },
         ["img"] = new(StringComparer.OrdinalIgnoreCase) { "src", "alt", "width", "height", "max-width", "style" },
         ["table"] = new(StringComparer.OrdinalIgnoreCase) { "border", "cellpadding", "cellspacing" },

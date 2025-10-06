@@ -604,10 +604,135 @@ window.ZauberRTE = {
             } else {
                 range = selection.getRangeAt(0);
             }
-            range.deleteContents();
 
+            // Check if we're pasting block-level content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'ul', 'ol', 'table', 'hr'];
+            const hasBlockContent = Array.from(tempDiv.children).some(child => 
+                blockTags.includes(child.tagName.toLowerCase())
+            );
+
+            // If pasting block content and we're inside a block element, handle specially
+            if (hasBlockContent) {
+                // Find the closest block element
+                let blockParent = range.commonAncestorContainer;
+                if (blockParent.nodeType === Node.TEXT_NODE) {
+                    blockParent = blockParent.parentElement;
+                }
+                
+                while (blockParent && blockParent !== editor && 
+                       !blockTags.includes(blockParent.tagName?.toLowerCase())) {
+                    blockParent = blockParent.parentElement;
+                }
+
+                // If we're inside a block element (not the editor root), replace or split it
+                if (blockParent && blockParent !== editor && blockTags.includes(blockParent.tagName?.toLowerCase())) {
+                    // Check if we're replacing all content in the block BEFORE deleting
+                    const selectedText = range.toString();
+                    const blockText = blockParent.textContent;
+                    const isReplacingAllContent = !range.collapsed && (selectedText === blockText || blockText.trim() === selectedText.trim());
+                    
+                    // Delete selected content
+                    range.deleteContents();
+                    
+                    // If we're replacing all content in the block or the block is now empty, replace the entire block
+                    const remainingText = blockParent.textContent.trim();
+                    if (isReplacingAllContent || !remainingText) {
+                        // Replace the entire block element with the pasted block(s)
+                        const fragment = document.createDocumentFragment();
+                        const nodesToInsert = Array.from(tempDiv.children);
+                        nodesToInsert.forEach(child => {
+                            fragment.appendChild(child.cloneNode(true));
+                        });
+                        
+                        // Get reference to the parent and next sibling before replacing
+                        const parentNode = blockParent.parentNode;
+                        const nextSibling = blockParent.nextSibling;
+                        
+                        // Remove the old block
+                        blockParent.remove();
+                        
+                        // Insert all new nodes
+                        const insertedNodes = [];
+                        while (fragment.firstChild) {
+                            const node = fragment.firstChild;
+                            if (nextSibling) {
+                                parentNode.insertBefore(node, nextSibling);
+                            } else {
+                                parentNode.appendChild(node);
+                            }
+                            insertedNodes.push(node);
+                        }
+                        
+                        // Position cursor at end of the last inserted element
+                        if (insertedNodes.length > 0) {
+                            const lastNode = insertedNodes[insertedNodes.length - 1];
+                            const newRange = document.createRange();
+                            newRange.selectNodeContents(lastNode);
+                            newRange.collapse(false);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        }
+                        return;
+                    } else {
+                        // Split the block at the insertion point and insert blocks between splits
+                        const parentNode = blockParent.parentNode;
+                        const insertionPoint = range.startContainer;
+                        const insertionOffset = range.startOffset;
+                        
+                        // Extract content after cursor into a new block
+                        const afterRange = document.createRange();
+                        afterRange.setStart(insertionPoint, insertionOffset);
+                        afterRange.setEndAfter(blockParent.lastChild || blockParent);
+                        const afterContent = afterRange.extractContents();
+                        
+                        // Only create after-block if there's meaningful content
+                        const afterBlock = afterContent.textContent.trim() ? 
+                            blockParent.cloneNode(false) : null;
+                        if (afterBlock) {
+                            afterBlock.appendChild(afterContent);
+                        }
+                        
+                        // Insert the new block elements
+                        const nodesToInsert = Array.from(tempDiv.children);
+                        const insertedNodes = [];
+                        let insertAfter = blockParent;
+                        
+                        nodesToInsert.forEach(child => {
+                            const newNode = child.cloneNode(true);
+                            parentNode.insertBefore(newNode, insertAfter.nextSibling);
+                            insertAfter = newNode;
+                            insertedNodes.push(newNode);
+                        });
+                        
+                        // Insert the after-block if it has content
+                        if (afterBlock) {
+                            parentNode.insertBefore(afterBlock, insertAfter.nextSibling);
+                        }
+                        
+                        // Position cursor at start of after-block, or end of last inserted node
+                        const newRange = document.createRange();
+                        if (afterBlock) {
+                            newRange.setStart(afterBlock, 0);
+                            newRange.collapse(true);
+                        } else if (insertedNodes.length > 0) {
+                            const lastNode = insertedNodes[insertedNodes.length - 1];
+                            newRange.selectNodeContents(lastNode);
+                            newRange.collapse(false);
+                        }
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                        return;
+                    }
+                }
+            }
+
+            // Standard insertion for inline content or when not in a block context
+            range.deleteContents();
             const fragment = range.createContextualFragment(html);
             range.insertNode(fragment);
+            
             // Move cursor to end of inserted content
             range.collapse(false);
             selection.removeAllRanges();
@@ -2356,52 +2481,79 @@ window.ZauberRTE = {
         },
 
         cleanHtml: function(html, policy) {
-            if (typeof DOMPurify === 'undefined') {
-                console.warn('DOMPurify not loaded, returning original HTML');
-                return html;
-            }
-
-            // Remove HTML comments first (including StartFragment/EndFragment)
+            // ALWAYS remove HTML comments first (including StartFragment/EndFragment from Windows clipboard)
             html = html.replace(/<!--[\s\S]*?-->/g, '');
+            
+            // Remove XML processing instructions that sometimes come from Word
+            html = html.replace(/<\?xml[^>]*>/gi, '');
+            
+            let cleaned = html;
 
-            // Configure DOMPurify to be very strict - only allow minimal attributes
-            const config = {
-                ALLOWED_TAGS: policy.allowedTags || ['p', 'br', 'div', 'span', 'strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a', 'img', 'figure', 'figcaption', 'hr'],
-                ALLOWED_ATTR: ['href', 'src', 'alt', 'colspan', 'rowspan'], // Only truly essential attributes
-                KEEP_CONTENT: true,
-                ALLOW_DATA_ATTR: false
-            };
+            // Try to use DOMPurify if available for robust XSS protection
+            if (typeof DOMPurify !== 'undefined') {
+                // Configure DOMPurify to be very strict - only allow minimal attributes
+                const config = {
+                    ALLOWED_TAGS: policy.allowedTags || ['p', 'br', 'div', 'span', 'strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'a', 'img', 'figure', 'figcaption', 'hr'],
+                    ALLOWED_ATTR: ['href', 'src', 'alt', 'colspan', 'rowspan'], // Only truly essential attributes
+                    KEEP_CONTENT: true,
+                    ALLOW_DATA_ATTR: false
+                };
 
-            // Clean the HTML with DOMPurify
-            let cleaned = DOMPurify.sanitize(html, config);
+                // Clean the HTML with DOMPurify
+                cleaned = DOMPurify.sanitize(html, config);
+            } else {
+                console.warn('DOMPurify not loaded, using fallback cleaning');
+            }
 
             // Apply Word cleaner if it's a Word document
             cleaned = this.cleanWordHtml(cleaned);
 
             // Additional aggressive cleaning - remove ALL remaining styles and attributes
+            // This acts as both a post-DOMPurify cleanup and a fallback when DOMPurify isn't available
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = cleaned;
+            
+            // Build allowed attributes map from policy
+            const allowedAttrMap = {};
+            if (policy.allowedAttributes) {
+                // Handle global attributes (apply to all tags)
+                const globalAttrs = policy.allowedAttributes['*'] || [];
+                
+                // Build map for each tag in the policy
+                Object.keys(policy.allowedAttributes).forEach(tag => {
+                    const attrs = policy.allowedAttributes[tag] || [];
+                    allowedAttrMap[tag.toLowerCase()] = new Set([...globalAttrs, ...attrs]);
+                });
+            }
             
             // Strip all unwanted attributes from all elements
             const allElements = tempDiv.querySelectorAll('*');
             allElements.forEach(element => {
                 const tagName = element.tagName.toLowerCase();
-                const attributesToKeep = [];
                 
-                // Define which attributes to keep per tag
-                if (tagName === 'a') {
-                    attributesToKeep.push('href');
-                } else if (tagName === 'img') {
-                    attributesToKeep.push('src', 'alt');
-                } else if (tagName === 'td' || tagName === 'th') {
-                    attributesToKeep.push('colspan', 'rowspan');
+                // Get allowed attributes for this tag from policy, or use minimal defaults
+                let attributesToKeep = allowedAttrMap[tagName] || allowedAttrMap['*'] || new Set();
+                
+                // If no policy specified for this tag, fall back to minimal safe defaults
+                if (attributesToKeep.size === 0) {
+                    const defaults = [];
+                    if (tagName === 'a') {
+                        defaults.push('href');
+                    } else if (tagName === 'img') {
+                        defaults.push('src', 'alt');
+                    } else if (tagName === 'td' || tagName === 'th') {
+                        defaults.push('colspan', 'rowspan');
+                    }
+                    attributesToKeep = new Set(defaults);
                 }
                 
                 // Remove all attributes except those in the keep list
                 const attributesToRemove = [];
                 for (let i = 0; i < element.attributes.length; i++) {
                     const attr = element.attributes[i];
-                    if (!attributesToKeep.includes(attr.name)) {
+                    // Remove any attribute not in the keep list
+                    // This includes style, class, id, data-*, and all CSS variables (--*)
+                    if (!attributesToKeep.has(attr.name)) {
                         attributesToRemove.push(attr.name);
                     }
                 }
