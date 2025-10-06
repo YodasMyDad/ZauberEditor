@@ -2081,22 +2081,57 @@ window.ZauberRTE = {
         },
 
         handleParagraphInput: function(editorId, target) {
-            // Check if we're typing in a paragraph
-            if (target.tagName?.toLowerCase() === 'p') {
+            // Find the paragraph element - might be the target itself or a parent
+            let paragraph = target;
+            if (target.tagName?.toLowerCase() !== 'p') {
+                // Walk up to find the paragraph
+                let node = target;
+                while (node && node.tagName?.toLowerCase() !== 'p') {
+                    node = node.parentElement;
+                }
+                paragraph = node;
+            }
+            
+            // Check if we found a paragraph
+            if (paragraph && paragraph.tagName?.toLowerCase() === 'p') {
                 // Remove &nbsp; if it appears at the start and there's actual content after it
-                if (target.innerHTML.startsWith('&nbsp;') && target.textContent?.trim()) {
+                if (paragraph.innerHTML.startsWith('&nbsp;') && paragraph.textContent?.trim()) {
+                    // Save cursor position
+                    const selection = window.getSelection();
+                    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+                    const startOffset = range ? range.startOffset : 0;
+                    const startContainer = range ? range.startContainer : null;
+                    
                     // Remove the leading &nbsp; and keep the rest
-                    const contentWithoutNbsp = target.innerHTML.substring(6); // Remove '&nbsp;' (6 chars)
+                    const contentWithoutNbsp = paragraph.innerHTML.substring(6); // Remove '&nbsp;' (6 chars)
                     if (contentWithoutNbsp) {
-                        target.innerHTML = contentWithoutNbsp;
+                        paragraph.innerHTML = contentWithoutNbsp;
+                        
+                        // Restore cursor position (adjusted for the removed &nbsp;)
+                        if (range && startContainer && paragraph.contains(startContainer)) {
+                            try {
+                                const newRange = document.createRange();
+                                newRange.setStart(startContainer, Math.max(0, startOffset - 1));
+                                newRange.collapse(true);
+                                selection.removeAllRanges();
+                                selection.addRange(newRange);
+                            } catch (e) {
+                                // If cursor restoration fails, just focus at the end
+                                const newRange = document.createRange();
+                                newRange.selectNodeContents(paragraph);
+                                newRange.collapse(false);
+                                selection.removeAllRanges();
+                                selection.addRange(newRange);
+                            }
+                        }
                     } else {
                         // If only &nbsp; remains, clear it completely
-                        target.innerHTML = '';
+                        paragraph.innerHTML = '';
                     }
                 }
 
                 // Clean up unnecessary spans with default styles
-                this.cleanUnnecessarySpans(target);
+                this.cleanUnnecessarySpans(paragraph);
             }
         },
 
