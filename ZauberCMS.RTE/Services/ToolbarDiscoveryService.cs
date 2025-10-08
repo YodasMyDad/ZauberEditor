@@ -130,12 +130,38 @@ public class ZauberRteOptions
 public static class ZauberRteServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds Zauber RTE services to the service collection
+    /// Adds Zauber RTE services to the service collection, scanning the entry assembly only.
     /// </summary>
-    public static IServiceCollection AddZauberRte(this IServiceCollection services, Action<ZauberRteOptions>? configure = null)
+    public static IServiceCollection AddZauberRte(this IServiceCollection services)
+        => AddZauberRte(services, Array.Empty<Assembly>());
+
+    /// <summary>
+    /// Adds Zauber RTE services to the service collection, scanning the entry assembly and any additional assemblies.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="additionalAssemblies">Additional assemblies to scan for toolbar items.</param>
+    public static IServiceCollection AddZauberRte(this IServiceCollection services, params Assembly[] additionalAssemblies)
+        => AddZauberRte(services, options => { }, additionalAssemblies);
+
+    /// <summary>
+    /// Adds Zauber RTE services to the service collection with advanced configuration options.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">Configuration action for advanced options.</param>
+    /// <param name="additionalAssemblies">Additional assemblies to scan for toolbar items.</param>
+    public static IServiceCollection AddZauberRte(this IServiceCollection services, Action<ZauberRteOptions> configure, params Assembly[] additionalAssemblies)
     {
         var options = new ZauberRteOptions();
         configure?.Invoke(options);
+
+        // Collect assemblies to scan
+        var assembliesToScan = new HashSet<Assembly>();
+        var entry = Assembly.GetEntryAssembly();
+        if (entry != null) assembliesToScan.Add(entry);
+        foreach (var assembly in additionalAssemblies.Where(a => a != null)) 
+            assembliesToScan.Add(assembly);
+        foreach (var assembly in options.Assemblies.Where(a => a != null)) 
+            assembliesToScan.Add(assembly);
 
         // Register the discovery service with initialization
         services.AddSingleton(provider =>
@@ -146,7 +172,7 @@ public static class ZauberRteServiceCollectionExtensions
             {
                 // Scan user assemblies first, then add defaults only if not present
                 // This allows users to override built-in toolbar items
-                discoveryService.ScanAssemblies(options.Assemblies);
+                discoveryService.ScanAssemblies(assembliesToScan);
                 
                 foreach (var item in DefaultToolbarItems.GetAllDefaultItems())
                 {
@@ -160,7 +186,7 @@ public static class ZauberRteServiceCollectionExtensions
             {
                 // Scan defaults first - user items with duplicate IDs will be skipped
                 discoveryService.ScanAssemblies([typeof(ZauberRteServiceCollectionExtensions).Assembly]);
-                discoveryService.ScanAssemblies(options.Assemblies);
+                discoveryService.ScanAssemblies(assembliesToScan);
             }
 
             return discoveryService;

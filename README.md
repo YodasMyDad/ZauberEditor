@@ -46,8 +46,11 @@ using ZauberCMS.RTE.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Zauber RTE services
+// Add Zauber RTE services - scans entry assembly for custom toolbar items
 builder.Services.AddZauberRte();
+
+// Or scan additional assemblies for custom toolbar items
+builder.Services.AddZauberRte(typeof(Program).Assembly, typeof(MyPlugin.Class).Assembly);
 
 // IMPORTANT: If using base64 image uploads (AllowBase64ImageUpload = true),
 // increase SignalR message size limit to support large images
@@ -567,11 +570,11 @@ public class BoldItem : ToolbarItemBase
 By default, `AllowOverrides = true` lets your items replace built-in ones. Set to `false` to prevent overrides:
 
 ```csharp
+// Advanced configuration with options
 builder.Services.AddZauberRte(options =>
 {
-    options.Assemblies.Add(typeof(Program).Assembly);
     options.AllowOverrides = false;  // Your items won't replace built-ins
-});
+}, typeof(Program).Assembly, typeof(MyPlugin.Class).Assembly);
 ```
 
 **[→ Extension Guide](QUICK_START_EXTENDING.md)** - Full documentation with copy-paste templates for toolbar items and custom panels
