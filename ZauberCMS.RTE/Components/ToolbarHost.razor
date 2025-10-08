@@ -1,5 +1,5 @@
 @using ZauberCMS.RTE.Models
-@inject ToolbarDiscoveryService ToolbarDiscovery
+@inject ToolbarItemFactory ToolbarFactory
 
 @{
     var effectiveLayout = ToolbarLayout?.GetEffectiveLayout() ?? [];
@@ -14,7 +14,7 @@
             <div class="rte-toolbar-block @block.CssClass">
                 @foreach (var itemId in block.Items)
                 {
-                    var item = ToolbarDiscovery.GetItem(itemId);
+                    var item = ToolbarFactory.GetItem(itemId);
                     if (item != null)
                     {
                         @if (item.ItemType == ToolbarItemType.Dropdown)
@@ -43,7 +43,7 @@
         }
         else if (layoutItem is ToolbarItemReference itemRef)
         {
-            var item = ToolbarDiscovery.GetItem(itemRef.ItemId);
+            var item = ToolbarFactory.GetItem(itemRef.ItemId);
             if (item != null)
             {
                 <div class="rte-toolbar-single-item @itemRef.CssClass">

@@ -6,11 +6,21 @@ using ZauberCMS.RTE.Models;
 namespace ZauberCMS.RTE.Services;
 
 /// <summary>
+/// Metadata about a discovered toolbar item type
+/// </summary>
+public class ToolbarItemMetadata
+{
+    public required string Id { get; init; }
+    public required Type Type { get; init; }
+    public IToolbarItem? CachedInstance { get; set; }
+}
+
+/// <summary>
 /// Service for discovering and managing toolbar items from assemblies
 /// </summary>
 public class ToolbarDiscoveryService(ILogger<ToolbarDiscoveryService> logger, IServiceProvider serviceProvider)
 {
-    private readonly Dictionary<string, IToolbarItem> _toolbarItems = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ToolbarItemMetadata> _toolbarItems = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Assembly> _scannedAssemblies = [];
 
     /// <summary>
@@ -48,20 +58,34 @@ public class ToolbarDiscoveryService(ILogger<ToolbarDiscoveryService> logger, IS
                 {
                     try
                     {
-                        var instance = (IToolbarItem)ActivatorUtilities.CreateInstance(serviceProvider, type);
-                        if (_toolbarItems.ContainsKey(instance.Id))
+                        // Create a temporary instance in a scope to get the ID
+                        var tempInstance = CreateTemporaryInstance(type);
+                        if (tempInstance == null)
                         {
-                            logger.LogWarning("Toolbar item with ID '{Id}' already exists. Skipping duplicate from {Type}",
-                                instance.Id, type.FullName);
+                            logger.LogWarning("Toolbar item {Type} could not be instantiated and will be skipped", type.FullName);
                             continue;
                         }
 
-                        _toolbarItems[instance.Id] = instance;
-                        logger.LogInformation("Registered toolbar item '{Id}' from {Type}", instance.Id, type.FullName);
+                        var id = tempInstance.Id;
+                        if (_toolbarItems.ContainsKey(id))
+                        {
+                            logger.LogWarning("Toolbar item with ID '{Id}' already exists. Skipping duplicate from {Type}",
+                                id, type.FullName);
+                            continue;
+                        }
+
+                        _toolbarItems[id] = new ToolbarItemMetadata
+                        {
+                            Id = id,
+                            Type = type,
+                            CachedInstance = null // Will be instantiated per-scope by factory
+                        };
+                        
+                        logger.LogInformation("Registered toolbar item '{Id}' from {Type}", id, type.FullName);
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "Failed to instantiate toolbar item {Type}", type.FullName);
+                        logger.LogError(ex, "Failed to register toolbar item {Type}", type.FullName);
                     }
                 }
 
@@ -75,27 +99,34 @@ public class ToolbarDiscoveryService(ILogger<ToolbarDiscoveryService> logger, IS
     }
 
     /// <summary>
-    /// Gets all discovered toolbar items
+    /// Creates a temporary instance in a scope just to read metadata (like ID)
+    /// The instance is discarded after reading the ID
     /// </summary>
-    public IReadOnlyDictionary<string, IToolbarItem> GetAllItems() => _toolbarItems;
+    private IToolbarItem? CreateTemporaryInstance(Type type)
+    {
+        try
+        {
+            // Create a scope to safely resolve scoped services
+            using var scope = serviceProvider.CreateScope();
+            return (IToolbarItem)ActivatorUtilities.CreateInstance(scope.ServiceProvider, type);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create temporary instance of {Type}", type.FullName);
+            return null;
+        }
+    }
 
     /// <summary>
-    /// Gets a toolbar item by ID
+    /// Gets all discovered toolbar item metadata
     /// </summary>
-    public IToolbarItem? GetItem(string id) =>
-        _toolbarItems.TryGetValue(id, out var item) ? item : null;
+    public IReadOnlyDictionary<string, ToolbarItemMetadata> GetAllItemMetadata() => _toolbarItems;
 
     /// <summary>
-    /// Gets toolbar items by placement category
+    /// Gets toolbar item metadata by ID
     /// </summary>
-    public IEnumerable<IToolbarItem> GetItemsByPlacement(ToolbarPlacement placement) =>
-        _toolbarItems.Values.Where(item => item.Placement == placement);
-
-    /// <summary>
-    /// Gets toolbar items filtered by the provided predicate
-    /// </summary>
-    public IEnumerable<IToolbarItem> GetItems(Func<IToolbarItem, bool> predicate) =>
-        _toolbarItems.Values.Where(predicate);
+    public ToolbarItemMetadata? GetItemMetadata(string id) =>
+        _toolbarItems.TryGetValue(id, out var metadata) ? metadata : null;
 
     /// <summary>
     /// Checks if a toolbar item with the specified ID exists
@@ -103,7 +134,7 @@ public class ToolbarDiscoveryService(ILogger<ToolbarDiscoveryService> logger, IS
     public bool HasItem(string id) => _toolbarItems.ContainsKey(id);
 
     /// <summary>
-    /// Registers a toolbar item manually
+    /// Registers a toolbar item instance manually (for default items or pre-created instances)
     /// </summary>
     public void RegisterItem(IToolbarItem item)
     {
@@ -113,8 +144,29 @@ public class ToolbarDiscoveryService(ILogger<ToolbarDiscoveryService> logger, IS
             return;
         }
 
-        _toolbarItems[item.Id] = item;
+        _toolbarItems[item.Id] = new ToolbarItemMetadata
+        {
+            Id = item.Id,
+            Type = item.GetType(),
+            CachedInstance = item // Pre-created instance
+        };
+        
         logger.LogInformation("Manually registered toolbar item '{Id}'", item.Id);
+    }
+
+    /// <summary>
+    /// Registers toolbar item metadata manually
+    /// </summary>
+    public void RegisterMetadata(ToolbarItemMetadata metadata)
+    {
+        if (_toolbarItems.ContainsKey(metadata.Id))
+        {
+            logger.LogWarning("Toolbar item with ID '{Id}' already exists. Skipping duplicate registration", metadata.Id);
+            return;
+        }
+
+        _toolbarItems[metadata.Id] = metadata;
+        logger.LogInformation("Manually registered toolbar item metadata '{Id}'", metadata.Id);
     }
 }
 
@@ -203,6 +255,9 @@ public static class ZauberRteServiceCollectionExtensions
 
             return discoveryService;
         });
+
+        // Register the factory as scoped - this allows toolbar items to use scoped services
+        services.AddScoped<ToolbarItemFactory>();
 
         // Register the JS runtime
         services.AddScoped<IZauberJsRuntime, ZauberJsRuntime>();

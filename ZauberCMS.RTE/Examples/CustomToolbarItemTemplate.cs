@@ -7,16 +7,41 @@ namespace ZauberCMS.RTE.Examples;
 /// Copy this file to your project and customize as needed.
 /// 
 /// Dependency Injection:
-/// You can inject services via constructor parameters.
-/// Example: public CustomToolbarItemTemplate(ILogger&lt;CustomToolbarItemTemplate&gt; logger, IMyService myService)
+/// - Simple items: No constructor needed
+/// - Items with dependencies: Add constructor parameters for any services
 /// </summary>
+/// 
+/// Example with dependencies:
+/// public class CustomToolbarItemTemplate(ILogger<CustomToolbarItemTemplate> logger, IMyService myService) : ToolbarItemBase
+/// {
+///     public override string Id => "my-custom-item";
+///     
+///     public override async Task ExecuteAsync(IEditorApi api)
+///     {
+///         logger.LogInformation("Executing custom item");
+///         await myService.DoSomethingAsync();
+///     }
+/// }
 public class CustomToolbarItemTemplate : ToolbarItemBase
 {
-    // Optional: Inject dependencies via constructor
+    // ---- Option 1: No Dependencies (most common) ----
+    // Just inherit and override properties - no constructor needed
+    
+    // ---- Option 2: With Dependencies ----
+    // Uncomment to inject services:
     // private readonly ILogger<CustomToolbarItemTemplate> _logger;
-    // public CustomToolbarItemTemplate(ILogger<CustomToolbarItemTemplate> logger)
+    // private readonly IMyService _myService;
+    // 
+    // public CustomToolbarItemTemplate(
+    //     ILogger<CustomToolbarItemTemplate> logger,
+    //     IMyService myService)
     // {
     //     _logger = logger;
+    //     _myService = myService;
+    //     
+    //     // IMPORTANT: Keep constructors lightweight!
+    //     // Don't do DB queries, file I/O, or expensive work here.
+    //     // Just store the injected services. Do actual work in ExecuteAsync().
     // }
     /// <summary>
     /// Unique identifier for this toolbar item (used in toolbar layout configuration)

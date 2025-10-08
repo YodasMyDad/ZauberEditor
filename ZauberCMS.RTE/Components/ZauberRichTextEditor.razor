@@ -1,7 +1,7 @@
 @using ZauberCMS.RTE.Models
 @implements IDisposable
 @inject IZauberJsRuntime JsRuntime
-@inject ToolbarDiscoveryService ToolbarDiscovery
+@inject ToolbarItemFactory ToolbarFactory
 @inject IJSRuntime JSRuntime
 
 <div class="zauber-rte @GetThemeClass()" id="@_editorId" @onclick="HandleEditorClick">
@@ -190,14 +190,14 @@
             await WaitForJavaScriptAsync();
 
             // Register all keyboard shortcuts with JavaScript to prevent browser defaults
-            var shortcuts = ToolbarDiscovery.GetAllItems().Values
+            var shortcuts = ToolbarFactory.GetAllItems()
                 .Where(item => !string.IsNullOrEmpty(item.Shortcut))
                 .Select(item => item.Shortcut)
                 .ToArray();
             await JSRuntime.InvokeVoidAsync("ZauberRTE.shortcuts.registerShortcuts", _editorId, shortcuts);
 
             // Register all tracked tags from toolbar items for dynamic mark detection
-            var trackedTags = ToolbarDiscovery.GetAllItems().Values
+            var trackedTags = ToolbarFactory.GetAllItems()
                 .Where(item => item.TrackedTags.Length > 0)
                 .SelectMany(item => item.TrackedTags)
                 .Distinct()
@@ -206,7 +206,7 @@
 
             // Build tag normalization map (alternate tag -> primary tag)
             var tagNormalizationMap = new Dictionary<string, string>();
-            foreach (var item in ToolbarDiscovery.GetAllItems().Values.Where(i => i.TrackedTags.Length > 0))
+            foreach (var item in ToolbarFactory.GetAllItems().Where(i => i.TrackedTags.Length > 0))
             {
                 var primaryTag = item.PrimaryTag ?? item.Id;
                 
@@ -432,7 +432,7 @@
         var contentId = _isSourceView ? $"{_editorId}-source" : $"{_editorId}-content";
         await JSRuntime.InvokeVoidAsync("eval", $"document.getElementById('{contentId}')?.focus()");
 
-        var item = ToolbarDiscovery.GetItem(commandId);
+        var item = ToolbarFactory.GetItem(commandId);
         if (item == null) return;
 
         var api = new EditorApi(this, JsRuntime, _editorId);
@@ -457,9 +457,9 @@
     private async Task<bool> HandleKeyboardShortcutAsync(ZauberKeyboardEventArgs args)
     {
         // Check all registered toolbar items for matching shortcuts
-        var allItems = ToolbarDiscovery.GetAllItems();
+        var allItems = ToolbarFactory.GetAllItems();
         
-        foreach (var item in allItems.Values)
+        foreach (var item in allItems)
         {
             if (!string.IsNullOrEmpty(item.Shortcut) && 
                 args.MatchesShortcut(item.Shortcut) && 
@@ -473,7 +473,7 @@
         // Additional fallback for Ctrl+Shift+Z as alternative redo shortcut
         if (args is { CtrlKey: true, ShiftKey: true, Key: "z" })
         {
-            var redoItem = ToolbarDiscovery.GetItem("redo");
+            var redoItem = ToolbarFactory.GetItem("redo");
             if (redoItem?.IsEnabled(_currentState) == true)
             {
                 await HandleToolbarCommandAsync("redo");

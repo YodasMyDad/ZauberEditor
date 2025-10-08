@@ -126,7 +126,33 @@ public class DatabaseSearchItem : ToolbarItemBase
 }
 ```
 
-**Note**: Toolbar items are instantiated once during startup using `ActivatorUtilities.CreateInstance`, so all registered services are available for injection.
+**Important Notes:**
+- Toolbar items are discovered at startup (to read IDs), then instantiated per-scope when needed
+- **Keep constructors lightweight** - don't do DB queries, file I/O, or expensive work in constructors
+- Store injected services in fields, do the actual work in `ExecuteAsync()`
+
+**Bad example (slow startup):**
+```csharp
+public class MyItem(DbContext db) : ToolbarItemBase
+{
+    private readonly int _count = db.Users.Count(); // ❌ Runs at startup!
+    // ...
+}
+```
+
+**Good example (fast startup):**
+```csharp
+public class MyItem(DbContext db) : ToolbarItemBase
+{
+    private readonly DbContext _db = db; // ✓ Just stores reference
+    
+    public override async Task ExecuteAsync(IEditorApi api)
+    {
+        var count = await _db.Users.CountAsync(); // ✓ Work done here
+        // ...
+    }
+}
+```
 
 ---
 
