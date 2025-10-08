@@ -4,9 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/)
 
-**This project is in Beta release, so I am still testing and fixing any bugs. Please report any issues you find.**
-
-A modern, extensible rich-text editor component for Blazor applications. Built with performance, accessibility, and developer experience in mind.
+A modern, extensible rich-text editor component for Blazor applications. Built with performance, accessibility, and developer experience in mind. [Built to be part of ZauberCMS](https://github.com/YodasMyDad/ZauberCMS), but released as own package.
 
 ## Features
 
@@ -63,6 +61,7 @@ var app = builder.Build();
 ```
 
 **Note about SignalR Configuration:**
+
 - Base64-encoded images can be large (a 50KB image becomes ~67KB when base64-encoded)
 - The default SignalR message size limit is 32KB
 - If you enable base64 image uploads, you must increase this limit
@@ -114,6 +113,7 @@ Add the required CSS and JavaScript files to your `App.razor` (or `_Host.cshtml`
 ```
 
 **Important Notes:**
+
 - The Zauber RTE scripts must be loaded after the Blazor framework script
 - Font Awesome is bundled for the toolbar icons
 - All editor, panel, and component styles are consolidated in `zauber-editor.css`
@@ -209,6 +209,7 @@ public class MyCustomItem : ToolbarItemBase
 ```
 
 Built-in shortcuts:
+
 - **Bold**: Ctrl+B
 - **Italic**: Ctrl+I  
 - **Underline**: Ctrl+U
@@ -222,25 +223,25 @@ Built-in shortcuts:
 
 ### Properties
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `Value` | `string?` | The HTML content of the editor |
-| `Settings` | `EditorSettings` | Configuration settings |
-| `ToolbarLayout` | `ToolbarLayout` | Toolbar layout configuration |
-| `Theme` | `Theme` | Visual theme (Light, Dark, Auto) |
-| `ReadOnly` | `bool` | Whether the editor is read-only |
+| Property        | Type             | Description                      |
+| --------------- | ---------------- | -------------------------------- |
+| `Value`         | `string?`        | The HTML content of the editor   |
+| `Settings`      | `EditorSettings` | Configuration settings           |
+| `ToolbarLayout` | `ToolbarLayout`  | Toolbar layout configuration     |
+| `Theme`         | `Theme`          | Visual theme (Light, Dark, Auto) |
+| `ReadOnly`      | `bool`           | Whether the editor is read-only  |
 
 ### Events
 
-| Event | Type | Description |
-|-------|------|-------------|
-| `ValueChanged` | `EventCallback<string?>` | Fired when content changes |
-| `OnChange` | `EventCallback<EditorChangeArgs>` | Detailed change information |
-| `OnKeyDown` | `EventCallback<ZauberKeyboardEventArgs>` | Keyboard events |
-| `OnSelectionChanged` | `EventCallback<SelectionChangedArgs>` | Selection changes |
-| `OnPaste` | `EventCallback<PasteArgs>` | Paste events |
-| `OnImageResized` | `EventCallback<ImageResizedArgs>` | Image resize events |
-| `OnCommandExecuted` | `EventCallback<CommandExecutedArgs>` | Toolbar command execution |
+| Event                | Type                                     | Description                 |
+| -------------------- | ---------------------------------------- | --------------------------- |
+| `ValueChanged`       | `EventCallback<string?>`                 | Fired when content changes  |
+| `OnChange`           | `EventCallback<EditorChangeArgs>`        | Detailed change information |
+| `OnKeyDown`          | `EventCallback<ZauberKeyboardEventArgs>` | Keyboard events             |
+| `OnSelectionChanged` | `EventCallback<SelectionChangedArgs>`    | Selection changes           |
+| `OnPaste`            | `EventCallback<PasteArgs>`               | Paste events                |
+| `OnImageResized`     | `EventCallback<ImageResizedArgs>`        | Image resize events         |
+| `OnCommandExecuted`  | `EventCallback<CommandExecutedArgs>`     | Toolbar command execution   |
 
 ## Toolbar Customization
 
@@ -323,6 +324,7 @@ ToolbarLayout = ToolbarLayout.FromItems(
 ```
 
 The headings dropdown automatically:
+
 - Shows the currently active heading (H1, H2, etc.)
 - Highlights the selected heading in the dropdown menu
 - Displays heading previews with appropriate font sizes
@@ -578,4 +580,3 @@ builder.Services.AddZauberRte(options =>
 ```
 
 **[→ Extension Guide](QUICK_START_EXTENDING.md)** - Full documentation with copy-paste templates for toolbar items and custom panels
-
