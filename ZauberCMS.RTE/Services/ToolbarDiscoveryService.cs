@@ -8,10 +8,10 @@ namespace ZauberCMS.RTE.Services;
 /// <summary>
 /// Service for discovering and managing toolbar items from assemblies
 /// </summary>
-public class ToolbarDiscoveryService(ILogger<ToolbarDiscoveryService> logger)
+public class ToolbarDiscoveryService(ILogger<ToolbarDiscoveryService> logger, IServiceProvider serviceProvider)
 {
     private readonly Dictionary<string, IToolbarItem> _toolbarItems = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<Assembly> _scannedAssemblies = new();
+    private readonly List<Assembly> _scannedAssemblies = [];
 
     /// <summary>
     /// Scans the specified assemblies for IToolbarItem implementations
@@ -27,18 +27,28 @@ public class ToolbarDiscoveryService(ILogger<ToolbarDiscoveryService> logger)
 
             try
             {
-                var toolbarItemTypes = assembly.GetTypes()
-                    .Where(t => typeof(IToolbarItem).IsAssignableFrom(t) &&
+                Type[] types;
+                try
+                {
+                    types = assembly.GetTypes();
+                }
+                catch (ReflectionTypeLoadException ex)
+                {
+                    types = ex.Types!.Where(t => t != null).ToArray()!;
+                }
+
+                var toolbarItemTypes = types
+                    .Where(t => t != null &&
+                               typeof(IToolbarItem).IsAssignableFrom(t) &&
                                !t.IsAbstract &&
-                               !t.IsInterface &&
-                               t.GetConstructor(Type.EmptyTypes) != null)
+                               !t.IsInterface)
                     .ToList();
 
                 foreach (var type in toolbarItemTypes)
                 {
                     try
                     {
-                        var instance = (IToolbarItem)Activator.CreateInstance(type)!;
+                        var instance = (IToolbarItem)ActivatorUtilities.CreateInstance(serviceProvider, type);
                         if (_toolbarItems.ContainsKey(instance.Id))
                         {
                             logger.LogWarning("Toolbar item with ID '{Id}' already exists. Skipping duplicate from {Type}",
@@ -166,7 +176,9 @@ public static class ZauberRteServiceCollectionExtensions
         // Register the discovery service with initialization
         services.AddSingleton(provider =>
         {
-            var discoveryService = new ToolbarDiscoveryService(provider.GetRequiredService<ILogger<ToolbarDiscoveryService>>());
+            var discoveryService = new ToolbarDiscoveryService(
+                provider.GetRequiredService<ILogger<ToolbarDiscoveryService>>(),
+                provider);
             
             if (options.AllowOverrides)
             {

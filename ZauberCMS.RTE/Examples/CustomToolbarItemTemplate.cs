@@ -5,9 +5,19 @@ namespace ZauberCMS.RTE.Examples;
 /// <summary>
 /// Example template for creating a custom toolbar item.
 /// Copy this file to your project and customize as needed.
+/// 
+/// Dependency Injection:
+/// You can inject services via constructor parameters.
+/// Example: public CustomToolbarItemTemplate(ILogger&lt;CustomToolbarItemTemplate&gt; logger, IMyService myService)
 /// </summary>
 public class CustomToolbarItemTemplate : ToolbarItemBase
 {
+    // Optional: Inject dependencies via constructor
+    // private readonly ILogger<CustomToolbarItemTemplate> _logger;
+    // public CustomToolbarItemTemplate(ILogger<CustomToolbarItemTemplate> logger)
+    // {
+    //     _logger = logger;
+    // }
     /// <summary>
     /// Unique identifier for this toolbar item (used in toolbar layout configuration)
     /// </summary>

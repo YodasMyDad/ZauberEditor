@@ -26,11 +26,11 @@ public class EmojiItem : ToolbarItemBase
 
 ### 3. Register It
 ```csharp
-// Program.cs
-builder.Services.AddZauberRte(options =>
-{
-    options.Assemblies.Add(typeof(Program).Assembly);
-});
+// Program.cs - will automatically scan for toolbar items
+builder.Services.AddZauberRte(typeof(Program).Assembly);
+
+// Or scan multiple assemblies
+builder.Services.AddZauberRte(typeof(Program).Assembly, typeof(MyPlugin.Class).Assembly);
 ```
 
 ### 4. Add to Toolbar
@@ -81,8 +81,52 @@ By default, overrides are enabled. To disable:
 builder.Services.AddZauberRte(options =>
 {
     options.AllowOverrides = false;  // Prevent replacements
-});
+}, typeof(Program).Assembly);
 ```
+
+---
+
+## 💉 Dependency Injection in Toolbar Items
+
+Toolbar items support full dependency injection. Just add constructor parameters:
+
+```csharp
+public class DatabaseSearchItem : ToolbarItemBase
+{
+    private readonly IMyDatabaseService _database;
+    private readonly ILogger<DatabaseSearchItem> _logger;
+    
+    // Dependencies injected automatically
+    public DatabaseSearchItem(
+        IMyDatabaseService database, 
+        ILogger<DatabaseSearchItem> logger)
+    {
+        _database = database;
+        _logger = logger;
+    }
+    
+    public override string Id => "db-search";
+    public override string Label => "Search Database";
+    public override string IconCss => "fa-database";
+    public override ToolbarPlacement Placement => ToolbarPlacement.Custom;
+    
+    public override async Task ExecuteAsync(EditorApi api)
+    {
+        try
+        {
+            var results = await _database.SearchAsync(api.GetSelectedText());
+            // ... insert results into editor
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Database search failed");
+            await api.ShowToastAsync("Search failed", ToastType.Error);
+        }
+    }
+}
+```
+
+**Note**: Toolbar items are instantiated once during startup using `ActivatorUtilities.CreateInstance`, so all registered services are available for injection.
 
 ---
 
