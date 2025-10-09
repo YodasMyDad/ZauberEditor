@@ -225,9 +225,9 @@
 
         try
         {
-            // Build the image HTML with responsive inline styles
-            var imgBuilder = HtmlBuilder.Image(imageSrc, _altText)
-                .Style("max-width: 100%; height: auto; display: block;");
+            // Build the image HTML without inline styles
+            // CSS in the editor will handle responsive sizing until user manually resizes
+            var imgBuilder = HtmlBuilder.Image(imageSrc, _altText);
 
             var html = imgBuilder.Build();
 

@@ -299,6 +299,13 @@ button.rte-toolbar-btn {
     outline-offset: 2px;
 }
 
+/* Make images responsive in editor by default (only when no explicit dimensions are set) */
+.rte-content img:not([style*="width"]):not([width]) {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
 /* Prevent text selection during resize */
 .rte-content.resizing {
     user-select: none;
