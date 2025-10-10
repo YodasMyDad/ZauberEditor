@@ -260,6 +260,9 @@
                 await JsRuntime.Mutation.SetHtmlAsync(_editorId, "<p>&nbsp;</p>");
             }
 
+            // Record initial state for undo history
+            await JsRuntime.History.RecordStateAsync(_editorId);
+
             _isInitialized = true;
         }
         catch
@@ -489,13 +492,12 @@
         var html = await JsRuntime.Mutation.GetHtmlAsync(_editorId);
         if (forceUpdate || html != _currentHtml)
         {
-            // Record the previous state for undo before changing
-            if (_currentHtml != null && html != _currentHtml)
-            {
-                await JsRuntime.History.RecordStateAsync(_editorId);
-            }
-
             _currentHtml = html;
+            
+            // Record state after content change for undo history (typing, paste, etc.)
+            // This records the NEW state after a change
+            await JsRuntime.History.RecordStateAsync(_editorId);
+            
             await ValueChanged.InvokeAsync(html);
 
             var changeArgs = new EditorChangeArgs
@@ -622,8 +624,9 @@
     [JSInvokable]
     public async Task OnContentModifiedAsync()
     {
-        // Called from JavaScript when content is modified (e.g., Enter key, Tab, etc.)
+        // Called from JavaScript when content is modified (e.g., Enter key, Tab, undo/redo, etc.)
         await UpdateContentAsync();
+        await UpdateStateAsync();
     }
 
     public void Dispose()

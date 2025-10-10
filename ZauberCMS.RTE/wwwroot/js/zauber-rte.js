@@ -2003,6 +2003,22 @@ window.ZauberRTE = {
                             window.ZauberRTE.selection._notifyContentModified(editorId);
                             return;
                         }
+                    } else if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+                        // Undo shortcut (Ctrl+Z / Cmd+Z)
+                        event.preventDefault();
+                        if (window.ZauberRTE.history.undo(editorId)) {
+                            // Notify Blazor of content change and state update
+                            window.ZauberRTE.selection._notifyContentModified(editorId);
+                        }
+                        return;
+                    } else if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'y') {
+                        // Redo shortcut (Ctrl+Y / Cmd+Y)
+                        event.preventDefault();
+                        if (window.ZauberRTE.history.redo(editorId)) {
+                            // Notify Blazor of content change and state update
+                            window.ZauberRTE.selection._notifyContentModified(editorId);
+                        }
+                        return;
                     } else if (window.ZauberRTE.shortcuts.shouldPreventDefault(editorId, event)) {
                         // Prevent default browser behavior for registered shortcuts
                         // Let Blazor handle these via custom toolbar items
