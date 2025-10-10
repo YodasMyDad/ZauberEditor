@@ -1953,13 +1953,17 @@ window.ZauberRTE = {
                 }
                 window.ZauberRTE._contentCallbacks[editorId] = { dotNetRef, callbackMethod };
 
-                // Ctrl+Click on links to open them
+                // Prevent default link navigation in editor
                 editor.addEventListener('click', (event) => {
-                    if ((event.ctrlKey || event.metaKey) && event.target.tagName?.toLowerCase() === 'a') {
-                        event.preventDefault();
-                        const href = event.target.getAttribute('href');
-                        if (href) {
-                            window.open(href, event.target.getAttribute('target') || '_blank');
+                    if (event.target.tagName?.toLowerCase() === 'a') {
+                        event.preventDefault(); // Always prevent default navigation
+                        
+                        // Ctrl+Click to open links in new window
+                        if (event.ctrlKey || event.metaKey) {
+                            const href = event.target.getAttribute('href');
+                            if (href) {
+                                window.open(href, event.target.getAttribute('target') || '_blank');
+                            }
                         }
                     }
                 });
