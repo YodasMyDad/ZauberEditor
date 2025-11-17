@@ -2,7 +2,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/ZauberCMS.RTE.svg)](https://www.nuget.org/packages/ZauberCMS.RTE/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/)
 
 A modern, extensible rich-text editor component for Blazor applications. Built with performance, accessibility, and developer experience in mind. [Built to be part of ZauberCMS](https://github.com/YodasMyDad/ZauberCMS), but released as own package.
 
