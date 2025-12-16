@@ -1,8 +1,9 @@
 @using ZauberCMS.RTE.Models
+@inject IJSRuntime JSRuntime
 
 @if (_isOpen)
 {
-    <div class="rte-slideout-overlay" @onclick="CloseAsync">
+    <div id="@_overlayId" class="rte-slideout-overlay @ThemeClass" @onclick="CloseAsync">
         <div class="rte-slideout-panel" @onclick:stopPropagation="true">
             <div class="rte-slideout-header">
                 <h3 class="rte-slideout-title">@_currentTitle</h3>
@@ -30,12 +31,15 @@
 
 @code {
     [Parameter] public IEditorApi? Api { get; set; }
+    [Parameter] public string? ParentId { get; set; }
+    [Parameter] public string? ThemeClass { get; set; }
 
     private bool _isOpen;
     private Type? _currentComponent;
     private Dictionary<string, object>? _currentParameters;
     private string? _currentTitle;
     private IEditorApi? _api;
+    private readonly string _overlayId = $"rte-overlay-{Guid.NewGuid():N}";
 
     public async Task OpenAsync(Type componentType, object? parameters = null)
     {
@@ -46,10 +50,19 @@
 
         _isOpen = true;
         await InvokeAsync(StateHasChanged);
+
+        // Move overlay to document.body to escape any parent containing blocks
+        await JSRuntime.InvokeVoidAsync("ZauberRTE.portal.moveToBody", _overlayId);
     }
 
     public async Task CloseAsync()
     {
+        // Return overlay to its original parent before hiding
+        if (!string.IsNullOrEmpty(ParentId))
+        {
+            await JSRuntime.InvokeVoidAsync("ZauberRTE.portal.returnToParent", _overlayId, ParentId);
+        }
+
         _isOpen = false;
         _currentComponent = null;
         _currentParameters = null;

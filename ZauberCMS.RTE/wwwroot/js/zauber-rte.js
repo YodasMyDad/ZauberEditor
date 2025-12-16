@@ -3613,5 +3613,22 @@ window.ZauberRTE = {
         clearHistory: function(editorId) {
             this._history.delete(editorId);
         }
+    },
+
+    // Portal API (for moving elements to document.body to escape containing blocks)
+    portal: {
+        moveToBody: function(elementId) {
+            const el = document.getElementById(elementId);
+            if (el) {
+                document.body.appendChild(el);
+            }
+        },
+        returnToParent: function(elementId, parentId) {
+            const el = document.getElementById(elementId);
+            const parent = document.getElementById(parentId);
+            if (el && parent) {
+                parent.appendChild(el);
+            }
+        }
     }
 };

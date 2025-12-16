@@ -62,7 +62,10 @@
 
 </div>
 
-<SlideOutPanel @ref="_slideOutPanel" Api="@_editorApi" />
+<SlideOutPanel @ref="_slideOutPanel"
+               Api="@_editorApi"
+               ParentId="@_editorId"
+               ThemeClass="@GetThemeClass()" />
 
 @code {
     private ElementReference _contentEditableRef;

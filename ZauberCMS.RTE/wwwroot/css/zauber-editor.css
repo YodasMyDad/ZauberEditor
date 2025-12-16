@@ -639,6 +639,54 @@ button.rte-toolbar-btn {
     background: #4b5563 !important;
 }
 
+/* ===== Portal Dark Theme (for panels moved to document.body) ===== */
+.rte-slideout-overlay.rte-theme-dark .rte-slideout-panel {
+    background: #1f2937;
+    color: #f9fafb;
+}
+
+.rte-slideout-overlay.rte-theme-dark .rte-slideout-header {
+    border-color: #374151;
+}
+
+.rte-slideout-overlay.rte-theme-dark .rte-slideout-title {
+    color: #f9fafb;
+}
+
+.rte-slideout-overlay.rte-theme-dark .rte-slideout-close:hover {
+    background: #374151;
+    color: #f9fafb;
+}
+
+.rte-slideout-overlay.rte-theme-dark .rte-label {
+    color: #e5e7eb;
+}
+
+.rte-slideout-overlay.rte-theme-dark .rte-input,
+.rte-slideout-overlay.rte-theme-dark .rte-select {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.rte-slideout-overlay.rte-theme-dark .rte-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23f9fafb' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
+.rte-slideout-overlay.rte-theme-dark .rte-panel-actions {
+    border-color: #374151;
+}
+
+.rte-slideout-overlay.rte-theme-dark .rte-btn-secondary {
+    background: #374151 !important;
+    color: #f9fafb !important;
+    border-color: #4b5563 !important;
+}
+
+.rte-slideout-overlay.rte-theme-dark .rte-btn-secondary:hover:not(:disabled) {
+    background: #4b5563 !important;
+}
+
 /* ===== Image Resize Handles ===== */
 .rte-image-resize-handles {
     position: absolute;
