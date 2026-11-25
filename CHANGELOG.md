@@ -41,6 +41,8 @@ see [Migrating to 3.0](README.md#migrating-to-30) for every change, with before 
 - `EditorContentTooLargeException`, thrown by `GetHtmlAsync` and the other reads when content is larger than
   `MaxContentBytes`.
 - Symbols package (`.snupkg`), SourceLink, and the library is marked trimmable and AOT-compatible.
+- GitHub Actions CI: every push and pull request is built and tested; pushes to `master` publish to NuGet.org and
+  tag the release.
 
 ### Changed
 

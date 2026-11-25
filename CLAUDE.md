@@ -56,10 +56,16 @@ internal.
 
 ```powershell
 dotnet build ZauberRTE.sln                  # zero warnings (warnings are errors)
-dotnet test ZauberRTE.sln                   # library tests
+dotnet test --solution ZauberRTE.sln        # library tests
 dotnet run --project ZauberRTE.Web          # demo app (Server, WebAssembly and Auto pages)
-./build-nuget.ps1                           # Release build + pack (.nupkg + .snupkg) into ./nupkgs/
+./build-nuget.ps1                           # Release build + tests + pack (.nupkg + .snupkg) into ./nupkgs/
 ```
+
+**Releases are automatic.** `.github/workflows/ci.yml` builds and tests every push and pull request to `master`. On a
+push to `master` it publishes `ZauberCMS.RTE` to NuGet.org (secret `NUGET_API_KEY`), tags `vX.Y.Z` and commits the
+stamped `<Version>` back with `[skip ci]`. Version rule: if no tag exists for the csproj `<Version>`, that exact version
+is published; otherwise the patch of the highest version is bumped. So for a minor/major release, set `<Version>` in
+`ZauberCMS.RTE.csproj` (e.g. `3.1.0`) before pushing; for a patch release, just push.
 
 ## How it works
 
@@ -141,8 +147,8 @@ dotnet run --project ZauberRTE.Web          # demo app (Server, WebAssembly and 
   no icon font ships.
 - Vendored JS libraries are committed ES-module builds; any npm script must be cross-platform (no `cp`/`mkdir -p`).
 - Versioning is semver. Breaking changes need a major version and a "Migrating to X.0" section in `README.md` (3.0.0
-  was the audit release). Every release gets a `CHANGELOG.md` entry (Keep a Changelog). Bump `<Version>` and name the
-  version in the release commit message.
+  was the audit release). Every release gets a `CHANGELOG.md` entry (Keep a Changelog). For minor/major releases set
+  `<Version>` and name the version in the commit message; CI publishes on push to `master` (see Build & run).
 
 ### C# (C# 14 / .NET 10)
 
