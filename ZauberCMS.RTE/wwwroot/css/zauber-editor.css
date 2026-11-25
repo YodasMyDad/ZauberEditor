@@ -511,7 +511,6 @@
         color: var(--rte-color-text-muted);
         cursor: default;
         font-size: var(--rte-font-size-sm);
-        user-select: none;
 
         &::before {
             content: "\25B6";

@@ -46,12 +46,23 @@ export class EmbedTool {
 
     constructor(ctx) {
         this.#ctx = ctx;
+        const options = { signal: ctx.signal };
+        ctx.content.addEventListener('mouseup', (event) => {
+            if (this.#target(event)) {
+                event.preventDefault();
+            }
+        }, options);
         ctx.content.addEventListener('click', ctx.channel.guard((event) => {
-            const embed = closestWithin(event.target, EMBED_SELECTOR, ctx.content);
-            if (embed && !ctx.config.readOnly) {
+            const embed = this.#target(event);
+            if (embed) {
                 ctx.ranges.select(nodeRange(ctx.content, embed));
             }
-        }), { signal: ctx.signal });
+        }), options);
+    }
+
+    #target(event) {
+        const { config, content } = this.#ctx;
+        return config.readOnly ? null : closestWithin(event.target, EMBED_SELECTOR, content);
     }
 
     sync(range) {
