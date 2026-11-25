@@ -62,7 +62,8 @@ dotnet run --project ZauberRTE.Web          # demo app (Server, WebAssembly and 
 ```
 
 **Releases are automatic.** `.github/workflows/ci.yml` builds and tests every push and pull request to `master`. On a
-push to `master` it publishes `ZauberCMS.RTE` to NuGet.org (secret `NUGET_API_KEY`), tags `vX.Y.Z` and commits the
+push to `master` it publishes `ZauberCMS.RTE` to NuGet.org via Trusted Publishing (`NuGet/login`, OIDC; no API key —
+needs the nuget.org policy for this repo + `ci.yml` and the `NUGET_USER` secret), tags `vX.Y.Z` and commits the
 stamped `<Version>` back with `[skip ci]`. Version rule: if no tag exists for the csproj `<Version>`, that exact version
 is published; otherwise the patch of the highest version is bumped. So for a minor/major release, set `<Version>` in
 `ZauberCMS.RTE.csproj` (e.g. `3.1.0`) before pushing; for a patch release, just push.
