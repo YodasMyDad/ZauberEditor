@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using ZauberCMS.RTE.Models;
 using ZauberCMS.RTE.Services;
 using ZauberCMS.RTE.Tests.TestSupport;
@@ -135,5 +136,36 @@ public sealed class ToolbarRegistryTests
         withScanning[RecordingItem.ItemId].ShouldBeOfType<RecordingItem>();
         withScanning[FailingItem.ItemId].ShouldBeOfType<FailingItem>();
         withScanning["bold"].ShouldBeOfType<ShoutingBoldItem>();
+        withScanning.ShouldNotContainKey(UnconstructableItem.ItemId);
+    }
+
+    [Fact]
+    public void AnItemThatCannotBeConstructedIsSkippedAndLogged()
+    {
+        var logger = Substitute.For<ILogger<ToolbarRegistry>>();
+        logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+        var registry = Registries.Create(
+            options => options.AddToolbarItem<UnconstructableItem>().AddToolbarItem<RecordingItem>(),
+            logger);
+
+        var items = registry.CreateItemSet(new ServiceCollection().BuildServiceProvider()).Items;
+
+        items.ShouldNotContainKey(UnconstructableItem.ItemId);
+        items[RecordingItem.ItemId].ShouldBeOfType<RecordingItem>();
+        items.Count.ShouldBe(BuiltInToolbarItems.All.Count + 1);
+        var (level, message) = SubstituteCalls.Logs(logger).ShouldHaveSingleItem();
+        level.ShouldBe(LogLevel.Error);
+        message.ShouldContain(typeof(UnconstructableItem).FullName!);
+    }
+
+    [Fact]
+    public async Task RemovedIdsAreRememberedIgnoringCase()
+    {
+        await using var items = Registries.Create(options => options.RemoveToolbarItem("TABLE"))
+            .CreateItemSet(new ServiceCollection().BuildServiceProvider());
+
+        items.WasRemoved(ToolbarItemIds.Table).ShouldBeTrue();
+        items.WasRemoved("nope").ShouldBeFalse();
+        items.WasRemoved(ToolbarItemIds.Bold).ShouldBeFalse();
     }
 }

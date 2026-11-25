@@ -54,7 +54,7 @@ public sealed class ZauberRichTextEditorModeTests : EditorTestContext
     {
         List<Theme> changes = [];
         var cut = RenderEditor(parameters => parameters.Add(editor => editor.ThemeChanged, (Theme theme) => changes.Add(theme)));
-        await Callbacks.OnStateChangedAsync(new EditorSnapshot([], "p", "left", false, false, false, false, false, false, false, PrefersDark: true));
+        await Callbacks.OnStateChangedAsync(new EditorSnapshot([], "p", "left", false, false, false, false, false, false, false, false, false, false, PrefersDark: true, Words: 0, Characters: 0));
 
         cut.Find(".rte-btn-themeToggle").GetAttribute("aria-pressed").ShouldBe("true");
 
@@ -62,6 +62,19 @@ public sealed class ZauberRichTextEditorModeTests : EditorTestContext
 
         changes.ShouldBe([Theme.Light]);
         cut.Find("div.zauber-rte").ClassList.ShouldContain("rte-theme-light");
+    }
+
+    [Fact]
+    public async Task FullscreenAndPlainPasteFollowTheScriptState()
+    {
+        var cut = RenderEditor();
+        cut.Find("div.zauber-rte").ClassList.ShouldNotContain("rte-fullscreen");
+
+        await Callbacks.OnStateChangedAsync(new EditorSnapshot([], "p", "left", false, false, false, false, false, false, false, false, Fullscreen: true, PlainPaste: true, PrefersDark: false, Words: 0, Characters: 0));
+
+        cut.Find("div.zauber-rte").ClassList.ShouldContain("rte-fullscreen");
+        cut.Find(".rte-btn-fullscreen").GetAttribute("aria-pressed").ShouldBe("true");
+        cut.Find(".rte-btn-pastePlainText").GetAttribute("aria-pressed").ShouldBe("true");
     }
 
     [Fact]
@@ -88,10 +101,11 @@ public sealed class ZauberRichTextEditorModeTests : EditorTestContext
         content.GetAttribute("aria-readonly").ShouldBe("true");
         cut.Find(".rte-source-view").HasAttribute("readonly").ShouldBeTrue();
         cut.FindAll(".rte-toolbar button.rte-toolbar-btn")
-            .Where(button => !button.ClassList.Contains("rte-btn-themeToggle"))
+            .Where(button => !button.ClassList.Contains("rte-btn-themeToggle") && !button.ClassList.Contains("rte-btn-fullscreen"))
             .ShouldAllBe(button => button.HasAttribute("disabled"));
         cut.Find(".rte-btn-themeToggle").HasAttribute("disabled").ShouldBeFalse();
-        cut.Find(".rte-btn-themeToggle").GetAttribute("tabindex").ShouldBe("0");
+        cut.Find(".rte-btn-fullscreen").HasAttribute("disabled").ShouldBeFalse();
+        cut.Find(".rte-btn-fullscreen").GetAttribute("tabindex").ShouldBe("0");
         InitOptions.ShouldNotBeNull().ReadOnly.ShouldBeTrue();
     }
 

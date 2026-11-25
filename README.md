@@ -38,17 +38,19 @@ Upgrading from 2.x? Read [Migrating to 3.0](#migrating-to-30) first. 3.0 is a ma
 - **Sanitised by default.** Every way HTML gets into the editor is cleaned with DOMPurify according to your
   `HtmlPolicy`, and URL schemes are allow-listed.
 - **Extensible toolbar.** Register your own buttons, toggles, dropdowns and slide-out panels, override or remove
-  built-in items by id, and arrange the toolbar in code or JSON.
-- **Formatting.** Bold, italic, underline, strikethrough, sub/superscript, inline code and code blocks, headings,
-  quotes, lists, alignment, links, images (URL or upload, with resize handles), tables, clear formatting, undo/redo
-  and an HTML source view.
+  built-in items by id, and arrange the toolbar in code or JSON. `IToolbarItemCatalog` lists the registered items for
+  a "pick your toolbar" screen, and `Shortcuts` adds key combinations such as Ctrl+S without a button.
+- **Formatting.** Bold, italic, underline, strikethrough, sub/superscript, inline code and code blocks, text and
+  highlight colours, headings, quotes, lists, indentation, alignment, links, images (URL or upload, with resize
+  handles), tables, horizontal lines, special characters, clear formatting, undo/redo, find and replace, plain-text
+  paste, full screen, an HTML source view, and live word and character counts.
 - **Office-friendly paste.** Word lists come through as real lists, empty table cells are kept, and pasted image files
   are embedded when the image settings and policy allow it.
 - **Themes.** Light, dark and auto (follows the OS), driven by CSS custom properties that you can override without
   `!important`.
 - **Accessible.** The toolbar uses roving tabindex, toggles expose `aria-pressed`, menus and panels use ARIA dialog and
   menu patterns, and focus is never trapped.
-- **Large documents.** Content bigger than a SignalR message is streamed, so you don't need to raise any limits.
+- **Large documents.** Content bigger than a SignalR message is sent in pieces, so you don't need to raise any limits.
 - **Trimming and AOT.** The library is marked `IsTrimmable` and `IsAotCompatible`, with no reflection on the default
   path.
 
@@ -120,6 +122,55 @@ The bound value is the editor's HTML. Typing updates it once the user pauses (af
 after paste, undo/redo or source-view edits. Setting the value from your code replaces the content and resets the
 undo history, and it doesn't raise `ValueChanged`.
 
+### Saving
+
+Clicking a Save button moves focus out of the editor, and the latest content reaches the bound value before the
+click handler runs, at any document size. When a save can start while the editor still has focus (a keyboard
+shortcut, a timer, a `ValueChanged` handler that awaits), or your `ValueChanged` handler is asynchronous, flush first:
+
+```razor
+<ZauberRichTextEditor @ref="_editor" @bind-Value="_html" />
+
+@code {
+    private ZauberRichTextEditor _editor = default!;
+    private string? _html;
+
+    private async Task SaveAsync()
+    {
+        await _editor.Api.FlushAsync();
+        await Articles.SaveAsync(_html);
+    }
+}
+```
+
+`FlushAsync` delivers any pending edits through `ValueChanged`, waits until its handler has finished, and does nothing
+when nothing is pending. Disposing the editor also delivers pending edits first, while the connection is alive.
+
+### Output HTML
+
+The bound value is clean, semantic HTML:
+
+- **An empty editor is `""`.** When the user clears everything, `ValueChanged` receives an empty string (never
+  `<p></p>` or `<p><br></p>`), so `[Required]` validation works. Otherwise every block is kept as the user made it,
+  including empty paragraphs before or after the text (`<p></p><p>2</p>`); only a document made entirely of empty
+  blocks is `""`. A block holding only spaces or `&nbsp;` (as Word pastes it) is written as `<p></p>`.
+- **Normal spaces.** Browsers insert `&nbsp;` for spaces typed at the edge of a text node. In the output, a single
+  `&nbsp;` at the start or end of a text node with non-space text on both sides (across an inline tag such as
+  `<strong>`) becomes a normal space, because it renders the same. A no-break space in the middle of a text node
+  (`a&nbsp;b`, as the special characters panel inserts it) is kept, and so are leading and trailing spaces in a block
+  and runs of spaces.
+- **Canonical tags.** Tags the browser creates itself, such as `<b>` or `<i>`, are written as the toolbar item's tag
+  (`<strong>`, `<em>`), and a code block has no trailing newline that doesn't show.
+- **No placeholder `<br>`s.** The editor keeps a `<br>` inside each empty block so the caret can be placed there, but
+  it never reaches the output: an empty paragraph between content is `<p></p>`, and a `<br>` that ends a block or a
+  line before a nested block (`<p>Text<br></p>`) is dropped, because browsers don't render it. HTML from 2.x with such
+  `<br>`s is cleaned on the next change, with no visual difference.
+- **Line breaks are kept.** Shift+Enter in the middle of text gives `<p>a<br>b</p>`. A break at the end of a block
+  needs two `<br>`s to show the new empty line, so `<p>a<br><br></p>` is kept exactly; only a single trailing `<br>`
+  (which shows nothing) is dropped. Setting the output back as `Value` renders identically.
+
+The same rules apply to `GetHtmlAsync`, `OnChange` and the HTML source view.
+
 ### In an `EditForm`
 
 `@bind-Value` also passes `ValueExpression`, so the editor notifies the cascading `EditContext` and validation
@@ -166,7 +217,8 @@ that strips the tags first. The demo app's `ZauberRTE.Web/Models/RequiredContent
 | `Toolbar` | `ToolbarLayout?` | `null` | The toolbar layout. Overrides `Settings.ToolbarLayout` when set. |
 | `Theme` | `Theme` | `Theme.Auto` | `Light`, `Dark` or `Auto`. Use `@bind-Theme` to follow the built-in theme toggle. |
 | `ThemeChanged` | `EventCallback<Theme>` | | Raised when the theme changes from inside the editor (theme toggle or `IEditorApi.SetThemeAsync`). |
-| `ReadOnly` | `bool` | `false` | Blocks editing, paste and drop, and disables the toolbar (except the theme toggle). Content changes and shortcuts reported by the browser are ignored while it is set. Can change at runtime. |
+| `ReadOnly` | `bool` | `false` | Blocks editing, paste and drop, and disables the toolbar (except the theme toggle and full screen). Content changes and shortcuts reported by the browser are ignored while it is set. Can change at runtime. |
+| `Shortcuts` | `IReadOnlyList<EditorShortcut>?` | `null` | Keyboard shortcuts handled without a toolbar button. See [Keyboard shortcuts](#keyboard-shortcuts). |
 | `Placeholder` | `string?` | `null` | Text shown while the editor is empty. |
 | `AriaLabel` | `string` | `"Rich text editor"` | Accessible name of the editing area. The toolbar is labelled "{AriaLabel} toolbar". |
 | `AdditionalAttributes` | `IReadOnlyDictionary<string, object>?` | | Any other attributes (such as `class`, `style`, `data-*`) are applied to the root element. `class` and `style` are merged with the editor's own. |
@@ -175,7 +227,8 @@ that strips the tags first. The demo app's `ZauberRTE.Web/Models/RequiredContent
 | --- | --- | --- |
 | `OnChange` | `EditorChangeArgs(string Html, ChangeSource Source)` | The content changed. `Source` is `Input`, `Paste`, `Command`, `History`, `Api`, `SourceView` or `ImageResize`. |
 | `OnStateChanged` | `EditorState` | The selection, active formatting, focus, undo/redo availability or mode changed. |
-| `OnCommandExecuted` | `CommandExecutedArgs(string ItemId)` | A toolbar item or keyboard shortcut ran successfully. |
+| `OnCommandExecuted` | `CommandExecutedArgs(string ItemId)` | A toolbar item or keyboard shortcut ran successfully. For an `EditorShortcut`, `ItemId` is its `Keys`. |
+| `OnCommandFailed` | `CommandFailedArgs(string ItemId, Exception Exception)` | A toolbar item or keyboard shortcut threw. The failure is also logged and shown as an error toast, and the editor keeps working. For an `EditorShortcut`, `ItemId` is its `Keys`. |
 | `OnImageResized` | `ImageResizedArgs(int Width, int Height)` | The user finished resizing an image. |
 | `OnFocus` | | The editing area gained focus. |
 | `OnBlur` | | The editing area lost focus (after any pending change has been delivered). |
@@ -201,8 +254,18 @@ that strips the tags first. The demo app's `ZauberRTE.Web/Models/RequiredContent
 `EditorState` is an immutable snapshot with these members: `ActiveMarks` (primary tags such as `strong` and `em`,
 case-insensitive), `BlockType` (lower-case tag: `p`, `h1`–`h6`, `blockquote`, `pre`, `ul`, `ol`), `HeadingLevel`
 (0 when the block isn't a heading), `Alignment`, `HasSelection`, `HasFocus`, `CanUndo`, `CanRedo`, `InLink`,
-`InImage`, `InTable`, `IsSourceView`, `IsReadOnly`, `Theme`, `PrefersDarkScheme` and `IsDark` (resolves
+`InImage`, `InTable`, `CanOutdent` (the block is indented or in a list), `IsSourceView`, `IsFullscreen`,
+`IsPlainTextPaste`, `IsReadOnly`, `WordCount`, `CharacterCount`, `Theme`, `PrefersDarkScheme` and `IsDark` (resolves
 `Theme.Auto`).
+
+`WordCount` and `CharacterCount` are computed in the browser from the content's text whenever a content change is
+delivered (after the `ChangeDelay` pause, not on every keystroke), and also when `Value` is set. A word is a run of
+non-space characters containing a letter or digit; characters include spaces but not line breaks.
+
+```razor
+<ZauberRichTextEditor @bind-Value="_html" OnStateChanged="state => _state = state" />
+<p>@_state.WordCount words · @_state.CharacterCount characters</p>
+```
 
 ## Programmatic control with `IEditorApi`
 
@@ -243,20 +306,29 @@ When focus has moved to a button outside the editor, commands apply at the last 
 | `UnwrapSelectionAsync(tag)` | Removes that element from around the selection. |
 | `SetBlockTypeAsync(blockType, attributes?)` | Changes the current block(s) to `p`, `h1`–`h6`, `pre`, `blockquote`, `div`, `ul` or `ol`. |
 | `SetBlockStyleAsync(styles)` | Sets inline styles on the current block(s), such as `text-align`. |
+| `IndentAsync()` / `OutdentAsync()` | Indents or outdents the current block(s) with `margin-inline-start` in 2em steps, or nests list items under the item before them and lifts them back out. |
+| `SetTextStyleAsync(styleName, value)` | Sets an inline style such as `color` or `background-color` on the selected text as a `<span style>`; `null` removes it. With a caret, it applies to the word around it or to what you type next. |
 | `ClearFormattingAsync()` | Removes inline formatting from the selection. |
 | `InsertHtmlAsync(html)` | Inserts HTML at the selection after sanitising it with the editor's policy. |
 | `InsertTextAsync(text)` | Inserts plain text at the selection. |
+| `FlushAsync()` | Delivers pending edits through `ValueChanged` and waits for its handler to finish; a no-op when nothing is pending. Await it before saving the bound value (see [Saving](#saving)). |
 | `GetHtmlAsync()` / `GetTextAsync()` | Reads the current HTML or plain text (blocks separated by new lines). Throws `EditorContentTooLargeException` when it is larger than `EditorSettings.MaxContentBytes`, so a save never receives an empty string by mistake. |
 | `SetHtmlAsync(html)` | Replaces the content with sanitised HTML as an undoable change. Raises `ValueChanged` and `OnChange` with `ChangeSource.Api`. Throws `InvalidOperationException` while the editor is read-only; set `Value` instead. |
 | `GetSelectionAsync()` | Returns `SelectionInfo(string Text, bool IsCollapsed)`, or `null` when the selection isn't in the editor. |
 | `SaveSelectionAsync()` / `RestoreSelectionAsync()` / `ClearSavedSelectionAsync()` | Remembers and restores the selection, typically around opening a panel. |
-| `GetLinkAtCursorAsync()` / `SelectLinkAtCursorAsync()` | Returns `LinkInfo(Href, Text, Title, Target)` for the link at the cursor, or selects the whole link. |
+| `GetLinkAtCursorAsync()` / `SelectLinkAtCursorAsync()` | Returns `LinkInfo(Href, Text, Title, Target)`, with `Rel`, for the link at the cursor, or selects the whole link. |
 | `GetImageAtCursorAsync()` / `SelectImageAtCursorAsync()` | Returns `ImageInfo(Src, Alt, Title, Width, Height)` for the selected image, or selects it. |
 | `UndoAsync()` / `RedoAsync()` | Undo and redo. |
 | `FocusAsync()` | Moves focus into the editor. |
 | `ToggleSourceViewAsync()` | Switches between the rich view and the HTML source view. |
 | `SetThemeAsync(theme)` | Changes the theme and raises `ThemeChanged`. |
+| `SetFullscreenAsync(fullscreen)` | Makes the editor fill the browser window (Escape returns it), locking the page scroll. |
+| `SetPlainTextPasteAsync(plainText)` | While on, paste inserts text only, with line breaks as paragraphs and `<br>`, like `InsertTextAsync`. |
+| `FindAsync(text, matchCase?)` | Selects and highlights the next match after the selection, across inline formatting, wrapping to the start. Returns `FindResult(Count, Current)`. |
+| `ReplaceAsync(text, replacement, matchCase?)` | Replaces the selected match as one undoable step, then finds the next. |
+| `ReplaceAllAsync(text, replacement, matchCase?)` | Replaces every match as a single undoable step and returns how many were replaced. |
 | `OpenPanelAsync<TPanel>(parameters?)` | Opens a `PanelBase` component in the slide-out panel. |
+| `OpenPanelAsync(panelType, parameters?)` | Opens a panel whose type is chosen at runtime. Throws `ArgumentException` unless the type is a concrete `PanelBase`. |
 | `ClosePanelAsync()` | Closes the open panel and returns focus to the editor. |
 | `ShowToastAsync(message, type)` | Shows a short message inside the editor (`Info`, `Success`, `Warning` or `Error`). |
 
@@ -343,11 +415,30 @@ A pasted or dropped image file that these rules reject isn't inserted; the edito
 | --- | --- | --- |
 | `AllowedTags` | `p br div span strong em b i u s strike sub sup code pre h1 h2 h3 h4 h5 h6 blockquote ul ol li table caption colgroup col thead tbody tfoot tr th td a img figure figcaption hr` | Allowed element names (case-insensitive). |
 | `AllowedAttributes` | `class id title lang dir role style data-* aria-* href target rel src alt width height colspan rowspan scope` | Allowed attribute names on any allowed element. `data-*` and `aria-*` allow those families. |
+| `TagAttributes` | empty | Attributes allowed only on one tag, in addition to `AllowedAttributes`. Keys and names are case-insensitive. |
 | `AllowDataUrls` | `true` | Whether images may use `data:image/...` URLs. Uploaded, pasted or dropped image files also need `ImageConstraints.AllowBase64ImageUpload`. |
 | `AllowExternalImages` | `true` | Whether images may load from other origins. When `false`, only same-origin and relative image URLs are kept. |
 
+For example, to keep `target` on links but strip it from every other element:
+
+```csharp
+using System.Collections.Frozen;
+
+var policy = new HtmlPolicy
+{
+    AllowedAttributes = FrozenSet.Create(
+        StringComparer.OrdinalIgnoreCase,
+        [.. new HtmlPolicy().AllowedAttributes.Where(name => name is not "target")]),
+    TagAttributes = new Dictionary<string, IReadOnlySet<string>>
+    {
+        ["a"] = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "target")
+    }
+};
+```
+
 To allow extra tags, extend the defaults as shown in the settings example above. Alignment is stored as an inline
-`text-align` style, so keep `style` in `AllowedAttributes` if you use the alignment items. See
+`text-align` style, indentation as `margin-inline-start` and colours as `color` / `background-color` on a `span`,
+so keep `style` and `span` allowed if you use those items. Pasted HTML keeps only these styles. See
 [Security](#security) for the rules that apply whatever the policy says.
 
 ## Toolbar layouts
@@ -365,7 +456,7 @@ Two layouts are built in:
 | Layout | Items |
 | --- | --- |
 | `ToolbarLayout.Simple` | `bold italic underline` \| `clean-html` \| `alignLeft alignCenter alignRight` |
-| `ToolbarLayout.Full` (default) | `bold italic underline strike code subscript superscript` \| `headings blockquote` \| `ul ol link unlink image table` \| `alignLeft alignCenter alignRight justified` \| `clean-html undo redo viewSource themeToggle` |
+| `ToolbarLayout.Full` (default) | `bold italic underline strike code subscript superscript` \| `textColor backgroundColor` \| `headings blockquote` \| `ul ol outdent indent` \| `link unlink image table horizontalRule specialCharacters` \| `alignLeft alignCenter alignRight justified` \| `clean-html undo redo findReplace pastePlainText` \| `viewSource fullscreen themeToggle` |
 
 Build your own from `ToolbarItemIds` constants and your own items' ids:
 
@@ -388,8 +479,9 @@ public static class Toolbars
 <ZauberRichTextEditor @bind-Value="_html" Toolbar="Toolbars.Compact" />
 ```
 
-Ids that aren't registered (or were removed with `RemoveToolbarItem`) are skipped, and logged at `Debug` level. Keyboard shortcuts are active only for items in the
-editor's layout, including dropdown children.
+Ids that aren't in the registry are skipped. Ids that were never registered are logged at `Warning` level, and ids
+removed with `RemoveToolbarItem` at `Debug` level, once each time the editor builds its toolbar. Keyboard shortcuts are
+active only for items in the editor's layout, including dropdown children.
 
 ### Layouts as JSON
 
@@ -427,11 +519,17 @@ constants rather than literal strings. Ids are case-insensitive.
 | `subscript` | `Subscript` | Toggles `<sub>` | |
 | `superscript` | `Superscript` | Toggles `<sup>` | |
 | `code` | `Code` | Inline `<code>` on a selection; a `<pre>` code block when nothing is selected | |
+| `paragraph` | `Paragraph` | Makes the block a paragraph | |
 | `h1` to `h6` | `Heading1` to `Heading6` | Toggles the block between that heading and a paragraph | |
-| `headings` | `Headings` | Dropdown listing `h1` to `h6` | |
+| `codeBlock` | `CodeBlock` | Toggles the block between a `<pre>` code block and a paragraph | |
+| `headings` | `Headings` | Dropdown listing `paragraph`, `h1` to `h6` and `codeBlock`; the trigger shows the current one | |
+| `textColor` | `TextColor` | Dropdown of nine text colours (`textColor-red`, `-orange`, `-amber`, `-green`, `-teal`, `-blue`, `-purple`, `-pink`, `-grey`) and `textColor-default`, applied as `<span style="color: ...">` | |
+| `backgroundColor` | `BackgroundColor` | Dropdown of nine translucent highlights (`backgroundColor-yellow`, `-orange`, `-red`, `-pink`, `-purple`, `-blue`, `-teal`, `-green`, `-grey`) and `backgroundColor-none`, applied as `background-color` | |
 | `blockquote` | `Blockquote` | Toggles a block quote | |
 | `ul` | `UnorderedList` | Toggles a bulleted list | Ctrl+Shift+8 |
 | `ol` | `OrderedList` | Toggles a numbered list | Ctrl+Shift+7 |
+| `indent` | `Indent` | Nests list items under the item before them; indents other blocks by 2em | Tab (in a list) |
+| `outdent` | `Outdent` | Lifts list items out a level; reduces block indentation. Disabled when there is nothing to outdent | Shift+Tab (in a list) |
 | `alignLeft` | `AlignLeft` | Left-aligns the block | |
 | `alignCenter` | `AlignCenter` | Centres the block | |
 | `alignRight` | `AlignRight` | Right-aligns the block | |
@@ -440,10 +538,15 @@ constants rather than literal strings. Ids are case-insensitive.
 | `unlink` | `Unlink` | Removes the link at the cursor | |
 | `image` | `Image` | Opens the image panel (URL or upload, alt text); edits the selected image | |
 | `table` | `Table` | Opens the table panel (rows, columns, header row; up to 20 x 20) | |
+| `horizontalRule` | `HorizontalRule` | Inserts an `<hr>` with the caret in a paragraph after it. Inside a list, the line goes after the list (the list is split at the caret), never into a list item | |
+| `specialCharacters` | `SpecialCharacters` | Opens a panel of common characters (© ® ™ € £ ¥ ° ± × ÷ – — … « » ‘ ’ “ ” § ¶ • † ½ ¼ ¾ → ← and a non-breaking space) | |
 | `clean-html` | `ClearFormatting` | Removes inline formatting from the selection | |
 | `undo` | `Undo` | Undo | Ctrl+Z |
 | `redo` | `Redo` | Redo | Ctrl+Y or Ctrl+Shift+Z |
+| `findReplace` | `FindReplace` | Opens the find and replace panel (match case, Find next, Replace, Replace all, match count) | Ctrl+H |
+| `pastePlainText` | `PastePlainText` | Toggles pasting as plain text | |
 | `viewSource` | `ViewSource` | Toggles the HTML source view | |
+| `fullscreen` | `Fullscreen` | Toggles full screen; Escape exits. Sits at `--rte-z-fullscreen` (5000), above most host modals; see [Design tokens](#design-tokens) | |
 | `themeToggle` | `ThemeToggle` | Switches between light and dark, and raises `ThemeChanged` | |
 
 On macOS, Cmd works wherever Ctrl is listed. To replace or remove a built-in item, see
@@ -451,16 +554,53 @@ On macOS, Cmd works wherever Ctrl is listed. To replace or remove a built-in ite
 
 ## Keyboard
 
-- **Shortcuts:** see the table above. A button's tooltip shows its shortcut.
+- **Shortcuts:** see the table above. A button's tooltip shows its shortcut. Add your own with the `Shortcuts`
+  parameter (below).
 - **Tab / Shift+Tab** indents and outdents list items, and moves between table cells. Everywhere else, Tab moves focus
   out of the editor as usual.
 - **Enter** splits blocks and list items. On an empty list item, Enter outdents it, which ends the list at the top
-  level. In a code block, Enter inserts a new line, and in a table cell it inserts a line break. **Shift+Enter**
-  inserts a line break.
+  level. In a code block, Enter inserts a new line, and Enter on an empty last line leaves the code block for a new
+  paragraph. In a table cell Enter inserts a line break. **Shift+Enter** inserts a line break.
+- **Ctrl+H** opens find and replace. **Ctrl+Shift+V** always pastes as plain text. **Escape** leaves full screen.
 - **Ctrl/Cmd+click** on a link opens it in a new tab. A plain click places the caret, so links stay editable. In
   read-only mode, links open normally.
 - In the toolbar, **Left/Right arrows** move between buttons. In a dropdown, **Up/Down/Home/End** move, **Enter** or
   **Space** chooses, and **Escape** closes. In a panel, **Escape** closes and **Enter** submits the built-in panels.
+
+### Keyboard shortcuts
+
+The `Shortcuts` parameter adds key combinations that run your code without a toolbar button, such as Ctrl+S to save.
+`Keys` uses the same syntax as an item's `Shortcut` (`Control` matches Ctrl or Cmd), and an invalid combination throws
+`ArgumentException` when the `EditorShortcut` is created.
+
+```razor
+<ZauberRichTextEditor @bind-Value="_html" Shortcuts="_shortcuts" OnCommandFailed="ShowError" />
+
+@code {
+    private string? _html;
+    private IReadOnlyList<EditorShortcut> _shortcuts = [];
+
+    protected override void OnInitialized() => _shortcuts = [new("Control+s", SaveAsync)];
+
+    private async Task SaveAsync(IEditorApi api, CancellationToken cancellationToken)
+    {
+        await Articles.SaveAsync(await api.GetHtmlAsync(cancellationToken), cancellationToken);
+        await api.ShowToastAsync("Saved.", ToastType.Success, cancellationToken);
+    }
+}
+```
+
+- Only the registered combinations are reported to .NET, and the browser's own action (such as the Save dialog) is
+  prevented. Any pending typing is delivered to `ValueChanged` before the handler runs.
+- They work while the editing area has focus, not in the HTML source view. Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z always
+  undo and redo.
+- An editor shortcut wins over a toolbar item's shortcut with the same keys; if two editor shortcuts share keys, the
+  last one wins.
+- They are ignored while the editor is `ReadOnly`, like item shortcuts (the browser action is still prevented).
+- A handler that throws is handled like a failing item: it's logged, an error toast is shown and `OnCommandFailed` is
+  raised. A successful handler raises `OnCommandExecuted`.
+- A new list with equal entries (same keys and handler) doesn't reconfigure the editor, so creating the list in markup
+  is fine. Changing only a handler takes effect without reconfiguring the script.
 
 ## Theming and styling
 
@@ -508,13 +648,19 @@ override doesn't reach its slide-out panel, which uses the page-wide tokens.
 
 | Group | Tokens |
 | --- | --- |
-| Colour | `--rte-color-bg`, `--rte-color-bg-subtle`, `--rte-color-bg-hover`, `--rte-color-input-bg`, `--rte-color-text`, `--rte-color-text-muted`, `--rte-color-text-subtle`, `--rte-color-border`, `--rte-color-border-strong`, `--rte-color-border-hover`, `--rte-color-accent`, `--rte-color-accent-hover`, `--rte-color-on-accent`, `--rte-color-accent-text`, `--rte-color-selected-bg`, `--rte-color-focus`, `--rte-color-success`, `--rte-color-warning`, `--rte-color-danger`, `--rte-color-backdrop`, `--rte-color-shadow` |
+| Colour | `--rte-color-bg`, `--rte-color-bg-subtle`, `--rte-color-bg-hover`, `--rte-color-input-bg`, `--rte-color-text`, `--rte-color-text-muted`, `--rte-color-text-subtle`, `--rte-color-border`, `--rte-color-border-strong`, `--rte-color-border-hover`, `--rte-color-accent`, `--rte-color-accent-hover`, `--rte-color-on-accent`, `--rte-color-accent-text`, `--rte-color-selected-bg`, `--rte-color-focus`, `--rte-color-success`, `--rte-color-warning`, `--rte-color-danger`, `--rte-color-backdrop`, `--rte-color-shadow`, `--rte-color-find` |
 | Shadow | `--rte-shadow-sm`, `--rte-shadow-md`, `--rte-shadow-lg`, `--rte-shadow-panel` |
 | Shape | `--rte-radius-sm`, `--rte-radius-md`, `--rte-radius-lg`, `--rte-radius-round`, `--rte-border-width`, `--rte-border-width-thick`, `--rte-border-width-accent`, `--rte-focus-offset` |
 | Spacing | `--rte-space-3xs`, `--rte-space-2xs`, `--rte-space-xs`, `--rte-space-sm`, `--rte-space-md`, `--rte-space-lg`, `--rte-space-xl`, `--rte-block-spacing`, `--rte-list-indent` |
-| Sizes | `--rte-toolbar-button-size`, `--rte-icon-size`, `--rte-icon-size-sm`, `--rte-icon-size-lg`, `--rte-separator-size`, `--rte-content-min-height`, `--rte-panel-width`, `--rte-dropdown-min-width`, `--rte-dropdown-max-height`, `--rte-image-handle-size`, `--rte-image-preview-max-height`, `--rte-grip-width`, `--rte-grip-height`, `--rte-toast-width` |
+| Sizes | `--rte-toolbar-button-size`, `--rte-icon-size`, `--rte-icon-size-sm`, `--rte-icon-size-lg`, `--rte-separator-size`, `--rte-content-min-height`, `--rte-panel-width`, `--rte-dropdown-min-width`, `--rte-dropdown-max-height`, `--rte-image-handle-size`, `--rte-image-preview-max-height`, `--rte-grip-width`, `--rte-grip-height`, `--rte-toast-width`, `--rte-char-cell-size` |
 | Typography | `--rte-font-family`, `--rte-font-mono`, `--rte-font-size`, `--rte-font-size-xs`, `--rte-font-size-sm`, `--rte-font-size-lg`, `--rte-font-size-code`, `--rte-font-size-input`, `--rte-font-weight-medium`, `--rte-font-weight-bold`, `--rte-line-height`, `--rte-line-height-tight`, `--rte-line-height-code`, `--rte-letter-spacing-caps`, `--rte-heading-1` to `--rte-heading-6` |
-| Motion and layering | `--rte-duration-fast`, `--rte-duration-base`, `--rte-ease`, `--rte-transition-colors`, `--rte-z-handles`, `--rte-z-toast`, `--rte-z-dropdown`, `--rte-z-overlay`, `--rte-opacity-disabled`, `--rte-opacity-muted` |
+| Motion and layering | `--rte-duration-fast`, `--rte-duration-base`, `--rte-ease`, `--rte-transition-colors`, `--rte-z-handles`, `--rte-z-toast`, `--rte-z-dropdown`, `--rte-z-fullscreen`, `--rte-z-overlay`, `--rte-opacity-disabled`, `--rte-opacity-muted` |
+
+The layering tokens default to `--rte-z-dropdown: 1000`, `--rte-z-fullscreen: 5000` and `--rte-z-overlay: 10000`
+(slide-out panels). A full-screen editor sits above most modal libraries (Blazored Modal uses 100, Bootstrap 1055),
+so a custom item that opens your own modal while the editor is full screen shows it underneath. Either lower the
+token below your modal (`.zauber-rte { --rte-z-fullscreen: 50; }`), raise your modal above 5000, open the UI as an
+editor panel (`OpenPanelAsync`), or leave full screen first with `await api.SetFullscreenAsync(false)`.
 
 `--rte-width`, `--rte-height`, `--rte-min-height` and `--rte-max-height` are written to the root's inline style from
 `EditorSettings.Dimensions`. To size the editor from CSS instead, set those dimensions to `null`. On touch devices
@@ -559,7 +705,8 @@ Tailwind v4 already uses cascade layers. Declare the layer order once, before an
 
 The editor's markup uses stable `rte-*` class names that you can target. These are the main ones:
 
-- `.zauber-rte`: the root, plus `.rte-readonly` and `.rte-source-mode`.
+- `.zauber-rte`: the root, plus `.rte-readonly`, `.rte-source-mode` and `.rte-fullscreen`. While an editor is full
+  screen, `<html>` has `.rte-scroll-lock`.
 - `.rte-toolbar`, `.rte-toolbar-block`, `.rte-toolbar-single-item` and `.rte-toolbar-separator`: the toolbar and its
   entries.
 - `.rte-toolbar-btn` (plus `.rte-btn-active`): a toolbar button. `.rte-dropdown-{id}` and `.rte-dropdown-menu`: a
@@ -609,13 +756,14 @@ Icons render inside `<span class="rte-icon">`.
 
 ## Large documents
 
-Content changes up to about 12 KB are sent to .NET inline. Larger content, and everything the API reads back from
-the browser (`GetHtmlAsync`, `GetTextAsync`, `GetSelectionAsync`, `GetLinkAtCursorAsync` and `GetImageAtCursorAsync`,
-whose `Src` can be a large `data:` URL), is read through a JavaScript stream reference (`IJSStreamReference`). Every
-other message from the browser is small. As a result, Blazor Server's default 32 KB `MaximumReceiveMessageSize` is
-enough for any document and for base64 images, and you don't need `AddSignalR(o => o.MaximumReceiveMessageSize = ...)`
-for the editor. Content above `EditorSettings.MaxContentBytes` (10 MB by default) isn't transferred: the bound value
-keeps its last value, the user sees a warning, the warning is logged, and the read methods throw
+Content changes are sent to .NET in pieces of at most 12 KB (UTF-8), and the bound value is set as soon as the last
+piece arrives, so a Save click right after an edit sees it. Everything the API reads back from the browser
+(`GetHtmlAsync`, `GetTextAsync`, `GetSelectionAsync`, `GetLinkAtCursorAsync` and `GetImageAtCursorAsync`, whose `Src`
+can be a large `data:` URL) is read through a JavaScript stream reference (`IJSStreamReference`). Every other message
+from the browser is small. As a result, Blazor Server's default 32 KB `MaximumReceiveMessageSize` is enough for any
+document and for base64 images, and you don't need `AddSignalR(o => o.MaximumReceiveMessageSize = ...)` for the
+editor. Content above `EditorSettings.MaxContentBytes` (10 MB by default) isn't transferred: the bound value keeps its
+last value, the user sees a warning, the warning is logged, and the read methods throw
 `EditorContentTooLargeException`. Typing is debounced (`ChangeDelay`), so a large document isn't re-sent on every
 keystroke, and a toolbar item runs only after the latest content has reached the bound value.
 
@@ -632,7 +780,10 @@ builder.Services.AddZauberRte(options =>
 });
 ```
 
-Then add their ids to a [layout](#toolbar-layouts). The
+Then add their ids to a [layout](#toolbar-layouts). To let users choose their own buttons, inject
+`IToolbarItemCatalog` (scoped) and call `GetItems()`: it returns a `ToolbarItemDescriptor` (`Id`, `Label`, `Tooltip`,
+`IconSvg`, `IconCss`, `Shortcut`, `Kind`, `ChildItemIds`, `IsBuiltIn`) for every registered item, built-ins first.
+Removed items aren't listed, and an override is listed with `IsBuiltIn = false`. The
 [extension guide](https://github.com/YodasMyDad/ZauberEditor/blob/master/QUICK_START_EXTENDING.md) covers buttons,
 toggles, dropdowns, panels, dependency injection, overriding built-ins and icons, with working code from the demo app.
 
@@ -653,7 +804,7 @@ full list of fixes is in the [changelog](https://github.com/YodasMyDad/ZauberEdi
 | `<script src="_content/ZauberCMS.RTE/js/zauber-rte.js">` | **Remove.** The file is now an ES module that the component imports. Loading it as a classic script throws a syntax error. |
 | `<link href="_content/ZauberCMS.RTE/css/fontawesome.min.css">` | **Remove.** Font Awesome is no longer shipped (see [Icons](#7-icons-css-and-themes)). |
 | `<link href="_content/ZauberCMS.RTE/css/zauber-editor.css">` | Keep. |
-| `AddSignalR(o => o.MaximumReceiveMessageSize = ...)` for large content or base64 images | Not needed for the editor; content over 12 KB, and every value the API reads back, is streamed. |
+| `AddSignalR(o => o.MaximumReceiveMessageSize = ...)` for large content or base64 images | Not needed for the editor; content changes arrive in pieces under 12 KB, and every value the API reads back is streamed. |
 | WebAssembly not really supported (the JS was a page-wide global) | Interactive Server, WebAssembly and Auto supported. For WebAssembly or Auto, call `AddZauberRte` in the client project too. |
 | Browsers: "Chrome 80+" etc. | Chrome/Edge 123+, Firefox 120+, Safari 17.5+ (CSS `light-dark()`, cascade layers, nesting). |
 
@@ -662,7 +813,7 @@ full list of fixes is in the [changelog](https://github.com/YodasMyDad/ZauberEdi
 | 2.x | 3.0 |
 | --- | --- |
 | `AddZauberRte()` scanned the entry assembly for `IToolbarItem` types | `AddZauberRte()` registers only the built-in items. **Custom items no longer appear unless you register them.** |
-| `AddZauberRte(params Assembly[] assemblies)` | `AddZauberRte(o => o.AddToolbarItem<MyItem>())` (preferred, trim-safe), or `AddZauberRte(o => o.AddToolbarItemsFromAssembly(assembly))` (reflection; marked `[RequiresUnreferencedCode]`). |
+| `AddZauberRte(params Assembly[] assemblies)` | `AddZauberRte(o => o.AddToolbarItem<MyItem>())` (preferred, trim-safe), or `AddZauberRte(o => o.AddToolbarItemsFromAssembly(assembly))` (reflection; marked `[RequiresUnreferencedCode]`). Scanning registers every concrete `IToolbarItem` in the assembly, including items meant to be registered as instances (for example dropdown children that take constructor arguments). Types DI can't construct are skipped and logged as errors. Prefer explicit `AddToolbarItem<T>()`. |
 | `AddZauberRte(Action<ZauberRteOptions>, params Assembly[])` | `AddZauberRte(Action<ZauberRteOptions>? configure = null)` |
 | `ZauberRteOptions.Assemblies` | `options.AddToolbarItemsFromAssembly(assembly)` |
 | `ZauberRteOptions.AllowOverrides` | Removed. Registrations apply in order, and a later item with the same id always replaces the earlier one (including built-ins). |
@@ -737,7 +888,7 @@ All of these are now immutable `sealed record`s. Use `with` to copy.
 | | New: `InLink`, `InImage`, `InTable`, `IsReadOnly`, `Theme`, `PrefersDarkScheme`, `IsDark`, `EditorState.Empty`. |
 | `TextAlignment.Justified` | `TextAlignment.Justify` |
 | `SelectionInfo { StartOffset, EndOffset, IsCollapsed, SelectedText, SelectedHtml }` | `SelectionInfo(string Text, bool IsCollapsed)` |
-| `LinkInfo { Href, Target, Rel, Title, Text }` | `LinkInfo(string Href, string Text, string? Title, string? Target)`; `Rel` removed. |
+| `LinkInfo { Href, Target, Rel, Title, Text }` | `LinkInfo(string Href, string Text, string? Title, string? Target)` with an init-only `Rel` property (removed in 3.0.0, restored in 3.1.0). |
 | `ImageInfo { Src, Alt, Width (string?), Height (string?), IsDataUrl }` | `ImageInfo(string Src, string? Alt, string? Title, int? Width, int? Height)`; use `Src.StartsWith("data:")` instead of `IsDataUrl`. |
 | `EditorEventArgs` base class (with `Timestamp`) | Removed; event args no longer derive from `System.EventArgs`. |
 | `EditorChangeArgs { Html, Text, IsUserInput, Source }` | `EditorChangeArgs(string Html, ChangeSource Source)`. `Text` was HTML anyway; call `Api.GetTextAsync()` if you need text. Replace `IsUserInput` with a check on `Source`. |
@@ -750,7 +901,7 @@ All of these are now immutable `sealed record`s. Use `with` to copy.
 
 | 2.x | 3.0 |
 | --- | --- |
-| `OnKeyDown` (`ZauberKeyboardEventArgs`; `Cancel()` had no effect) | Removed. Use a toolbar item with a `Shortcut`. |
+| `OnKeyDown` (`ZauberKeyboardEventArgs`; `Cancel()` had no effect) | Removed. Use a toolbar item with a `Shortcut`, and put that item in the editor's layout (it shows as a button): shortcuts are active only for items in the layout. |
 | `OnPaste` (`PasteArgs`; raised after the insert) | Removed. Use `OnChange` and check `Source == ChangeSource.Paste`. |
 | `OnSelectionChanged` (`SelectionChangedArgs`; never fired) | Removed. Use `OnStateChanged` (`EditorState`). |
 | `SetContentAsync(string?)` (public) | Removed. Set `Value`, or call `Api.SetHtmlAsync`. |

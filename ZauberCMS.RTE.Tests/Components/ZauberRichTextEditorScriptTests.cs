@@ -49,19 +49,21 @@ public sealed class ZauberRichTextEditorScriptTests : BunitContext
     [Fact]
     public async Task DisposeTearsDownTheScriptInstanceAndReleasesCallbacks()
     {
+        _instance.SetupVoid("flush").SetVoidResult();
         _instance.SetupVoid("dispose").SetVoidResult();
         Render<ZauberRichTextEditor>();
         var callbacks = _module.VerifyInvoke("createEditor").Arguments[4].ShouldBeOfType<DotNetObjectReference<EditorCallbacks>>();
 
         await DisposeComponentsAsync();
 
-        _instance.VerifyInvoke("dispose");
+        _instance.Invocations.Select(invocation => invocation.Identifier).ShouldBe(["flush", "dispose"]);
         Should.Throw<ObjectDisposedException>(() => callbacks.Value);
     }
 
     [Fact]
     public async Task DisposeAfterTheCircuitHasGoneDoesNotThrow()
     {
+        _instance.SetupVoid("flush").SetException(new JSDisconnectedException("The circuit has gone."));
         _instance.SetupVoid("dispose").SetException(new JSDisconnectedException("The circuit has gone."));
         Render<ZauberRichTextEditor>();
         var callbacks = _module.VerifyInvoke("createEditor").Arguments[4].ShouldBeOfType<DotNetObjectReference<EditorCallbacks>>();

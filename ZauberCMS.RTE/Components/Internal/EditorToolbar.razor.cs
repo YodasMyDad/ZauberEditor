@@ -20,6 +20,10 @@ public sealed partial class EditorToolbar
     [Parameter]
     public EventCallback<IToolbarItem> OnExecute { get; set; }
 
+    /// <summary>Raised when a menu closes without running an item.</summary>
+    [Parameter]
+    public EventCallback OnDismiss { get; set; }
+
     /// <summary>Accessible name of the toolbar.</summary>
     [Parameter]
     public string? AriaLabel { get; set; }

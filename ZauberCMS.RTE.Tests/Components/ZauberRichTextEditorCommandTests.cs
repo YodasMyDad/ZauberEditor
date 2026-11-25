@@ -2,6 +2,7 @@ using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using ZauberCMS.RTE.Components;
+using ZauberCMS.RTE.Interop;
 using ZauberCMS.RTE.Models;
 using ZauberCMS.RTE.Services;
 using ZauberCMS.RTE.Tests.TestSupport;
@@ -50,6 +51,21 @@ public sealed class ZauberRichTextEditorCommandTests : EditorTestContext
     }
 
     [Fact]
+    public async Task ChoosingTheCheckedMenuItemOnlyClosesTheMenu()
+    {
+        var cut = RenderWithCommands();
+        await Callbacks.OnStateChangedAsync(new EditorSnapshot([], "h2", null, false, true, false, false, false, false, false, false, false, false, false, 0, 0));
+        await cut.Find(".rte-dropdown-headings > button").ClickAsync(new());
+
+        await cut.Find(".rte-dropdown-h2").ClickAsync(new());
+
+        await Interop.DidNotReceive().SetBlockTypeAsync(Arg.Any<string>(), Arg.Any<IReadOnlyDictionary<string, string>?>(), Arg.Any<CancellationToken>());
+        await Interop.Received(1).FocusAsync(Arg.Any<CancellationToken>());
+        _executed.ShouldBeEmpty();
+        cut.FindAll("[role=menu]").ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task MenuKeyboardSelectionRunsTheFocusedItem()
     {
         var cut = RenderWithCommands();
@@ -58,7 +74,7 @@ public sealed class ZauberRichTextEditorCommandTests : EditorTestContext
         await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs { Key = "ArrowDown" });
         await cut.Find("[role=menu]").KeyDownAsync(new KeyboardEventArgs { Key = "Enter" });
 
-        await Interop.Received(1).SetBlockTypeAsync("h2", null, Arg.Any<CancellationToken>());
+        await Interop.Received(1).SetBlockTypeAsync("h1", null, Arg.Any<CancellationToken>());
         cut.FindAll("[role=menu]").ShouldBeEmpty();
     }
 
@@ -79,7 +95,7 @@ public sealed class ZauberRichTextEditorCommandTests : EditorTestContext
     {
         RenderWithCommands();
 
-        await Callbacks.OnShortcutAsync("ITALIC");
+        await Callbacks.OnShortcutAsync("ITALIC", false);
 
         await Interop.Received(1).ToggleMarkAsync("em", Arg.Any<CancellationToken>());
         _executed.ShouldBe([ToolbarItemIds.Italic]);
@@ -92,8 +108,8 @@ public sealed class ZauberRichTextEditorCommandTests : EditorTestContext
         Services.AddZauberRte(options => options.AddToolbarItem(item));
         RenderWithCommands(new ToolbarLayout(new ToolbarItemRef(ToolbarItemIds.Bold)));
 
-        await Callbacks.OnShortcutAsync(RecordingItem.ItemId);
-        await Callbacks.OnShortcutAsync(ToolbarItemIds.Italic);
+        await Callbacks.OnShortcutAsync(RecordingItem.ItemId, false);
+        await Callbacks.OnShortcutAsync(ToolbarItemIds.Italic, false);
 
         item.Executions.ShouldBeEmpty();
         _executed.ShouldBeEmpty();
@@ -107,7 +123,7 @@ public sealed class ZauberRichTextEditorCommandTests : EditorTestContext
         Services.AddZauberRte(options => options.AddToolbarItem(item));
         RenderWithCommands(new ToolbarLayout(new ToolbarItemRef(RecordingItem.ItemId)), readOnly: true);
 
-        await Callbacks.OnShortcutAsync(RecordingItem.ItemId);
+        await Callbacks.OnShortcutAsync(RecordingItem.ItemId, false);
 
         item.Executions.ShouldBeEmpty();
     }
@@ -143,7 +159,7 @@ public sealed class ZauberRichTextEditorCommandTests : EditorTestContext
     {
         RenderWithCommands();
 
-        await Callbacks.OnShortcutAsync("does-not-exist");
+        await Callbacks.OnShortcutAsync("does-not-exist", false);
 
         _executed.ShouldBeEmpty();
         Interop.ReceivedCalls().ShouldBeEmpty();
@@ -154,8 +170,8 @@ public sealed class ZauberRichTextEditorCommandTests : EditorTestContext
     {
         RenderWithCommands(readOnly: true);
 
-        await Callbacks.OnShortcutAsync(ToolbarItemIds.Bold);
-        await Callbacks.OnShortcutAsync(ToolbarItemIds.Undo);
+        await Callbacks.OnShortcutAsync(ToolbarItemIds.Bold, false);
+        await Callbacks.OnShortcutAsync(ToolbarItemIds.Undo, false);
 
         _executed.ShouldBeEmpty();
         Interop.ReceivedCalls().ShouldBeEmpty();
@@ -255,6 +271,19 @@ public sealed class ZauberRichTextEditorCommandTests : EditorTestContext
         await cut.Find(".counting-panel-next").ClickAsync(new());
 
         cut.Find(".rte-slideout-title").TextContent.ShouldBe("Count 1");
+    }
+
+    [Fact]
+    public async Task PanelChosenAtRuntimeOpensInTheSlideOut()
+    {
+        var cut = RenderWithCommands();
+        var panelType = typeof(CountingPanel);
+
+        await cut.InvokeAsync(() => cut.Instance.Api.OpenPanelAsync(panelType, cancellationToken: TestContext.Current.CancellationToken));
+
+        cut.Find(".rte-slideout-title").TextContent.ShouldBe("Count 0");
+        cut.FindAll(".counting-panel-next").ShouldHaveSingleItem();
+        await Interop.Received(1).OpenPanelAsync(Arg.Any<ElementReference>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

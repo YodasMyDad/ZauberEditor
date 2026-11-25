@@ -13,7 +13,7 @@ public sealed class EditorInitOptionsTests
     [Fact]
     public void PassesContentAndModeThrough()
     {
-        var options = EditorInitOptions.Create("<p>x</p>", readOnly: true, "Type here", new EditorSettings(), FullToolbar);
+        var options = EditorInitOptions.Create("<p>x</p>", readOnly: true, "Type here", new EditorSettings(), FullToolbar, []);
 
         options.Html.ShouldBe("<p>x</p>");
         options.ReadOnly.ShouldBeTrue();
@@ -23,7 +23,7 @@ public sealed class EditorInitOptionsTests
     [Fact]
     public void TrackedTagsAreLowerCaseDistinctAndSorted()
     {
-        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), FullToolbar);
+        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), FullToolbar, []);
 
         options.TrackedTags.ShouldBe(["b", "code", "em", "i", "s", "strike", "strong", "sub", "sup", "u"]);
     }
@@ -31,7 +31,7 @@ public sealed class EditorInitOptionsTests
     [Fact]
     public void AliasesMapToThePrimaryTag()
     {
-        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), FullToolbar);
+        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), FullToolbar, []);
 
         options.TagAliases.ShouldBe(
             new Dictionary<string, string> { ["b"] = "strong", ["i"] = "em", ["strike"] = "s" },
@@ -41,7 +41,7 @@ public sealed class EditorInitOptionsTests
     [Fact]
     public void ShortcutsComeFromTheToolbarItems()
     {
-        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), FullToolbar);
+        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), FullToolbar, []);
 
         options.Shortcuts.ShouldBe(
             [
@@ -52,7 +52,8 @@ public sealed class EditorInitOptionsTests
                 new ShortcutBinding("ol", "7", true, true, false),
                 new ShortcutBinding("link", "k", true, false, false),
                 new ShortcutBinding("undo", "z", true, false, false),
-                new ShortcutBinding("redo", "y", true, false, false)
+                new ShortcutBinding("redo", "y", true, false, false),
+                new ShortcutBinding("findReplace", "h", true, false, false)
             ],
             ignoreOrder: true);
     }
@@ -62,7 +63,7 @@ public sealed class EditorInitOptionsTests
     {
         var simple = ToolbarArrangement.Create(ToolbarLayout.Simple, Registries.Items()).Items;
 
-        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), simple);
+        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), simple, []);
 
         options.TrackedTags.ShouldBe(["b", "em", "i", "strong", "u"]);
         options.Shortcuts.Select(shortcut => shortcut.ItemId).ShouldBe(["bold", "italic", "underline"], ignoreOrder: true);
@@ -93,15 +94,17 @@ public sealed class EditorInitOptionsTests
             }
         };
 
-        var options = EditorInitOptions.Create(null, false, null, settings, []);
+        var options = EditorInitOptions.Create(null, false, null, settings, [], []);
 
         options.HistoryLimit.ShouldBe(25);
         options.ChangeDelay.ShouldBe(1500);
         options.InlineLimit.ShouldBe(EditorInitOptions.DefaultInlineLimit);
+        options.MaxContentBytes.ShouldBe(settings.MaxContentBytes);
         options.Policy.AllowedTags.ShouldBe(["p", "strong"]);
         options.Policy.AllowedAttributes.ShouldBe(["class", "href"]);
         options.Policy.AllowDataUrls.ShouldBeFalse();
         options.Policy.AllowExternalImages.ShouldBeFalse();
+        options.Policy.TagAttributes.ShouldBeEmpty();
         options.Image.MaintainAspectRatio.ShouldBeFalse();
         options.Image.MaxWidth.ShouldBe(800);
         options.Image.MaxHeight.ShouldBe(600);
@@ -114,9 +117,42 @@ public sealed class EditorInitOptionsTests
     }
 
     [Fact]
+    public void TagAttributesAreLowerCasedAndSorted()
+    {
+        var settings = new EditorSettings
+        {
+            HtmlPolicy = new()
+            {
+                TagAttributes = new Dictionary<string, IReadOnlySet<string>>
+                {
+                    ["A"] = new HashSet<string> { "Target", "download" },
+                    ["img"] = new HashSet<string> { "loading" }
+                }
+            }
+        };
+
+        var options = EditorInitOptions.Create(null, false, null, settings, [], []);
+
+        options.Policy.TagAttributes.Keys.ShouldBe(["a", "img"], ignoreOrder: true);
+        options.Policy.TagAttributes["a"].ShouldBe(["download", "target"]);
+        options.Policy.TagAttributes["img"].ShouldBe(["loading"]);
+    }
+
+    [Fact]
+    public void EditorShortcutsFollowTheItemShortcuts()
+    {
+        ShortcutBinding save = new("Ctrl+S", "s", true, false, false, Custom: true);
+
+        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), FullToolbar, [save]);
+
+        options.Shortcuts[^1].ShouldBe(save);
+        options.Shortcuts.Count.ShouldBe(10);
+    }
+
+    [Fact]
     public void ImageDefaultsBlockEmbeddingFiles()
     {
-        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), []);
+        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), [], []);
 
         options.Image.AllowBase64Upload.ShouldBeFalse();
         options.Image.MaxFileSizeBytes.ShouldBe(5 * 1024 * 1024);
@@ -126,7 +162,8 @@ public sealed class EditorInitOptionsTests
     [Fact]
     public void NullArgumentsAreRejected()
     {
-        Should.Throw<ArgumentNullException>(() => EditorInitOptions.Create(null, false, null, null!, []));
-        Should.Throw<ArgumentNullException>(() => EditorInitOptions.Create(null, false, null, new EditorSettings(), null!));
+        Should.Throw<ArgumentNullException>(() => EditorInitOptions.Create(null, false, null, null!, [], []));
+        Should.Throw<ArgumentNullException>(() => EditorInitOptions.Create(null, false, null, new EditorSettings(), null!, []));
+        Should.Throw<ArgumentNullException>(() => EditorInitOptions.Create(null, false, null, new EditorSettings(), [], null!));
     }
 }

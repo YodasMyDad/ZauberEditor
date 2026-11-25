@@ -1,0 +1,17 @@
+@inherits PanelBase
+
+<div class="rte-panel-content">
+    <div class="rte-char-grid" role="group" aria-label="Special characters">
+        @foreach (var character in Characters)
+        {
+            <button @key="character.Text"
+                    type="button"
+                    class="@CellClass(character)"
+                    aria-label="@character.Name"
+                    title="@character.Name"
+                    @onclick="() => InsertAsync(character)">
+                @(character.Display ?? character.Text)
+            </button>
+        }
+    </div>
+</div>

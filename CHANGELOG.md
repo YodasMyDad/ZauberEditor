@@ -5,6 +5,124 @@ All notable changes to ZauberCMS.RTE are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-11-25
+
+### Added
+
+- `LinkInfo.Rel` is back: `IEditorApi.GetLinkAtCursorAsync()` returns the link's `rel` attribute again. It is an
+  init-only property, so `new LinkInfo(...)` and deconstruction are unchanged.
+- `Shortcuts` parameter: `EditorShortcut(Keys, Handler)` adds key combinations, such as `Control+s`, that run your
+  code without a toolbar button. Only registered combinations reach .NET, the browser's default action is prevented,
+  they win over item shortcuts with the same keys, and they are ignored while read-only.
+- `OnCommandFailed` event with `CommandFailedArgs(ItemId, Exception)`, raised when a toolbar item or shortcut throws,
+  in addition to the log entry and error toast.
+- `IToolbarItemCatalog` (scoped, registered by `AddZauberRte`) lists the registered toolbar items as
+  `ToolbarItemDescriptor`s, for building a "pick your toolbar" screen. Removed items aren't listed; overrides have
+  `IsBuiltIn = false`.
+- `HtmlPolicy.TagAttributes`: attributes allowed only on a given tag, in addition to `AllowedAttributes`, for example
+  `target` only on `a`.
+- `IEditorApi.OpenPanelAsync(Type panelType, ...)` opens a panel chosen at runtime; the generic overload delegates to
+  it.
+- `EditorState.WordCount` and `EditorState.CharacterCount`, computed in the browser when a content change is delivered.
+- Demo: a `/toolbar-catalog` page, and Ctrl+S saving, a word count and `TagAttributes` on the full toolbar page.
+- Built-in toolbar items, all in `ToolbarLayout.Full` (`ToolbarLayout.Simple` is unchanged):
+  - `indent` / `outdent`: nest list items under the previous item and lift them out (as Tab / Shift+Tab already did),
+    or change block indentation with `margin-inline-start` in 2em steps. `outdent` is disabled when there is nothing
+    to outdent (`EditorState.CanOutdent`).
+  - `horizontalRule`: inserts `<hr>` with the caret in a new paragraph after it.
+  - `textColor` and `backgroundColor`: dropdowns of nine colours that read in light and dark themes plus a remove
+    entry, applied as `<span style="color|background-color: ...">`. Swatch ids are `textColor-{name}` and
+    `backgroundColor-{name}`.
+  - `paragraph` and `codeBlock` in the `headings` dropdown, whose trigger now names the paragraph or code block too.
+  - `fullscreen`: fills the browser window and locks page scroll (`html.rte-scroll-lock`); Escape exits. Panels still
+    open above it. New `--rte-z-fullscreen` token.
+  - `findReplace` (Ctrl+H): a panel with match case, Find next, Replace, Replace all and a match count. It searches
+    across inline formatting, highlights the match with the CSS Custom Highlight API, and each replace (and Replace
+    all) is one undo step.
+  - `specialCharacters`: a panel of common characters, including a labelled non-breaking space.
+  - `pastePlainText`: a toggle that makes paste insert text only. Ctrl+Shift+V now always pastes plain text.
+- `IEditorApi`: `IndentAsync`, `OutdentAsync`, `SetTextStyleAsync`, `SetFullscreenAsync`, `SetPlainTextPasteAsync`,
+  `FindAsync`, `ReplaceAsync` and `ReplaceAllAsync`, with the new `FindResult(Count, Current)` record.
+- `EditorState.CanOutdent`, `IsFullscreen` and `IsPlainTextPaste`.
+- `IEditorApi.FlushAsync()`: delivers pending edits through `ValueChanged` and waits until its handler has finished;
+  a no-op when nothing is pending. Await it before saving from a shortcut, a timer or after an asynchronous
+  `ValueChanged` handler. README: new "Saving" section.
+- Docs: the `--rte-z-*` layering defaults, and how to show a host modal over a full-screen editor (lower
+  `--rte-z-fullscreen`, raise the modal, use an editor panel, or call `SetFullscreenAsync(false)` first).
+- Demo: a Save button on `/large-content` that snapshots the bound value.
+
+### Changed
+
+- Content changes larger than 12 KB are sent to .NET in pieces of at most 12 KB through the content callback,
+  instead of being pulled afterwards through an `IJSStreamReference`. The default 32 KB SignalR limit still suffices.
+  Content over `MaxContentBytes` is not sent (the user is warned and it is logged, as before).
+- `IEditorApi` has new members: `OpenPanelAsync(Type, IReadOnlyDictionary<string, object?>?, CancellationToken)` and
+  the indent, text style, full screen, plain-text paste, find/replace and `FlushAsync` methods listed above.
+  Code that calls the API is unaffected, but a class that implements `IEditorApi` itself (for example a test double
+  written by hand) must add them. A default implementation wasn't possible without reflection that would break trimming.
+- Pasted HTML now keeps `color` and `background-color` on spans and `margin-inline-start` (in `em`) on blocks, besides
+  `text-align` and image sizes.
+- The `ToolbarLayout.Full` toolbar has more groups, and the `headings` dropdown lists `paragraph` first, so the
+  trigger shows "Paragraph" in an ordinary paragraph.
+- Demo: the sample colour dropdown is now `inkColor` (`InkColorDropdownItem`, `InkColorItem`, `RemoveInkColorItem`),
+  so its ids don't clash with the built-in `textColor`.
+
+- Output HTML keeps empty paragraphs before and after the content (`<p></p><p>2</p>`), as the user made them,
+  instead of dropping them. Only a document made entirely of empty blocks is still `""`.
+- A typed space next to other text or an inline tag is written as a normal space instead of `&nbsp;`
+  (`<strong>bold</strong> plain`). Leading, trailing and repeated spaces keep `&nbsp;`, and so does a no-break space in
+  the middle of a text node (`a&nbsp;b` from the special characters panel). A block of only spaces or `&nbsp;`
+  (Word's empty paragraphs) is written as `<p></p>`, and `<b>`/`<i>` made by the browser as `<strong>`/`<em>`.
+- The editor's resize grip sits below the content area instead of over its bottom edge.
+- A toolbar layout that references an id that was never registered now logs a `Warning`, so custom items that 3.0 no
+  longer discovers automatically are noticed. Ids removed with `RemoveToolbarItem` are still logged at `Debug`.
+
+### Fixed
+
+- Selecting everything and deleting it now leaves a plain empty paragraph, so the next text is `<p>` rather than the
+  first block's type (such as `<h2>`). Deleting inside one heading keeps the heading.
+- Choosing the already-checked entry of a radio menu (for example "H2" in Headings while in an `<h2>`) no longer
+  toggles the block back to a paragraph; it only closes the menu and returns focus to the editor.
+- Escape now closes a panel when focus has left its controls: after its content failed and showed the error message,
+  or in Safari after clicking one of its buttons. Tab from there moves focus back into the panel.
+- Saving right after editing a document over 12 KB saved the previous value. On blur the editor reported only that
+  the content had changed, then read it with a stream round trip, and a Save click queued behind the blur ran first.
+  The content now arrives with the notification, and `ValueChanged` runs before the click handler, with no consumer
+  changes.
+- Disposing an editor while typing was still debounced lost up to `ChangeDelay` of input. `DisposeAsync` now
+  delivers pending content through `ValueChanged` before releasing the script instance, while the connection is alive.
+- Leaving the HTML source view's text area (blur) now delivers its pending edits at once, as the rich view does.
+- Stray `<br>`s no longer appear in the output, such as `<p>Some text<br></p>`. The placeholder `<br>` that keeps an
+  empty block caret-ready stayed in the DOM once the block gained content, and showed up in the HTML. It came from
+  formatting an empty block (bold, colour), from inserting or pasting into one, from pasted text or HTML ending in a
+  line break, and from 2.x content. A placeholder in front of inserted content added a visible blank line, as in
+  `<li><br><strong>Bold</strong></li>`. Now:
+  - the serialised HTML (`ValueChanged`, `OnChange`, `GetHtmlAsync`, source view) drops a `<br>` that ends a block
+    unless it follows another `<br>` (a visible empty line), and writes an empty block as `<p></p>`. An empty editor
+    is `""`, and the source view no longer shows `<p></p>` for it;
+  - the live DOM removes the placeholder as soon as the block at the caret gains content, and formatting or
+    inserting into an empty block goes before the placeholder rather than after it;
+  - content set from outside or pasted gets placeholders only in empty blocks, and its trailing `<br>`s are removed.
+  The caret can still be placed in empty paragraphs, list items and table cells, and Tab-focusing an empty editor and
+  typing no longer leaves an extra empty paragraph.
+- Starting a list, heading, quote or code block in an empty editor in Firefox lost the caret, so typing went into a
+  new paragraph after it.
+- Enter on an empty last paragraph in a quote now leaves the quote, as in lists and code blocks.
+- Clearing the editor (select all, Delete) in Chrome, Edge and Safari kept the deleted text's bold for the next
+  typing, although the Bold button showed off. A delete that empties the editor now leaves a clean paragraph.
+- Full screen restores the page's scroll position when it is turned off.
+- Firefox: a code block ended with a stray newline in the output, and Numbered list after turning a list off
+  converted only the first of several selected paragraphs.
+- Enter is its own undo step: undo after typing and Enter in quick succession no longer removes both.
+- Getting the link, image or selection when there is none sent an empty stream that .NET couldn't read; it now
+  sends `null`.
+- Inserting a horizontal line inside a list put it in a list item (`<li><hr></li>`, with a bullet beside the line).
+  The line now goes after the list, which is split at the caret if it is mid-list.
+- A toolbar item that dependency injection can't construct (for example one found by `AddToolbarItemsFromAssembly`
+  that takes a `string` constructor argument) is skipped and logged as an error, instead of breaking every editor.
+- Docs: migration notes on `OnKeyDown` replacements (the item must be in the layout), on what `AddToolbarItemsFromAssembly`
+  registers, and on the `@using Microsoft.AspNetCore.Components.Web` a panel outside `_Imports.razor` needs.
+
 ## [3.0.0] - 2026-11-25
 
 A major release that rebuilds the editor's internals against the project standards. It contains breaking changes:

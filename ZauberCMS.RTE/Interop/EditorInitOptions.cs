@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using ZauberCMS.RTE.Models;
-using ZauberCMS.RTE.Toolbar;
 
 namespace ZauberCMS.RTE.Interop;
 
@@ -15,6 +14,7 @@ internal sealed record EditorInitOptions(
     int HistoryLimit,
     int ChangeDelay,
     int InlineLimit,
+    long MaxContentBytes,
     ImageOptions Image)
 {
     public const int DefaultInlineLimit = 12_000;
@@ -24,21 +24,24 @@ internal sealed record EditorInitOptions(
         bool readOnly,
         string? placeholder,
         EditorSettings settings,
-        IReadOnlyList<IToolbarItem> items)
+        IReadOnlyList<IToolbarItem> items,
+        IReadOnlyList<ShortcutBinding> editorShortcuts)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(items);
+        ArgumentNullException.ThrowIfNull(editorShortcuts);
         return new(
             html,
             readOnly,
             placeholder,
             NameList.Normalise(items.SelectMany(item => item.TrackedTags)),
             items.SelectMany(Aliases).DistinctBy(alias => alias.Key).ToFrozenDictionary(),
-            [.. items.Select(Binding).OfType<ShortcutBinding>()],
+            [.. items.Select(item => ShortcutBinding.From(item.Id, item.Shortcut)).OfType<ShortcutBinding>(), .. editorShortcuts],
             HtmlPolicyOptions.From(settings.HtmlPolicy),
             settings.HistoryLimit,
             (int)settings.ChangeDelay.TotalMilliseconds,
             DefaultInlineLimit,
+            settings.MaxContentBytes,
             ImageOptions.From(settings.ImageConstraints));
     }
 
@@ -48,9 +51,4 @@ internal sealed record EditorInitOptions(
                 .Where(tag => !string.Equals(tag, primary, StringComparison.OrdinalIgnoreCase))
                 .Select(tag => KeyValuePair.Create(tag.ToLowerInvariant(), primary.ToLowerInvariant()))
             : [];
-
-    private static ShortcutBinding? Binding(IToolbarItem item) =>
-        KeyboardShortcut.TryParse(item.Shortcut, out var shortcut)
-            ? new(item.Id, shortcut.Key, shortcut.Mod, shortcut.Shift, shortcut.Alt)
-            : null;
 }

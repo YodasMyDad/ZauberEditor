@@ -29,6 +29,10 @@ internal sealed class EditorInterop(IJSObjectReference instance, ILogger logger)
         {
             return default;
         }
+        catch (JSException exception) when (IsEmptyStream(exception))
+        {
+            return default;
+        }
         catch (JSException exception)
         {
             logger.InvocationFailed(identifier, exception);
@@ -36,11 +40,16 @@ internal sealed class EditorInterop(IJSObjectReference instance, ILogger logger)
         }
     }
 
+    private static bool IsEmptyStream(JSException exception) =>
+        exception.InnerException is ArgumentOutOfRangeException { ParamName: "totalLength" };
+
     public Task ResetHtmlAsync(string html, int revision, CancellationToken cancellationToken) =>
         InvokeVoidAsync("setHtml", cancellationToken, html, "parameter", revision);
 
     public Task SetHtmlAsync(string html, CancellationToken cancellationToken) =>
         InvokeVoidAsync("setHtml", cancellationToken, html, "api");
+
+    public Task FlushAsync(CancellationToken cancellationToken) => InvokeVoidAsync("flush", cancellationToken);
 
     public Task<string> GetHtmlAsync(long maxBytes, CancellationToken cancellationToken) =>
         ReadStreamAsync("getHtmlStream", maxBytes, cancellationToken);
@@ -66,6 +75,13 @@ internal sealed class EditorInterop(IJSObjectReference instance, ILogger logger)
 
     public Task SetBlockStyleAsync(IReadOnlyDictionary<string, string> styles, CancellationToken cancellationToken) =>
         InvokeVoidAsync("setBlockStyle", cancellationToken, styles);
+
+    public Task IndentAsync(CancellationToken cancellationToken) => InvokeVoidAsync("indent", cancellationToken);
+
+    public Task OutdentAsync(CancellationToken cancellationToken) => InvokeVoidAsync("outdent", cancellationToken);
+
+    public Task SetTextStyleAsync(string styleName, string? value, CancellationToken cancellationToken) =>
+        InvokeVoidAsync("setTextStyle", cancellationToken, styleName, value);
 
     public Task ClearFormattingAsync(CancellationToken cancellationToken) =>
         InvokeVoidAsync("clearFormatting", cancellationToken);
@@ -110,6 +126,23 @@ internal sealed class EditorInterop(IJSObjectReference instance, ILogger logger)
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ShortcutBinding))]
     public Task ConfigureAsync(EditorInitOptions options, CancellationToken cancellationToken) =>
         InvokeVoidAsync("configure", cancellationToken, options);
+
+    public Task SetFullscreenAsync(bool fullscreen, CancellationToken cancellationToken) =>
+        InvokeVoidAsync("setFullscreen", cancellationToken, fullscreen);
+
+    public Task SetPlainTextPasteAsync(bool plainText, CancellationToken cancellationToken) =>
+        InvokeVoidAsync("setPlainTextPaste", cancellationToken, plainText);
+
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(FindResult))]
+    public async Task<FindResult> FindAsync(string text, bool matchCase, CancellationToken cancellationToken) =>
+        await InvokeAsync<FindResult>("find", cancellationToken, text, matchCase) ?? FindResult.None;
+
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(FindResult))]
+    public async Task<FindResult> ReplaceAsync(string text, string replacement, bool matchCase, CancellationToken cancellationToken) =>
+        await InvokeAsync<FindResult>("replace", cancellationToken, text, replacement, matchCase) ?? FindResult.None;
+
+    public Task<int> ReplaceAllAsync(string text, string replacement, bool matchCase, CancellationToken cancellationToken) =>
+        InvokeAsync<int>("replaceAll", cancellationToken, text, replacement, matchCase);
 
     public Task EnterSourceViewAsync(CancellationToken cancellationToken) =>
         InvokeVoidAsync("enterSourceView", cancellationToken);

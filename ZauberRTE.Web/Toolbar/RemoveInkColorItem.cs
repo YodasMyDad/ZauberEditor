@@ -2,13 +2,13 @@ using ZauberCMS.RTE.Models;
 
 namespace ZauberRTE.Web.Toolbar;
 
-public sealed class RemoveTextColorItem : ToolbarItemBase
+public sealed class RemoveInkColorItem : ToolbarItemBase
 {
-    public const string ItemId = $"{TextColorDropdownItem.ItemId}-none";
+    public const string ItemId = $"{InkColorDropdownItem.ItemId}-none";
 
     public override string Id => ItemId;
 
-    public override string Label => "Default colour";
+    public override string Label => "Default ink";
 
     public override Task ExecuteAsync(IEditorApi api, CancellationToken cancellationToken)
     {

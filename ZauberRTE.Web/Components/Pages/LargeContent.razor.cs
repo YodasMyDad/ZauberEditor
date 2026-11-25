@@ -11,12 +11,13 @@ public sealed partial class LargeContent
     private const string Filler =
         "Rich-text documents grow quickly once they hold real articles, tables and pasted content. This paragraph is " +
         "repeated to build a document that is far larger than a single SignalR message, so every edit you make here " +
-        "is sent back to the server as a stream rather than inline.";
+        "is sent back to the server in pieces rather than in one message.";
 
     private static readonly EditorSettings TallSettings = new() { Dimensions = new() { Height = "420px" } };
 
     private string? _html = "<p>Press <strong>Load</strong> to replace this with a large document.</p>";
     private string? _loadedSize;
+    private string? _saved;
     private int _changeCount;
     private ChangeSource? _lastSource;
 
@@ -28,6 +29,8 @@ public sealed partial class LargeContent
     }
 
     private void Clear() => _html = string.Empty;
+
+    private void Save() => _saved = _html ?? string.Empty;
 
     private void CountChange(EditorChangeArgs change) => (_changeCount, _lastSource) = (_changeCount + 1, change.Source);
 

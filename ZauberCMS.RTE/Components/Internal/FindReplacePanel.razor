@@ -1,0 +1,34 @@
+@inherits PanelBase
+
+<form class="rte-panel-content" @onsubmit="FindNextAsync" @onsubmit:preventDefault>
+    <div class="rte-form-group">
+        <label for="@ElementId("find")" class="rte-label">Find</label>
+        <input id="@ElementId("find")"
+               type="text"
+               autocomplete="off"
+               class="rte-input"
+               @bind="_find"
+               @bind:event="oninput"
+               @bind:after="ResetStatus" />
+    </div>
+
+    <div class="rte-form-group">
+        <label for="@ElementId("replace")" class="rte-label">Replace with</label>
+        <input id="@ElementId("replace")" type="text" autocomplete="off" class="rte-input" @bind="_replacement" @bind:event="oninput" />
+    </div>
+
+    <div class="rte-form-group">
+        <label class="rte-checkbox-label">
+            <input type="checkbox" @bind="_matchCase" @bind:after="ResetStatus" />
+            Match case
+        </label>
+    </div>
+
+    <div class="rte-find-status" role="status">@_status</div>
+
+    <div class="rte-panel-actions">
+        <button type="button" class="rte-btn rte-btn-secondary" disabled="@IsEmpty" @onclick="ReplaceAllAsync">Replace all</button>
+        <button type="button" class="rte-btn rte-btn-secondary" disabled="@IsEmpty" @onclick="ReplaceAsync">Replace</button>
+        <button type="submit" class="rte-btn rte-btn-primary" disabled="@IsEmpty">Find next</button>
+    </div>
+</form>

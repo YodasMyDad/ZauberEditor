@@ -1,11 +1,12 @@
 import { primaryMark } from './config.js';
 import { CELL_TAGS, HEADING_TAGS, LIST_TAGS, ZWSP, elementOf, isBlock, isText } from './dom.js';
+import { indentLevel } from './indent.js';
 import { FrameScheduler } from './scheduler.js';
 import { selectedElement, startNode } from './selection.js';
 
 const MAX_SCANNED_TEXTS = 200;
 const ALIGNMENTS = new Map([['center', 'center'], ['right', 'right'], ['end', 'right'], ['justify', 'justify']]);
-const EMPTY_FACTS = { marks: [], block: 'p', alignment: 'left', inLink: false, inImage: false, inTable: false };
+const EMPTY_FACTS = { marks: [], block: 'p', alignment: 'left', inLink: false, inImage: false, inTable: false, canOutdent: false };
 
 function alignmentOf(element) {
     if (!isBlock(element)) {
@@ -52,6 +53,7 @@ function inspect(content, range, config, selectedImage) {
     let alignment = null;
     let inLink = false;
     let inTable = false;
+    let canOutdent = false;
     for (let element = elementOf(node); element && element !== content; element = element.parentElement) {
         const tag = element.localName;
         alignment ??= alignmentOf(element);
@@ -60,6 +62,7 @@ function inspect(content, range, config, selectedImage) {
         quote ||= tag === 'blockquote';
         inLink ||= tag === 'a';
         inTable ||= CELL_TAGS.has(tag);
+        canOutdent ||= tag === 'li' || indentLevel(element) > 0;
     }
     const startMarks = marksOf(node, content, config);
     const marks = range.collapsed || image ? startMarks : marksAcross(content, range, config, startMarks);
@@ -69,7 +72,8 @@ function inspect(content, range, config, selectedImage) {
         alignment: ALIGNMENTS.get(alignment?.toLowerCase()) ?? 'left',
         inLink,
         inImage: Boolean(image),
-        inTable
+        inTable,
+        canOutdent
     };
 }
 
@@ -82,7 +86,11 @@ function computeState(ctx) {
         hasFocus: ctx.ranges.focused,
         canUndo: ctx.history.canUndo || ctx.changes.dirty,
         canRedo: ctx.history.canRedo && !ctx.changes.dirty,
-        prefersDark: ctx.darkScheme?.matches === true
+        fullscreen: ctx.fullscreen.active,
+        plainPaste: ctx.plainPaste,
+        prefersDark: ctx.darkScheme?.matches === true,
+        words: ctx.changes.counts.words,
+        characters: ctx.changes.counts.characters
     };
 }
 

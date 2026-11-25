@@ -19,6 +19,8 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
     private readonly string _contentId = $"rte-content-{Guid.NewGuid():N}";
     private readonly CancellationTokenSource _lifetime = new();
     private readonly TaskCompletionSource<IEditorInterop> _interop = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly ContentChunks _chunks = new();
+    private Task? _disposal;
     private CancellationToken _token;
     private ElementReference _root;
     private ElementReference _content;
@@ -32,7 +34,8 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
     private EditorState _state = EditorState.Empty;
     private ToolbarArrangement _arrangement = ToolbarArrangement.Empty;
     private ToolbarLayout? _arrangedLayout;
-    private (EditorSettings? Settings, ToolbarArrangement? Arrangement, bool ReadOnly, string? Placeholder) _configuration;
+    private EditorShortcutSet _shortcuts = EditorShortcutSet.Empty;
+    private (EditorSettings? Settings, ToolbarArrangement? Arrangement, IReadOnlyList<ShortcutBinding>? Shortcuts, bool ReadOnly, string? Placeholder) _configuration;
     private bool _configurationPending;
     private Theme? _themeParameter;
     private (EditorDimensions? Source, string? Style) _dimensionStyle;
@@ -78,6 +81,10 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
     [Parameter]
     public bool ReadOnly { get; set; }
 
+    /// <summary>Keyboard shortcuts handled without a toolbar button. They win over item shortcuts with the same keys and are ignored while read-only.</summary>
+    [Parameter]
+    public IReadOnlyList<EditorShortcut>? Shortcuts { get; set; }
+
     /// <summary>Text shown while the editor is empty.</summary>
     [Parameter]
     public string? Placeholder { get; set; }
@@ -97,6 +104,10 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
     /// <summary>Raised after a toolbar item or shortcut has run.</summary>
     [Parameter]
     public EventCallback<CommandExecutedArgs> OnCommandExecuted { get; set; }
+
+    /// <summary>Raised when a toolbar item or shortcut throws, after the failure is logged and an error toast is shown.</summary>
+    [Parameter]
+    public EventCallback<CommandFailedArgs> OnCommandFailed { get; set; }
 
     /// <summary>Raised after the user resizes an image.</summary>
     [Parameter]
@@ -150,6 +161,7 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
             ThemeClass,
             ReadOnly ? "rte-readonly" : null,
             _state.IsSourceView ? "rte-source-mode" : null,
+            _state.IsFullscreen ? "rte-fullscreen" : null,
             AdditionalAttributes?.GetValueOrDefault("class") as string
         }.Where(part => !string.IsNullOrWhiteSpace(part)));
 
@@ -157,14 +169,12 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
         string.Join(';', new[] { _dimensionStyle.Style, AdditionalAttributes?.GetValueOrDefault("style") as string }.Where(part => !string.IsNullOrWhiteSpace(part)))
             is { Length: > 0 } style ? style : null;
 
-    /// <summary>Releases the editor's script instance and references.</summary>
-    public async ValueTask DisposeAsync()
-    {
-        if (_lifetime.IsCancellationRequested)
-        {
-            return;
-        }
+    /// <summary>Delivers pending edits through <see cref="ValueChanged"/>, then releases the editor's script instance and references.</summary>
+    public ValueTask DisposeAsync() => new(_disposal ??= DisposeCoreAsync());
 
+    private async Task DisposeCoreAsync()
+    {
+        await DeliverPendingContentAsync();
         await _lifetime.CancelAsync();
         _interop.TrySetCanceled(_token);
         _panelRendered?.TrySetCanceled(_token);
@@ -180,6 +190,24 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
         }
 
         _lifetime.Dispose();
+    }
+
+    private async Task DeliverPendingContentAsync()
+    {
+        if (!_interop.Task.IsCompletedSuccessfully)
+        {
+            return;
+        }
+
+        try
+        {
+            await (await _interop.Task).FlushAsync(CancellationToken.None);
+            await _contentWork;
+        }
+        catch (Exception exception) when (exception is JSDisconnectedException or JSException)
+        {
+            return;
+        }
     }
 
     Task<IEditorInterop> IEditorHost.GetInteropAsync(CancellationToken cancellationToken) =>
@@ -244,14 +272,31 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
         _toasts?.Show(message, type);
     });
 
-    Task IEditorEventSink.ContentChangedAsync(string? html, ChangeSource source, int revision) =>
-        InvokeAsync(() => TrackContentWork(RunGuardedAsync(() => ApplyContentAsync(html, source, revision), "content change")));
+    Task IEditorHost.FlushAsync(CancellationToken cancellationToken) => InvokeAsync(async () =>
+    {
+        var interop = await GetInteropAsync(cancellationToken);
+        await interop.FlushAsync(cancellationToken);
+        await _contentWork.WaitAsync(cancellationToken);
+    });
+
+    Task IEditorEventSink.ContentChangedAsync(string? html, ChangeSource source, int revision) => InvokeAsync(() =>
+    {
+        var complete = _chunks.Complete(html, Settings.MaxContentBytes);
+        return TrackContentWork(RunGuardedAsync(() => ApplyContentAsync(complete, source, revision), "content change"));
+    });
+
+    Task IEditorEventSink.ContentChunkAsync(string chunk) =>
+        InvokeAsync(() => _chunks.Append(chunk, Settings.MaxContentBytes));
 
     Task IEditorEventSink.StateChangedAsync(EditorSnapshot snapshot) =>
         InvokeAsync(() => SetStateAsync(snapshot.ApplyTo(_state)));
 
-    Task IEditorEventSink.ShortcutAsync(string itemId) =>
-        InvokeAsync(() => !ReadOnly && _arrangement.Find(itemId) is { } item ? ExecuteItemAsync(item) : Task.CompletedTask);
+    Task IEditorEventSink.ShortcutAsync(string id, bool custom) => InvokeAsync(() => (ReadOnly, custom) switch
+    {
+        (true, _) => Task.CompletedTask,
+        (false, true) => _shortcuts.Find(id) is { } shortcut ? ExecuteShortcutAsync(shortcut) : Task.CompletedTask,
+        (false, false) => _arrangement.Find(id) is { } item ? ExecuteItemAsync(item) : Task.CompletedTask
+    });
 
     Task IEditorEventSink.FocusChangedAsync(bool focused) =>
         InvokeAsync(() => RunGuardedAsync(() => focused ? OnFocus.InvokeAsync() : OnBlur.InvokeAsync(), "focus change"));
@@ -353,21 +398,33 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
         {
             _arrangedLayout = EffectiveLayout;
             _arrangement = ToolbarArrangement.Create(EffectiveLayout, _items.Items);
-            if (_arrangement.MissingIds.Count > 0)
-            {
-                Logger.UnknownToolbarItems(_arrangement.MissingIds);
-            }
+            LogMissingItems(_arrangement.MissingIds);
         }
 
+        _shortcuts = _shortcuts.Update(Shortcuts);
         if (Settings.Dimensions != _dimensionStyle.Source)
         {
             _dimensionStyle = (Settings.Dimensions, BuildDimensionStyle(Settings.Dimensions));
         }
     }
 
+    private void LogMissingItems(IReadOnlyList<string> missingIds)
+    {
+        var removed = missingIds.ToLookup(_items.WasRemoved);
+        if (removed[false].Any())
+        {
+            Logger.UnknownToolbarItems(removed[false]);
+        }
+
+        if (removed[true].Any())
+        {
+            Logger.RemovedToolbarItems(removed[true]);
+        }
+    }
+
     private bool TrackConfiguration()
     {
-        var configuration = (Settings, _arrangement, ReadOnly, Placeholder);
+        var configuration = (Settings, _arrangement, _shortcuts.Bindings, ReadOnly, Placeholder);
         if (configuration == _configuration)
         {
             return false;
@@ -448,13 +505,19 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
 
     private async Task ApplyContentAsync(string? html, ChangeSource source, int revision)
     {
-        if (ReadOnly || _sync.Receive(revision) is not { } notification)
+        if (ReadOnly || !_sync.IsCurrent(revision))
         {
             return;
         }
 
-        html ??= await ReadContentAsync();
-        if (html is null || !_sync.Accept(notification, html))
+        if (html is null)
+        {
+            Logger.ContentNotDelivered(Settings.MaxContentBytes);
+            _toasts?.Show(TooLargeMessage, ToastType.Warning);
+            return;
+        }
+
+        if (!_sync.Accept(revision, html))
         {
             return;
         }
@@ -477,42 +540,36 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
         await OnChange.InvokeAsync(new(html, source));
     }
 
-    private async Task<string?> ReadContentAsync()
-    {
-        try
-        {
-            return await (await GetInteropAsync(_token)).GetHtmlAsync(Settings.MaxContentBytes, _token);
-        }
-        catch (EditorContentTooLargeException)
-        {
-            _toasts?.Show(TooLargeMessage, ToastType.Warning);
-            return null;
-        }
-    }
-
     private Task TrackContentWork(Task work)
     {
         _contentWork = _contentWork.IsCompleted ? work : Task.WhenAll(_contentWork, work);
         return work;
     }
 
-    private Task ExecuteItemAsync(IToolbarItem item) => RunGuardedAsync(
+    private Task ExecuteItemAsync(IToolbarItem item) => RunCommandAsync(item.Id, () => item.IsEnabled(_state), item.ExecuteAsync);
+
+    private Task ExecuteShortcutAsync(EditorShortcut shortcut) => RunCommandAsync(shortcut.Keys, static () => true, shortcut.Handler);
+
+    private Task RunCommandAsync(string id, Func<bool> isEnabled, Func<IEditorApi, CancellationToken, Task> execute) => RunGuardedAsync(
         async () =>
         {
             await _contentWork;
-            if (!item.IsEnabled(_state))
+            if (!isEnabled())
             {
                 return;
             }
 
-            await item.ExecuteAsync(Api, _token);
-            await OnCommandExecuted.InvokeAsync(new(item.Id));
+            await execute(Api, _token);
+            await OnCommandExecuted.InvokeAsync(new(id));
         },
-        item.Id);
+        id,
+        exception => OnCommandFailed.InvokeAsync(new(id, exception)));
+
+    private Task FocusFromToolbarAsync() => RunGuardedAsync(() => Api.FocusAsync(_token), "focus");
 
     private Task ClosePanelFromUserAsync() => RunGuardedAsync(() => Api.ClosePanelAsync(_token), "close panel");
 
-    private async Task RunGuardedAsync(Func<Task> action, string operation)
+    private async Task RunGuardedAsync(Func<Task> action, string operation, Func<Exception, Task>? failed = null)
     {
         try
         {
@@ -526,6 +583,10 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
         {
             Logger.OperationFailed(operation, exception);
             _toasts?.Show(FailureMessage, ToastType.Error);
+            if (failed is not null)
+            {
+                await RunGuardedAsync(() => failed(exception), "command failed");
+            }
         }
     }
 
@@ -560,7 +621,7 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
     }
 
     private EditorInitOptions BuildOptions(string? html) =>
-        EditorInitOptions.Create(html, ReadOnly, Placeholder, Settings, _arrangement.Items);
+        EditorInitOptions.Create(html, ReadOnly, Placeholder, Settings, _arrangement.Items, _shortcuts.Bindings);
 
     private static string? BuildDimensionStyle(EditorDimensions dimensions)
     {

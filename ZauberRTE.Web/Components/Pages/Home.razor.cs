@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using ZauberCMS.RTE.Models;
 using ZauberRTE.Web.Client.Components;
 
@@ -7,7 +8,15 @@ public sealed partial class Home
 {
     private const int LogLength = 8;
 
-    private static readonly EditorSettings UploadSettings = new() { ImageConstraints = new() { AllowBase64ImageUpload = true } };
+    private static readonly EditorSettings UploadSettings = new()
+    {
+        ImageConstraints = new() { AllowBase64ImageUpload = true },
+        HtmlPolicy = new()
+        {
+            AllowedAttributes = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, [.. new HtmlPolicy().AllowedAttributes.Where(name => name is not "target")]),
+            TagAttributes = new Dictionary<string, IReadOnlySet<string>> { ["a"] = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, "target") }
+        }
+    };
 
     private readonly List<ChangeEntry> _changes = [];
     private string? _html = """
@@ -17,6 +26,10 @@ public sealed partial class Home
         """;
     private EditorState _state = EditorState.Empty;
     private int _changeCount;
+    private int _saveCount;
+    private string _saveStatus = "Not saved yet: press Ctrl+S.";
+
+    private IReadOnlyList<EditorShortcut> Shortcuts => [new("Control+s", SaveAsync)];
 
     private (string Name, string Value)[] StateRows =>
     [
@@ -39,6 +52,16 @@ public sealed partial class Home
     }
 
     private void ShowState(EditorState state) => _state = state;
+
+    private async Task SaveAsync(IEditorApi api, CancellationToken cancellationToken)
+    {
+        var html = await api.GetHtmlAsync(cancellationToken);
+        _saveStatus = $"Saved #{++_saveCount}: {ByteSize.Format(html)}";
+        StateHasChanged();
+        await api.ShowToastAsync("Saved.", ToastType.Success, cancellationToken);
+    }
+
+    private void ShowFailure(CommandFailedArgs failure) => _saveStatus = $"'{failure.ItemId}' failed: {failure.Exception.Message}";
 
     private static string YesNo(bool value) => value ? "yes" : "no";
 

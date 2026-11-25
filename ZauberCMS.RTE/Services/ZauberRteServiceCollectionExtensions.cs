@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
 using ZauberCMS.RTE.Interop;
@@ -23,7 +24,10 @@ public static class ZauberRteServiceCollectionExtensions
         }
 
         services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton(static provider => new ToolbarRegistry(provider.GetRequiredService<IOptions<ZauberRteOptions>>()));
+        services.TryAddSingleton(static provider => new ToolbarRegistry(
+            provider.GetRequiredService<IOptions<ZauberRteOptions>>(),
+            provider.GetService<ILogger<ToolbarRegistry>>() ?? NullLogger<ToolbarRegistry>.Instance));
+        services.TryAddScoped<IToolbarItemCatalog>(static provider => new ToolbarItemCatalog(provider.GetRequiredService<ToolbarRegistry>(), provider));
         services.TryAddScoped<IEditorInteropFactory>(static provider => new EditorInteropFactory(
             provider.GetRequiredService<IJSRuntime>(),
             provider.GetRequiredService<ILogger<EditorInterop>>()));

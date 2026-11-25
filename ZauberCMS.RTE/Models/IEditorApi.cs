@@ -26,6 +26,15 @@ public interface IEditorApi
     /// <summary>Sets inline styles on the current block.</summary>
     Task SetBlockStyleAsync(IReadOnlyDictionary<string, string> styles, CancellationToken cancellationToken = default);
 
+    /// <summary>Indents the current blocks, or nests list items under the item before them.</summary>
+    Task IndentAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Outdents the current blocks, or lifts list items out of their list.</summary>
+    Task OutdentAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Sets an inline style such as <c>color</c> on the selected text; a null <paramref name="value"/> removes it.</summary>
+    Task SetTextStyleAsync(string styleName, string? value, CancellationToken cancellationToken = default);
+
     /// <summary>Removes inline formatting from the selection.</summary>
     Task ClearFormattingAsync(CancellationToken cancellationToken = default);
 
@@ -34,6 +43,9 @@ public interface IEditorApi
 
     /// <summary>Inserts plain text at the selection.</summary>
     Task InsertTextAsync(string text, CancellationToken cancellationToken = default);
+
+    /// <summary>Delivers any pending edits through <c>ValueChanged</c> and waits until its handler has finished. Await it before saving the bound value.</summary>
+    Task FlushAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Gets the editor's current HTML.</summary>
     /// <exception cref="EditorContentTooLargeException">The content is larger than <see cref="EditorSettings.MaxContentBytes"/>.</exception>
@@ -83,6 +95,33 @@ public interface IEditorApi
     /// <summary>Switches between the rich view and the HTML source view.</summary>
     Task ToggleSourceViewAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Makes the editor fill the browser window, or returns it to the page.</summary>
+    Task SetFullscreenAsync(bool fullscreen, CancellationToken cancellationToken = default);
+
+    /// <summary>Turns plain-text paste on or off.</summary>
+    Task SetPlainTextPasteAsync(bool plainText, CancellationToken cancellationToken = default);
+
+    /// <summary>Selects the next match of <paramref name="text"/> after the selection, wrapping to the start.</summary>
+    /// <param name="text">The text to find.</param>
+    /// <param name="matchCase">Whether the case must match.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    Task<FindResult> FindAsync(string text, bool matchCase = false, CancellationToken cancellationToken = default);
+
+    /// <summary>Replaces the selected match of <paramref name="text"/> as one undoable step, then selects the next match.</summary>
+    /// <param name="text">The text to find.</param>
+    /// <param name="replacement">The replacement text.</param>
+    /// <param name="matchCase">Whether the case must match.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    Task<FindResult> ReplaceAsync(string text, string replacement, bool matchCase = false, CancellationToken cancellationToken = default);
+
+    /// <summary>Replaces every match of <paramref name="text"/> as one undoable step.</summary>
+    /// <param name="text">The text to find.</param>
+    /// <param name="replacement">The replacement text.</param>
+    /// <param name="matchCase">Whether the case must match.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The number of matches replaced.</returns>
+    Task<int> ReplaceAllAsync(string text, string replacement, bool matchCase = false, CancellationToken cancellationToken = default);
+
     /// <summary>Changes the theme and raises <c>ThemeChanged</c>.</summary>
     Task SetThemeAsync(Theme theme, CancellationToken cancellationToken = default);
 
@@ -94,6 +133,16 @@ public interface IEditorApi
         IReadOnlyDictionary<string, object?>? parameters = null,
         CancellationToken cancellationToken = default)
         where TPanel : PanelBase;
+
+    /// <summary>Opens a panel chosen at runtime in the slide-out.</summary>
+    /// <param name="panelType">A concrete component type derived from <see cref="PanelBase"/>.</param>
+    /// <param name="parameters">Parameters passed to the panel.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <exception cref="ArgumentException"><paramref name="panelType"/> is not a concrete <see cref="PanelBase"/>.</exception>
+    Task OpenPanelAsync(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type panelType,
+        IReadOnlyDictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Closes the open panel and returns focus to the editor.</summary>
     Task ClosePanelAsync(CancellationToken cancellationToken = default);

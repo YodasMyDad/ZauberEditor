@@ -5,4 +5,8 @@ namespace ZauberCMS.RTE.Models;
 /// <param name="Text">The link text.</param>
 /// <param name="Title">The title attribute.</param>
 /// <param name="Target">The target attribute, such as <c>_blank</c>.</param>
-public sealed record LinkInfo(string Href, string Text, string? Title, string? Target);
+public sealed record LinkInfo(string Href, string Text, string? Title, string? Target)
+{
+    /// <summary>The rel attribute, such as <c>nofollow</c>.</summary>
+    public string? Rel { get; init; }
+}

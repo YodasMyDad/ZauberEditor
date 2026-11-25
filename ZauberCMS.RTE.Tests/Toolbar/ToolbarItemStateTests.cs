@@ -34,7 +34,23 @@ public sealed class ToolbarItemStateTests
         { ToolbarItemIds.ViewSource, States.Ready, true },
         { ToolbarItemIds.ViewSource, States.Ready with { IsSourceView = true }, true },
         { ToolbarItemIds.ViewSource, States.Ready with { IsReadOnly = true }, false },
-        { ToolbarItemIds.ThemeToggle, States.Ready with { IsReadOnly = true, IsSourceView = true }, true }
+        { ToolbarItemIds.ThemeToggle, States.Ready with { IsReadOnly = true, IsSourceView = true }, true },
+        { ToolbarItemIds.Indent, States.Ready, true },
+        { ToolbarItemIds.Indent, States.Ready with { IsReadOnly = true }, false },
+        { ToolbarItemIds.Outdent, States.Ready, false },
+        { ToolbarItemIds.Outdent, States.Ready with { CanOutdent = true }, true },
+        { ToolbarItemIds.Outdent, States.Ready with { CanOutdent = true, IsSourceView = true }, false },
+        { ToolbarItemIds.HorizontalRule, States.Ready with { IsSourceView = true }, false },
+        { ToolbarItemIds.TextColor, States.Ready, true },
+        { ToolbarItemIds.TextColor, States.Ready with { IsReadOnly = true }, false },
+        { "backgroundColor-yellow", States.Ready with { IsSourceView = true }, false },
+        { ToolbarItemIds.CodeBlock, States.Ready with { IsSourceView = true }, false },
+        { ToolbarItemIds.Fullscreen, States.Ready with { IsReadOnly = true, IsSourceView = true }, true },
+        { ToolbarItemIds.FindReplace, States.Ready, true },
+        { ToolbarItemIds.FindReplace, States.Ready with { IsSourceView = true }, false },
+        { ToolbarItemIds.SpecialCharacters, States.Ready with { IsReadOnly = true }, false },
+        { ToolbarItemIds.PastePlainText, States.Ready, true },
+        { ToolbarItemIds.PastePlainText, States.Ready with { IsReadOnly = true }, false }
     };
 
     public static TheoryData<string, EditorState, bool> ActiveCases => new()
@@ -81,7 +97,18 @@ public sealed class ToolbarItemStateTests
         { ToolbarItemIds.Undo, States.Ready with { CanUndo = true }, false },
         { ToolbarItemIds.Unlink, States.Ready with { InLink = true }, false },
         { ToolbarItemIds.Table, States.Ready with { InTable = true }, false },
-        { ToolbarItemIds.ClearFormatting, States.Marks("strong"), false }
+        { ToolbarItemIds.ClearFormatting, States.Marks("strong"), false },
+        { ToolbarItemIds.Headings, States.Block("pre"), true },
+        { ToolbarItemIds.Paragraph, States.Ready, true },
+        { ToolbarItemIds.Paragraph, States.Block("h2"), false },
+        { ToolbarItemIds.CodeBlock, States.Block("pre"), true },
+        { ToolbarItemIds.CodeBlock, States.Ready, false },
+        { ToolbarItemIds.Fullscreen, States.Ready with { IsFullscreen = true }, true },
+        { ToolbarItemIds.Fullscreen, States.Ready, false },
+        { ToolbarItemIds.PastePlainText, States.Ready with { IsPlainTextPaste = true }, true },
+        { ToolbarItemIds.PastePlainText, States.Ready, false },
+        { ToolbarItemIds.Outdent, States.Ready with { CanOutdent = true }, false },
+        { ToolbarItemIds.TextColor, States.Ready, false }
     };
 
     [Theory]
@@ -104,7 +131,8 @@ public sealed class ToolbarItemStateTests
             States.Block("blockquote"), States.Block("ul"), States.Block("ol"), States.Block("pre"),
             States.Ready with { Alignment = TextAlignment.Center }, States.Ready with { Alignment = TextAlignment.Right },
             States.Ready with { Alignment = TextAlignment.Justify },
-            States.Ready with { InLink = true, InImage = true, IsSourceView = true, Theme = Theme.Dark }
+            States.Ready with { InLink = true, InImage = true, IsSourceView = true, Theme = Theme.Dark },
+            States.Ready with { IsFullscreen = true, IsPlainTextPaste = true, CanOutdent = true }
         ];
 
         BuiltInToolbarItems.All.Where(item => states.Any(item.IsActive)).ShouldAllBe(item => item.IsToggle);

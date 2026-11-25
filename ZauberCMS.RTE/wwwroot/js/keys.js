@@ -92,6 +92,9 @@ export function handleEnter(content, range) {
     if (CELL_TAGS.has(block.localName)) {
         return insertBreak(content, collapsed);
     }
+    if (isLastInQuote(content, block) && !hasVisibleContent(block)) {
+        return liftOutOfQuote(content, block, true);
+    }
     if (!RETAGGABLE_TAGS.has(block.localName)) {
         const point = [collapsed.startContainer, collapsed.startOffset];
         wrapInlineRuns(block);
@@ -114,9 +117,16 @@ function removeRule(rule) {
     return true;
 }
 
-function liftOutOfQuote(content, block) {
+const isLastInQuote = (content, block) => block.parentElement?.localName === 'blockquote' && block.parentElement !== content
+    && !block.nextElementSibling;
+
+function liftOutOfQuote(content, block, after) {
     const quote = block.parentElement;
-    quote.before(block);
+    if (after) {
+        quote.after(block);
+    } else {
+        quote.before(block);
+    }
     if (quote.children.length === 0) {
         quote.remove();
     }
@@ -145,7 +155,7 @@ export function handleBackspace(content, range) {
         return true;
     }
     if (block.parentElement?.localName === 'blockquote' && block.parentElement !== content && !block.previousElementSibling) {
-        return liftOutOfQuote(content, block);
+        return liftOutOfQuote(content, block, false);
     }
     if (block.previousElementSibling?.localName === 'hr') {
         return removeRule(block.previousElementSibling);

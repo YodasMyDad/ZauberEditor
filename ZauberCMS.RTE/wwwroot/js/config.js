@@ -18,10 +18,17 @@ function createImageRules(image) {
     };
 }
 
+function createTagAttributes(tagAttributes) {
+    return new Map(Object.entries(tagAttributes ?? {})
+        .filter(([, names]) => Array.isArray(names))
+        .map(([tag, names]) => [tag.toLowerCase(), new Set(lower(names))]));
+}
+
 function createPolicy(policy) {
     return {
         allowedTags: new Set(lower(policy?.allowedTags)),
         allowedAttributes: new Set(lower(policy?.allowedAttributes)),
+        tagAttributes: createTagAttributes(policy?.tagAttributes),
         allowDataUrls: policy?.allowDataUrls !== false,
         allowExternalImages: policy?.allowExternalImages !== false
     };
@@ -40,7 +47,8 @@ export function createConfig(options) {
         policy: createPolicy(options.policy),
         historyLimit: atLeast(options.historyLimit, 1, 100),
         changeDelay: atLeast(options.changeDelay, 0, 300),
-        inlineLimit: atLeast(options.inlineLimit, 0, 12000),
+        inlineLimit: atLeast(options.inlineLimit, 4, 12000),
+        maxContentBytes: atLeast(options.maxContentBytes, 0, 10 * 1024 * 1024),
         image: createImageRules(options.image)
     };
 }

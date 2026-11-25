@@ -18,9 +18,10 @@ It assumes the editor is already set up as described in the [README](README.md).
 8. [Overriding a built-in item](#overriding-a-built-in-item)
 9. [Removing a built-in item](#removing-a-built-in-item)
 10. [Custom layouts](#custom-layouts)
-11. [Icons](#icons)
-12. [Checklist](#checklist)
-13. [The demo app](#the-demo-app)
+11. [Letting users pick their toolbar](#letting-users-pick-their-toolbar)
+12. [Icons](#icons)
+13. [Checklist](#checklist)
+14. [The demo app](#the-demo-app)
 
 ## How toolbar items work
 
@@ -50,7 +51,8 @@ Behaviour worth knowing:
   never shared between editors. If an item implements `IDisposable` or `IAsyncDisposable`, it's disposed with its
   editor.
 - **Errors are handled for you.** If `ExecuteAsync` throws, the editor logs the exception and shows an error toast, so
-  you don't need a `try`/`catch` per item. `OnCommandExecuted` is raised only when the item succeeds.
+  you don't need a `try`/`catch` per item. `OnCommandExecuted` is raised only when the item succeeds, and
+  `OnCommandFailed` (with the item id and the exception) when it throws.
 - **The policy still applies.** Anything you insert goes through the editor's `HtmlPolicy`. If your item emits a tag
   or attribute that isn't allowed by default (`mark`, `aside`, ...), add it to the policy (see
   [A toggle](#a-toggle-that-tracks-formatting)).
@@ -195,9 +197,9 @@ Two steps make an item appear:
        options.AddToolbarItem<HighlightItem>();
        options.AddToolbarItem<InsertTimeItem>();
        options.AddToolbarItem<CalloutItem>();
-       options.AddToolbarItem<TextColorDropdownItem>();
-       options.AddToolbarItem<RemoveTextColorItem>();
-       foreach (var color in TextColorItem.Palette)
+       options.AddToolbarItem<InkColorDropdownItem>();
+       options.AddToolbarItem<RemoveInkColorItem>();
+       foreach (var color in InkColorItem.Palette)
        {
            options.AddToolbarItem(color);
        }
@@ -214,7 +216,7 @@ The registration options are:
 | `AddToolbarItem<TItem>()` | The normal way. Creates one instance per editor through DI. Trim-safe. |
 | `AddToolbarItem(IToolbarItem item)` | Registers an existing instance, shared by every editor, so it must be stateless. Handy for items built from data, like the colour palette above. |
 | `RemoveToolbarItem(string id)` | Removes whatever is registered under that id at that point, including a built-in. |
-| `AddToolbarItemsFromAssembly(Assembly assembly)` | Registers every concrete `IToolbarItem` type in an assembly. This uses reflection, so it's marked `[RequiresUnreferencedCode]` and isn't trim-safe; prefer explicit registration. |
+| `AddToolbarItemsFromAssembly(Assembly assembly)` | Registers every concrete `IToolbarItem` type in an assembly, including items meant to be registered as instances. Types DI can't construct are skipped and logged as errors. This uses reflection, so it's marked `[RequiresUnreferencedCode]` and isn't trim-safe; prefer explicit registration. |
 
 Registrations apply in order, after the built-ins. A later registration with the same id replaces the earlier one.
 `AddZauberRte` can be called several times (for example by plugins), and every configuration callback is applied.
@@ -229,45 +231,45 @@ registered item. The editor never calls the dropdown's own `ExecuteAsync`: click
 entry runs that child. While a child is active, the trigger shows that child's label and icon, as the headings
 dropdown does.
 
-The parent (`ZauberRTE.Web/Toolbar/TextColorDropdownItem.cs`):
+The parent (`ZauberRTE.Web/Toolbar/InkColorDropdownItem.cs`):
 
 ```csharp
 using ZauberCMS.RTE.Models;
 
 namespace ZauberRTE.Web.Toolbar;
 
-public sealed class TextColorDropdownItem : ToolbarItemBase
+public sealed class InkColorDropdownItem : ToolbarItemBase
 {
-    public const string ItemId = "textColor";
+    public const string ItemId = "inkColor";
 
     public override string Id => ItemId;
 
-    public override string Label => "Text colour";
+    public override string Label => "Ink colour";
 
     public override string? IconSvg => DemoIcons.Palette;
 
     public override ToolbarItemKind Kind => ToolbarItemKind.Dropdown;
 
     public override IReadOnlyList<string> ChildItemIds { get; } =
-        [.. TextColorItem.Palette.Select(item => item.Id), RemoveTextColorItem.ItemId];
+        [.. InkColorItem.Palette.Select(item => item.Id), RemoveInkColorItem.ItemId];
 
     public override Task ExecuteAsync(IEditorApi api, CancellationToken cancellationToken) => Task.CompletedTask;
 }
 ```
 
 The children: one class, instantiated per colour and registered as shared instances
-(`ZauberRTE.Web/Toolbar/TextColorItem.cs`):
+(`ZauberRTE.Web/Toolbar/InkColorItem.cs`):
 
 ```csharp
 using ZauberCMS.RTE.Models;
 
 namespace ZauberRTE.Web.Toolbar;
 
-public sealed class TextColorItem(string color, string label) : ToolbarItemBase
+public sealed class InkColorItem(string color, string label) : ToolbarItemBase
 {
     private const string Tag = "span";
 
-    public static IReadOnlyList<TextColorItem> Palette { get; } =
+    public static IReadOnlyList<InkColorItem> Palette { get; } =
     [
         new("red", "Red"),
         new("green", "Green"),
@@ -275,7 +277,7 @@ public sealed class TextColorItem(string color, string label) : ToolbarItemBase
         new("purple", "Purple")
     ];
 
-    public override string Id => $"{TextColorDropdownItem.ItemId}-{color}";
+    public override string Id => $"{InkColorDropdownItem.ItemId}-{color}";
 
     public override string Label => label;
 
@@ -291,20 +293,20 @@ public sealed class TextColorItem(string color, string label) : ToolbarItemBase
 }
 ```
 
-And a "reset" child (`ZauberRTE.Web/Toolbar/RemoveTextColorItem.cs`):
+And a "reset" child (`ZauberRTE.Web/Toolbar/RemoveInkColorItem.cs`):
 
 ```csharp
 using ZauberCMS.RTE.Models;
 
 namespace ZauberRTE.Web.Toolbar;
 
-public sealed class RemoveTextColorItem : ToolbarItemBase
+public sealed class RemoveInkColorItem : ToolbarItemBase
 {
-    public const string ItemId = $"{TextColorDropdownItem.ItemId}-none";
+    public const string ItemId = $"{InkColorDropdownItem.ItemId}-none";
 
     public override string Id => ItemId;
 
-    public override string Label => "Default colour";
+    public override string Label => "Default ink";
 
     public override Task ExecuteAsync(IEditorApi api, CancellationToken cancellationToken)
     {
@@ -314,10 +316,11 @@ public sealed class RemoveTextColorItem : ToolbarItemBase
 }
 ```
 
-Put only the dropdown's id (`textColor`) in the layout. Its children don't need layout entries, but they must be
-registered. Children are looked up by id, so a child id can also point at a built-in item (`headings` lists `h1` to
-`h6`), and overriding that id changes the dropdown too. For a toggle child, the menu entry is a `menuitemradio` that
-shows a check mark while the child is active.
+Put only the dropdown's id (`inkColor`) in the layout. The demo uses `inkColor` with CSS classes as an extension
+example; the built-in `textColor` and `backgroundColor` dropdowns already apply inline colours. Its children don't
+need layout entries, but they must be registered. Children are looked up by id, so a child id can also point at a
+built-in item (`headings` lists `paragraph`, `h1` to `h6` and `codeBlock`), and overriding that id changes the dropdown
+too. For a toggle child, the menu entry is a `menuitemradio` that shows a check mark while the child is active.
 
 ## A slide-out panel
 
@@ -361,7 +364,9 @@ public sealed class CalloutItem : ToolbarItemBase
 ```
 
 The panel's markup (`ZauberRTE.Web/Toolbar/CalloutPanel.razor`). It needs `@using ZauberCMS.RTE.Models` in scope, for
-example from `_Imports.razor`:
+example from `_Imports.razor`. A panel in a folder that the app's `_Imports.razor` doesn't cover also needs
+`@using Microsoft.AspNetCore.Components.Web`: without it, `@bind` and `@onsubmit` are emitted as literal attributes, the
+form does a native page submit, and the build reports no error.
 
 ```razor
 @inherits PanelBase
@@ -496,6 +501,20 @@ public override async Task ExecuteAsync(IEditorApi api, CancellationToken cancel
 }
 ```
 
+### Opening a panel chosen at runtime
+
+When the panel type is only known at runtime, for example from configuration, pass the `Type` instead of a type
+argument. It must be a concrete component derived from `PanelBase`; anything else throws `ArgumentException`:
+
+```csharp
+Type panelType = options.UseRichNotes ? typeof(RichNotePanel) : typeof(NotePanel);
+await api.OpenPanelAsync(panelType, parameters, cancellationToken);
+```
+
+The parameter is annotated with `[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]`, so the trimmer
+keeps the panel's members when you pass a `typeof(...)`. A `Type` loaded by name (`Type.GetType("...")`) isn't
+trim-safe.
+
 ### Panel styling
 
 These classes give your panel the same look as the built-in ones, in both themes:
@@ -554,9 +573,13 @@ The replacement carries only what you give it. A built-in's icon, shortcut, trac
 inherited, so set everything the item needs. With no icon, the button shows its `Label` as text.
 
 You can override every built-in id: `bold`, `italic`, `underline`, `strike`, `subscript`, `superscript`, `code`,
-`h1`–`h6`, `headings`, `blockquote`, `ul`, `ol`, `alignLeft`, `alignCenter`, `alignRight`, `justified`, `link`,
-`unlink`, `image`, `table`, `clean-html`, `undo`, `redo`, `viewSource` and `themeToggle`. To replace the link or
-image dialog, override `link` or `image` with an item that opens your own panel.
+`textColor` and its swatches (`textColor-red` ... `textColor-default`), `backgroundColor` and its swatches
+(`backgroundColor-yellow` ... `backgroundColor-none`), `paragraph`, `h1`–`h6`, `codeBlock`, `headings`,
+`blockquote`, `ul`, `ol`, `indent`, `outdent`, `alignLeft`, `alignCenter`, `alignRight`, `justified`, `link`,
+`unlink`, `image`, `table`, `horizontalRule`, `specialCharacters`, `clean-html`, `undo`, `redo`, `findReplace`,
+`pastePlainText`, `viewSource`, `fullscreen` and `themeToggle`. To replace the link or image dialog, override `link`
+or `image` with an item that opens your own panel. To use your own palette, override `textColor` or
+`backgroundColor` with a dropdown that lists your own swatch items.
 
 ## Removing a built-in item
 
@@ -568,8 +591,9 @@ builder.Services.AddZauberRte(options =>
 });
 ```
 
-A removed id is skipped wherever a layout references it, and the editor logs a warning about the unknown id. To avoid
-that warning, use a layout that leaves the item out. Removal applies to everything registered under that id before the
+A removed id is skipped wherever a layout references it, and the editor logs it at `Debug` level, so a built-in layout
+that references a removed item stays quiet. An id that was never registered (a typo, or a custom item you forgot to
+register) is logged at `Warning` level instead. Removal applies to everything registered under that id before the
 call, so if you remove an id and then add your own item with it, put `AddToolbarItem` after `RemoveToolbarItem`. To
 hide an item from one editor only, leave it out of that editor's layout instead of removing it.
 
@@ -587,7 +611,7 @@ namespace ZauberRTE.Web.Toolbar;
 public static class DemoToolbar
 {
     public static ToolbarLayout Layout { get; } = new(
-        new ToolbarGroup(ToolbarItemIds.Bold, ToolbarItemIds.Italic, HighlightItem.ItemId, TextColorDropdownItem.ItemId),
+        new ToolbarGroup(ToolbarItemIds.Bold, ToolbarItemIds.Italic, HighlightItem.ItemId, InkColorDropdownItem.ItemId),
         new ToolbarSeparator(),
         new ToolbarGroup(ToolbarItemIds.Headings, ToolbarItemIds.UnorderedList, CalloutItem.ItemId, InsertTimeItem.ItemId),
         new ToolbarSeparator(),
@@ -617,6 +641,34 @@ Apply it per editor with the `Toolbar` parameter, or through `EditorSettings.Too
   [JSON format](README.md#layouts-as-json).
 - Keep layouts in `static` properties, as above. The editor rebuilds its toolbar only when it receives a different
   layout instance.
+
+## Letting users pick their toolbar
+
+`IToolbarItemCatalog` (registered by `AddZauberRte`, scoped) lists every registered item, so a CMS can show a "pick
+your toolbar buttons" screen and store the result as a layout. `GetItems()` returns one `ToolbarItemDescriptor` per
+item: `Id`, `Label`, `Tooltip`, `IconSvg`, `IconCss`, `Shortcut`, `Kind`, `ChildItemIds` and `IsBuiltIn`.
+
+- Built-in items come first in their usual order, then custom items by id.
+- Removed items aren't listed. An override of a built-in id is listed once, with `IsBuiltIn = false`.
+- Items registered by type are created once per scope to describe them, and disposed with the scope.
+- Dropdown children (such as `h1` to `h6`) are listed too; use `Kind` and `ChildItemIds` to group them.
+
+```razor
+@inject IToolbarItemCatalog Catalog
+
+@foreach (var item in Catalog.GetItems())
+{
+    <label>
+        <input type="checkbox" checked="@_chosen.Contains(item.Id)" @onchange="() => Toggle(item.Id)" />
+        @item.Label
+    </label>
+}
+
+<ZauberRichTextEditor @bind-Value="_html" Toolbar="new ToolbarLayout(new ToolbarGroup([.. _chosen]))" />
+```
+
+Save the chosen layout with `ToJson()` and load it with `ToolbarLayout.FromJson(json)`. The demo's
+`/toolbar-catalog` page (`ZauberRTE.Web/Components/Pages/ToolbarCatalog.razor`) is a working example.
 
 ## Icons
 

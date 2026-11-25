@@ -1,4 +1,5 @@
-import { normalizeAtCaret, refreshEmptyState } from './content.js';
+import { tidyBreaksAtCaret } from './breaks.js';
+import { isContentEmpty, normalizeAtCaret, refreshEmptyState, resetEmptyContent } from './content.js';
 
 export function bindContentEvents(ctx) {
     const { content, channel, signal } = ctx;
@@ -13,7 +14,11 @@ export function bindContentEvents(ctx) {
     }), options);
     content.addEventListener('input', channel.guard((event) => {
         if (!event.isComposing) {
+            if (event.inputType?.startsWith('delete') && !ctx.caretMarks.holder && isContentEmpty(content)) {
+                resetEmptyContent(content);
+            }
             normalizeAtCaret(content);
+            tidyBreaksAtCaret(content);
             ctx.caretMarks.settle();
         }
         ctx.changes.input();

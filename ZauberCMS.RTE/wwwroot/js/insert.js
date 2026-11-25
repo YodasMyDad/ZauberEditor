@@ -1,8 +1,11 @@
+import { tidyBreaks } from './breaks.js';
 import {
-    CELL_TAGS, MEDIA_SELECTOR, blockOf, cellOf, createBreak, ensurePlaceholder, hasVisibleContent, isBlock, isList, isText,
-    maxOffset, mergeBlocks, removeEmptyInlines, removeTrailingBreak, splitAt, wrapInlineRuns
+    CELL_TAGS, MEDIA_SELECTOR, blockOf, cellOf, closestWithin, createBreak, ensurePlaceholder, hasOwnContent,
+    hasVisibleContent, isBlock, isList, isText, isTextBlock, maxOffset, mergeBlocks, placeholderOf, removeEmptyInlines,
+    splitAt, wrapInlineRuns
 } from './dom.js';
-import { applyRange, caretAt, createRange, edgePosition, isRangeEmpty, pointAt, startNode, unitsBefore } from './selection.js';
+import { placeBesideList } from './lists.js';
+import { applyRange, caretAt, caretInside, createRange, edgePosition, isRangeEmpty, pointAt, startNode, unitsBefore } from './selection.js';
 import { RETAGGABLE_TAGS } from './text-blocks.js';
 
 export function deleteSelection(content, range) {
@@ -106,9 +109,31 @@ function placeCaretAfter(content, node) {
     applyRange(content, caret);
 }
 
+function leadingText(node) {
+    let current = node;
+    while (current && !isText(current)) {
+        current = current.firstChild;
+    }
+    return current;
+}
+
+function relaxSpaceBefore(range, following) {
+    const { startContainer: node, startOffset: offset } = range;
+    const next = leadingText(following);
+    if (!isText(node) || !isText(next) || offset === 0 || node.data[offset - 1] !== ' ' || !/^\S/.test(next.data)) {
+        return;
+    }
+    if (offset === 1 || /\S/.test(node.data[offset - 2])) {
+        node.replaceData(offset - 1, 1, ' ');
+        range.setStart(node, offset);
+        range.collapse(true);
+    }
+}
+
 function insertInline(content, range, fragment) {
+    relaxSpaceBefore(range, fragment.firstChild);
     const block = blockOf(startNode(range), content);
-    const placeholder = block && !hasVisibleContent(block);
+    const placeholder = placeholderOf(block);
     const last = fragment.lastChild;
     if (!block) {
         const paragraph = content.ownerDocument.createElement('p');
@@ -116,8 +141,8 @@ function insertInline(content, range, fragment) {
         range.insertNode(paragraph);
     } else {
         range.insertNode(fragment);
-        if (placeholder && block.lastChild !== last) {
-            removeTrailingBreak(block);
+        if (placeholder && placeholder !== last && hasOwnContent(block)) {
+            placeholder.remove();
         }
     }
     placeCaretAfter(content, last);
@@ -161,6 +186,23 @@ function insertIntoList(content, range, item, nodes) {
     }
     cleanPieces(...(last === item ? [tail] : [item, tail]));
     caretAt(content, ...caret);
+}
+
+function listItemAround(content, block) {
+    const item = closestWithin(block, 'li', content);
+    const cell = cellOf(block, content);
+    return item && !(cell && item.contains(cell)) ? item : null;
+}
+
+function insertBesideList(content, range, item, nodes) {
+    const tail = placeBesideList(content, range, item, nodes);
+    const last = nodes.at(-1);
+    const target = isTextBlock(last) ? last : tail.isConnected && tail.querySelector('li');
+    if (target) {
+        caretInside(content, target, false);
+    } else {
+        placeCaretAfter(content, last);
+    }
 }
 
 function insertBlocks(content, range, block, nodes) {
@@ -207,12 +249,18 @@ export function insertFragment(content, range, fragment) {
         return true;
     }
     wrapInlineRuns(fragment);
+    tidyBreaks(fragment);
     let block = blockOf(startNode(collapsed), content);
     if (block?.localName === 'pre') {
         insertInline(content, collapsed, content.ownerDocument.createTextNode(fragment.textContent));
         return true;
     }
     const nodes = [...fragment.children];
+    const item = block && listItemAround(content, block);
+    if (item && nodes.some((node) => node.localName === 'hr')) {
+        insertBesideList(content, collapsed, item, nodes);
+        return true;
+    }
     if (block?.localName === 'li') {
         insertIntoList(content, collapsed, block, nodes);
         return true;
@@ -228,6 +276,9 @@ export function insertFragment(content, range, fragment) {
         collapsed.insertNode(fragment);
         placeCaretAfter(content, nodes.at(-1));
         return true;
+    }
+    if (nodes[0].localName === 'p') {
+        relaxSpaceBefore(collapsed, nodes[0]);
     }
     insertBlocks(content, collapsed, block, nodes);
     return true;

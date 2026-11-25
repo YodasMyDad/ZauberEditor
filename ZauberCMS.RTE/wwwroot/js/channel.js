@@ -6,16 +6,19 @@ export class Channel {
         this.#reference = reference;
     }
 
-    contentChanged(html, source, revision) {
-        this.#send('OnContentChanged', html, source, revision);
+    contentChanged(chunks, source, revision) {
+        for (const chunk of chunks?.slice(0, -1) ?? []) {
+            this.#send('OnContentChunk', chunk);
+        }
+        this.#send('OnContentChanged', chunks?.at(-1) ?? null, source, revision);
     }
 
     stateChanged(snapshot) {
         this.#send('OnStateChanged', snapshot);
     }
 
-    shortcut(itemId) {
-        this.#send('OnShortcut', itemId);
+    shortcut(id, custom) {
+        this.#send('OnShortcut', id, custom);
     }
 
     focusChanged(focused) {

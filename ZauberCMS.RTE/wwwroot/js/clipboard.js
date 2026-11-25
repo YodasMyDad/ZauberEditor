@@ -1,4 +1,4 @@
-import { removeEmptyInlines, retag, unwrapElement } from './dom.js';
+import { isBlock, removeEmptyInlines, retag, unwrapElement } from './dom.js';
 import { textFragment } from './insert.js';
 import { prepareOfficeHtml } from './office.js';
 import { createRange } from './selection.js';
@@ -9,6 +9,8 @@ const MEGABYTE = 1024 * 1024;
 const DRAG_TYPE = 'application/x-zauber-rte';
 const ALIGNMENTS = new Set(['left', 'center', 'right', 'justify']);
 const IMAGE_SIZE = /^\d+(?:\.\d+)?(?:px|%)$/;
+const INDENT = /^\d+(?:\.\d+)?em$/;
+const TEXT_STYLES = ['color', 'background-color'];
 
 export function normalizeFragment(fragment, config, sanitizer) {
     for (const [alias, primary] of config.aliases) {
@@ -26,6 +28,13 @@ function editorStyles(element) {
     const kept = [['text-align', style.getPropertyValue('text-align')]].filter(([, value]) => ALIGNMENTS.has(value));
     if (element.localName === 'img') {
         kept.push(...['width', 'height'].map((name) => [name, style.getPropertyValue(name)]).filter(([, value]) => IMAGE_SIZE.test(value)));
+    }
+    if (element.localName === 'span') {
+        kept.push(...TEXT_STYLES.map((name) => [name, style.getPropertyValue(name)]).filter(([, value]) => value !== ''));
+    }
+    const indent = style.getPropertyValue('margin-inline-start');
+    if (isBlock(element) && INDENT.test(indent)) {
+        kept.push(['margin-inline-start', indent]);
     }
     return kept;
 }
@@ -128,6 +137,22 @@ async function insertImages(ctx, actions, files, range) {
     }
 }
 
+function plainTextOf(data) {
+    const text = data.getData('text/plain');
+    if (text) {
+        return text;
+    }
+    const html = data.getData('text/html');
+    return html ? new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '' : '';
+}
+
+function pasteAsText(ctx, actions, data, range) {
+    const text = plainTextOf(data);
+    if (text) {
+        actions.insert(textFragment(ctx.content.ownerDocument, text), 'paste', range);
+    }
+}
+
 async function insertTransfer(ctx, actions, data, range) {
     const files = [...(data.files ?? [])].filter((file) => IMAGE_TYPE.test(file.type));
     const html = data.getData('text/html');
@@ -156,6 +181,11 @@ export function bindClipboard(ctx, actions) {
             return;
         }
         const range = ctx.ranges.current()?.cloneRange() ?? null;
+        if (ctx.plainPaste || ctx.pasteTextOnce) {
+            ctx.pasteTextOnce = false;
+            pasteAsText(ctx, actions, event.clipboardData, range);
+            return;
+        }
         insertTransfer(ctx, actions, event.clipboardData, range).catch(report);
     }), options);
     content.addEventListener('dragstart', (event) => {

@@ -43,6 +43,10 @@ public sealed partial class ToolbarDropdown
     [Parameter]
     public EventCallback<IToolbarItem> OnExecute { get; set; }
 
+    /// <summary>Raised when the menu closes on the already-checked item, so focus can return to the editor.</summary>
+    [Parameter]
+    public EventCallback OnDismiss { get; set; }
+
     private string TriggerClass =>
         ToolbarPresenter.ButtonClass("rte-toolbar-btn rte-dropdown-trigger", _rendered.IsActive, IsEnabled, _isOpen);
 
@@ -139,7 +143,14 @@ public sealed partial class ToolbarDropdown
         }
 
         Close();
-        await OnExecute.InvokeAsync(Children[index]);
+        var child = Children[index];
+        if (child.IsToggle && _childActive[index])
+        {
+            await OnDismiss.InvokeAsync();
+            return;
+        }
+
+        await OnExecute.InvokeAsync(child);
     }
 
     private async Task OnTriggerKeyDownAsync(KeyboardEventArgs args)

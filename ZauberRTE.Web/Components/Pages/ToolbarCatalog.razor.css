@@ -1,0 +1,19 @@
+.catalog {
+    inline-size: 100%;
+    margin-block-end: 1rem;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.catalog th,
+.catalog td {
+    padding: 0.25rem 0.5rem;
+    border-block-end: 1px solid #dee2e6;
+    text-align: start;
+    vertical-align: middle;
+}
+
+.catalog-icon ::deep svg {
+    inline-size: 1rem;
+    block-size: 1rem;
+}

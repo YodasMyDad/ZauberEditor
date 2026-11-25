@@ -14,9 +14,34 @@ public sealed class BuiltInToolbarItemsTests
             .Select(field => (string)field.GetRawConstantValue()!)
     ];
 
+    private static readonly string[] ColorDropdownIds = [ToolbarItemIds.TextColor, ToolbarItemIds.BackgroundColor];
+
     [Fact]
     public void EveryPublishedIdHasExactlyOneBuiltInItem() =>
-        BuiltInToolbarItems.All.Select(item => item.Id).ShouldBe(PublishedIds, ignoreOrder: true);
+        BuiltInToolbarItems.All
+            .Select(item => item.Id)
+            .Where(id => !ColorDropdownIds.Any(parent => id.StartsWith(parent + "-", StringComparison.Ordinal)))
+            .ShouldBe(PublishedIds, ignoreOrder: true);
+
+    [Theory]
+    [InlineData(ToolbarItemIds.TextColor, "textColor-default")]
+    [InlineData(ToolbarItemIds.BackgroundColor, "backgroundColor-none")]
+    public void ColorDropdownsListTheirSwatchesThenTheRemoveEntry(string id, string removeId)
+    {
+        var dropdown = BuiltInToolbarItems.All.Single(item => item.Id == id);
+
+        dropdown.Kind.ShouldBe(ToolbarItemKind.Dropdown);
+        dropdown.ChildItemIds.Count.ShouldBeInRange(9, 11);
+        dropdown.ChildItemIds.ShouldAllBe(child => child.StartsWith(id + "-", StringComparison.Ordinal));
+        dropdown.ChildItemIds[^1].ShouldBe(removeId);
+    }
+
+    [Fact]
+    public void EveryNonPublishedBuiltInIsAColorSwatch() =>
+        BuiltInToolbarItems.All
+            .Select(item => item.Id)
+            .Except(PublishedIds)
+            .ShouldBe(ColorDropdownIds.SelectMany(id => BuiltInToolbarItems.All.Single(item => item.Id == id).ChildItemIds), ignoreOrder: true);
 
     [Fact]
     public void IdsAreUniqueIgnoringCase() =>
@@ -39,12 +64,12 @@ public sealed class BuiltInToolbarItemsTests
             .ShouldBeEmpty();
 
     [Fact]
-    public void HeadingsDropdownListsTheSixHeadings()
+    public void HeadingsDropdownListsParagraphHeadingsAndCodeBlock()
     {
         var headings = BuiltInToolbarItems.All.Single(item => item.Id == ToolbarItemIds.Headings);
 
         headings.Kind.ShouldBe(ToolbarItemKind.Dropdown);
-        headings.ChildItemIds.ShouldBe(["h1", "h2", "h3", "h4", "h5", "h6"]);
+        headings.ChildItemIds.ShouldBe(["paragraph", "h1", "h2", "h3", "h4", "h5", "h6", "codeBlock"]);
     }
 
     [Theory]

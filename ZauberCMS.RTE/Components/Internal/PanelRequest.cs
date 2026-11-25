@@ -13,12 +13,12 @@ internal sealed class PanelRequest
 
     public PanelBase? Instance { get; private set; }
 
-    public static PanelRequest Create<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TPanel>(
-        IReadOnlyDictionary<string, object?>? parameters)
-        where TPanel : PanelBase =>
+    public static PanelRequest Create(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type panelType,
+        IReadOnlyDictionary<string, object?>? parameters) =>
         new(request => builder =>
         {
-            builder.OpenComponent<TPanel>(0);
+            builder.OpenComponent(0, panelType);
             foreach (var (name, value) in parameters ?? FrozenDictionary<string, object?>.Empty)
             {
                 builder.AddComponentParameter(1, name, value);

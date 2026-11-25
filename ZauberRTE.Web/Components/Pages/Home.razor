@@ -6,15 +6,24 @@
 <h1>Full toolbar</h1>
 <p class="lead-text">
     Every built-in item (<code>ToolbarLayout.Full</code>) with <code>@@bind-Value</code>. The bound value is shown as
-    escaped text and rendered in a sandboxed iframe; the editor's events are logged on the right.
+    escaped text and rendered in a sandboxed iframe; the editor's events are logged on the right. Press
+    <kbd>Ctrl</kbd>+<kbd>S</kbd> in the editor to run a <code>Shortcuts</code> handler that saves without a toolbar
+    button. The <code>HtmlPolicy</code> allows <code>target</code> only on links, through <code>TagAttributes</code>.
 </p>
 
 <ZauberRichTextEditor @bind-Value="_html"
                       Toolbar="ToolbarLayout.Full"
                       Settings="UploadSettings"
                       Placeholder="Start writing…"
+                      Shortcuts="Shortcuts"
                       OnChange="LogChange"
-                      OnStateChanged="ShowState" />
+                      OnStateChanged="ShowState"
+                      OnCommandFailed="ShowFailure" />
+
+<p class="editor-status" role="status">
+    <span class="word-count">@_state.WordCount words · @_state.CharacterCount characters</span>
+    <span class="save-status">@_saveStatus</span>
+</p>
 
 <div class="demo-grid inspector">
     <div>

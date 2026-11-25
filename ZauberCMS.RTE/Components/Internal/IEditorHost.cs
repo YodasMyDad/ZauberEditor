@@ -11,6 +11,8 @@ internal interface IEditorHost
 
     Task<IEditorInterop> GetInteropAsync(CancellationToken cancellationToken);
 
+    Task FlushAsync(CancellationToken cancellationToken);
+
     Task ToggleSourceViewAsync(CancellationToken cancellationToken);
 
     Task SetThemeAsync(Theme theme, CancellationToken cancellationToken);

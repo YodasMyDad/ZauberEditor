@@ -5,13 +5,15 @@
 
 <h1>Large content</h1>
 <p class="lead-text">
-    Loads a document of about 200 KB into the bound value. Edits travel back to .NET through a stream once the content
-    is larger than a SignalR message, so this demo keeps the default 32 KB <code>MaximumReceiveMessageSize</code>.
+    Loads a document of about 200 KB into the bound value. Edits travel back to .NET in pieces smaller than a SignalR
+    message, so this demo keeps the default 32 KB <code>MaximumReceiveMessageSize</code>. Type, then press
+    <strong>Save</strong> straight away: the saved size matches the bound value.
 </p>
 
 <div class="d-flex gap-2 mb-3">
     <button type="button" class="btn btn-primary" @onclick="Load">Load ~200 KB document</button>
     <button type="button" class="btn btn-outline-secondary" @onclick="Clear">Clear</button>
+    <button type="button" class="btn btn-success" @onclick="Save">Save</button>
 </div>
 
 <ZauberRichTextEditor @bind-Value="_html" OnChange="CountChange" Settings="TallSettings" AriaLabel="Large document" />
@@ -21,6 +23,8 @@
     <dd data-testid="loaded-size">@(_loadedSize ?? "nothing yet")</dd>
     <dt>Bound value now</dt>
     <dd data-testid="bound-size">@ByteSize.Format(_html)</dd>
+    <dt>Saved</dt>
+    <dd data-testid="saved-size">@(_saved is null ? "nothing yet" : ByteSize.Format(_saved))</dd>
     <dt>Changes received</dt>
     <dd data-testid="change-count">@_changeCount@(_lastSource is { } source ? $" (last: {source})" : null)</dd>
 </dl>

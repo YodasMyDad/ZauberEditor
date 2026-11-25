@@ -47,6 +47,12 @@ export class PanelHost {
         this.#focusFirst();
     }
 
+    follow(range) {
+        if (this.#panel) {
+            this.#range = range.cloneRange();
+        }
+    }
+
     close() {
         if (!this.#panel) {
             return;
@@ -74,7 +80,10 @@ export class PanelHost {
         this.#panel = panel;
         this.#session = new AbortController();
         const signal = AbortSignal.any([this.#ctx.signal, this.#session.signal]);
-        panel.addEventListener('keydown', this.#ctx.channel.guard((event) => {
+        doc.addEventListener('keydown', this.#ctx.channel.guard((event) => {
+            if (event.target !== doc.body && !panel.contains(event.target)) {
+                return;
+            }
             if (event.key === 'Escape') {
                 event.preventDefault();
                 event.stopPropagation();

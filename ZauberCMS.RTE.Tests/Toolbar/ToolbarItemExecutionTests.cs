@@ -42,7 +42,24 @@ public sealed class ToolbarItemExecutionTests
         { ToolbarItemIds.ThemeToggle, States.Ready with { Theme = Theme.Auto }, api => api.SetThemeAsync(Theme.Dark, Arg.Any<CancellationToken>()) },
         { ToolbarItemIds.ThemeToggle, States.Ready with { Theme = Theme.Auto, PrefersDarkScheme = true }, api => api.SetThemeAsync(Theme.Light, Arg.Any<CancellationToken>()) },
         { ToolbarItemIds.Link, States.Ready, api => api.OpenPanelAsync<LinkPanel>(Arg.Any<IReadOnlyDictionary<string, object?>?>(), Arg.Any<CancellationToken>()) },
-        { ToolbarItemIds.Table, States.Ready, api => api.OpenPanelAsync<TablePanel>(Arg.Any<IReadOnlyDictionary<string, object?>?>(), Arg.Any<CancellationToken>()) }
+        { ToolbarItemIds.Table, States.Ready, api => api.OpenPanelAsync<TablePanel>(Arg.Any<IReadOnlyDictionary<string, object?>?>(), Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.Paragraph, States.Block("h2"), api => api.SetBlockTypeAsync("p", null, Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.Paragraph, States.Ready, api => api.SetBlockTypeAsync("p", null, Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.CodeBlock, States.Ready, api => api.SetBlockTypeAsync("pre", null, Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.CodeBlock, States.Block("pre"), api => api.SetBlockTypeAsync("p", null, Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.Indent, States.Ready, api => api.IndentAsync(Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.Outdent, States.Ready with { CanOutdent = true }, api => api.OutdentAsync(Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.HorizontalRule, States.Ready, api => api.InsertHtmlAsync("<hr><p><br></p>", Arg.Any<CancellationToken>()) },
+        { "textColor-red", States.Ready, api => api.SetTextStyleAsync("color", "#ef4444", Arg.Any<CancellationToken>()) },
+        { "textColor-default", States.Ready, api => api.SetTextStyleAsync("color", null, Arg.Any<CancellationToken>()) },
+        { "backgroundColor-yellow", States.Ready, api => api.SetTextStyleAsync("background-color", "rgb(250 204 21 / 40%)", Arg.Any<CancellationToken>()) },
+        { "backgroundColor-none", States.Ready, api => api.SetTextStyleAsync("background-color", null, Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.Fullscreen, States.Ready, api => api.SetFullscreenAsync(true, Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.Fullscreen, States.Ready with { IsFullscreen = true }, api => api.SetFullscreenAsync(false, Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.PastePlainText, States.Ready, api => api.SetPlainTextPasteAsync(true, Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.PastePlainText, States.Ready with { IsPlainTextPaste = true }, api => api.SetPlainTextPasteAsync(false, Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.FindReplace, States.Ready, api => api.OpenPanelAsync<FindReplacePanel>(Arg.Any<IReadOnlyDictionary<string, object?>?>(), Arg.Any<CancellationToken>()) },
+        { ToolbarItemIds.SpecialCharacters, States.Ready, api => api.OpenPanelAsync<SpecialCharactersPanel>(Arg.Any<IReadOnlyDictionary<string, object?>?>(), Arg.Any<CancellationToken>()) }
     };
 
     [Theory]
@@ -88,10 +105,13 @@ public sealed class ToolbarItemExecutionTests
         parameters[nameof(ImagePanel.Image)].ShouldBe(image);
     }
 
-    [Fact]
-    public async Task HeadingsDropdownDoesNothingItself()
+    [Theory]
+    [InlineData(ToolbarItemIds.Headings)]
+    [InlineData(ToolbarItemIds.TextColor)]
+    [InlineData(ToolbarItemIds.BackgroundColor)]
+    public async Task DropdownsDoNothingThemselves(string id)
     {
-        await BuiltIn.Item(ToolbarItemIds.Headings).ExecuteAsync(_api, TestContext.Current.CancellationToken);
+        await BuiltIn.Item(id).ExecuteAsync(_api, TestContext.Current.CancellationToken);
 
         SubstituteCalls.Commands(_api).ShouldBeEmpty();
     }

@@ -18,6 +18,7 @@ export class SourceView {
                 this.#debounce.schedule();
             }
         }, { signal: ctx.signal });
+        ctx.source.addEventListener('blur', () => this.flush(), { signal: ctx.signal });
     }
 
     get active() {
@@ -35,7 +36,7 @@ export class SourceView {
     }
 
     refresh() {
-        this.#ctx.source.value = formatHtml(this.#ctx.content, this.#ctx.caretMarks.holder);
+        this.#ctx.source.value = formatHtml(this.#ctx.content, this.#ctx.caretMarks.holder, this.#ctx.config.aliases);
         this.#pristine = true;
     }
 

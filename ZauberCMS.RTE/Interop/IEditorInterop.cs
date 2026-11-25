@@ -9,6 +9,8 @@ internal interface IEditorInterop : IAsyncDisposable
 
     Task SetHtmlAsync(string html, CancellationToken cancellationToken);
 
+    Task FlushAsync(CancellationToken cancellationToken);
+
     Task<string> GetHtmlAsync(long maxBytes, CancellationToken cancellationToken);
 
     Task<string> GetTextAsync(long maxBytes, CancellationToken cancellationToken);
@@ -24,6 +26,12 @@ internal interface IEditorInterop : IAsyncDisposable
     Task SetBlockTypeAsync(string blockType, IReadOnlyDictionary<string, string>? attributes, CancellationToken cancellationToken);
 
     Task SetBlockStyleAsync(IReadOnlyDictionary<string, string> styles, CancellationToken cancellationToken);
+
+    Task IndentAsync(CancellationToken cancellationToken);
+
+    Task OutdentAsync(CancellationToken cancellationToken);
+
+    Task SetTextStyleAsync(string styleName, string? value, CancellationToken cancellationToken);
 
     Task ClearFormattingAsync(CancellationToken cancellationToken);
 
@@ -54,6 +62,16 @@ internal interface IEditorInterop : IAsyncDisposable
     Task FocusAsync(CancellationToken cancellationToken);
 
     Task ConfigureAsync(EditorInitOptions options, CancellationToken cancellationToken);
+
+    Task SetFullscreenAsync(bool fullscreen, CancellationToken cancellationToken);
+
+    Task SetPlainTextPasteAsync(bool plainText, CancellationToken cancellationToken);
+
+    Task<FindResult> FindAsync(string text, bool matchCase, CancellationToken cancellationToken);
+
+    Task<FindResult> ReplaceAsync(string text, string replacement, bool matchCase, CancellationToken cancellationToken);
+
+    Task<int> ReplaceAllAsync(string text, string replacement, bool matchCase, CancellationToken cancellationToken);
 
     Task EnterSourceViewAsync(CancellationToken cancellationToken);
 

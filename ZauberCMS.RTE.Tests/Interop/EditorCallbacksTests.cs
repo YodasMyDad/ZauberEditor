@@ -31,7 +31,7 @@ public sealed class EditorCallbacksTests
             .GetMethods()
             .Select(method => method.GetCustomAttribute<JSInvokableAttribute>()?.Identifier)
             .OfType<string>()
-            .ShouldBe(["OnContentChanged", "OnStateChanged", "OnShortcut", "OnFocusChanged", "OnImageResized", "OnPanelEscape", "OnError", "OnInputRejected"], ignoreOrder: true);
+            .ShouldBe(["OnContentChanged", "OnContentChunk", "OnStateChanged", "OnShortcut", "OnFocusChanged", "OnImageResized", "OnPanelEscape", "OnError", "OnInputRejected"], ignoreOrder: true);
 
     [Fact]
     public async Task ContentChangesAreForwardedWithTheirSource()
@@ -42,7 +42,7 @@ public sealed class EditorCallbacksTests
     }
 
     [Fact]
-    public async Task ContentTooLargeToSendInlineIsForwardedAsNull()
+    public async Task ContentTooLargeToDeliverIsForwardedAsNull()
     {
         await _callbacks.OnContentChangedAsync(null, "input", 0);
 
@@ -50,12 +50,21 @@ public sealed class EditorCallbacksTests
     }
 
     [Fact]
+    public async Task ContentChunksAreForwarded()
+    {
+        await _callbacks.OnContentChunkAsync("<p>part");
+
+        await _sink.Received(1).ContentChunkAsync("<p>part");
+    }
+
+    [Fact]
     public async Task OtherCallbacksAreForwarded()
     {
-        var snapshot = new EditorSnapshot(["em"], "p", "left", false, true, false, false, false, false, false, false);
+        var snapshot = new EditorSnapshot(["em"], "p", "left", false, true, false, false, false, false, false, false, false, false, false, 0, 0);
 
         await _callbacks.OnStateChangedAsync(snapshot);
-        await _callbacks.OnShortcutAsync("bold");
+        await _callbacks.OnShortcutAsync("bold", false);
+        await _callbacks.OnShortcutAsync("Ctrl+S", true);
         await _callbacks.OnFocusChangedAsync(true);
         await _callbacks.OnImageResizedAsync(320, 200);
         await _callbacks.OnPanelEscapeAsync();
@@ -65,7 +74,8 @@ public sealed class EditorCallbacksTests
         Received.InOrder(() =>
         {
             _sink.StateChangedAsync(snapshot);
-            _sink.ShortcutAsync("bold");
+            _sink.ShortcutAsync("bold", false);
+            _sink.ShortcutAsync("Ctrl+S", true);
             _sink.FocusChangedAsync(true);
             _sink.ImageResizedAsync(320, 200);
             _sink.PanelEscapeAsync();

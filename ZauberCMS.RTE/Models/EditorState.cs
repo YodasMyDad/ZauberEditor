@@ -32,6 +32,9 @@ public sealed record EditorState
     /// <summary>Whether there is a change to redo.</summary>
     public bool CanRedo { get; init; }
 
+    /// <summary>Whether the current block is indented or in a list, so it can be outdented.</summary>
+    public bool CanOutdent { get; init; }
+
     /// <summary>Whether the cursor is inside a link.</summary>
     public bool InLink { get; init; }
 
@@ -44,8 +47,20 @@ public sealed record EditorState
     /// <summary>Whether the HTML source view is showing.</summary>
     public bool IsSourceView { get; init; }
 
+    /// <summary>Whether the editor fills the browser window.</summary>
+    public bool IsFullscreen { get; init; }
+
+    /// <summary>Whether paste inserts plain text only.</summary>
+    public bool IsPlainTextPaste { get; init; }
+
     /// <summary>Whether the editor is read-only.</summary>
     public bool IsReadOnly { get; init; }
+
+    /// <summary>Number of words in the content, updated when a content change is delivered.</summary>
+    public int WordCount { get; init; }
+
+    /// <summary>Number of characters in the content, including spaces but not line breaks.</summary>
+    public int CharacterCount { get; init; }
 
     /// <summary>The theme setting.</summary>
     public Theme Theme { get; init; }

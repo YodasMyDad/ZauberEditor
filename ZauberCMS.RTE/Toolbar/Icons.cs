@@ -30,7 +30,19 @@ internal static class Icons
     public const string Redo = Open + """<path d="M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3"/>""" + Close;
     public const string Source = Open + """<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>""" + Close;
     public const string Contrast = Open + """<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>""" + Close;
-    public const string ChevronDown = Open + """<path d="M6 9l6 6 6-6"/>""" + Close;
+    public const string Indent = Open + """<path d="M11 6h9M11 10h9M11 14h9M4 18h16M4 8l3 2-3 2"/>""" + Close;
+    public const string Outdent = Open + """<path d="M11 6h9M11 10h9M11 14h9M4 18h16M7 8l-3 2 3 2"/>""" + Close;
+    public const string HorizontalRule = Open + """<path d="M3 12h18M7 7h10M7 17h10"/>""" + Close;
+    public const string TextColor = Open + """<path d="M7 16l5-12 5 12M8.8 11.5h6.4M4 20h16"/>""" + Close;
+    public const string Highlighter = Open + """<path d="M14.5 4.5l5 5-7 7h-5v-5zM7.5 11.5l5 5M4 20h16"/>""" + Close;
+    public const string Fullscreen = Open + """<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>""" + Close;
+    public const string Search = Open + """<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>""" + Close;
+    public const string Omega = Open + """<path d="M4 20h5v-2.5a7 7 0 1 1 6 0V20h5"/>""" + Close;
+    public const string PastePlainText = Open + """<path d="M9 4h6v3H9zM9 5.5H6a1 1 0 0 0-1 1V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6.5a1 1 0 0 0-1-1h-3M9 11h6M12 11v6"/>""" + Close;
+    public const string NoColor = Open + """<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M5 19L19 5"/>""" + Close;
+    public const string ChevronDown =Open + """<path d="M6 9l6 6 6-6"/>""" + Close;
     public const string Check = Open + """<path d="M5 12.5l4.5 4.5L19 7.5"/>""" + Close;
     public const string Dismiss = Open + """<path d="M6 6l12 12M18 6L6 18"/>""" + Close;
+
+    public static string Swatch(string color) => $"""{Open}<rect x="4" y="4" width="16" height="16" rx="3" fill="{color}"/>{Close}""";
 }

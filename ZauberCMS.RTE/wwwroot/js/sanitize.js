@@ -33,22 +33,35 @@ function isAllowedImageSource(value, policy, doc) {
     }
 }
 
+function allowedEverywhere(policy, name) {
+    return policy.allowedAttributes.has(name)
+        || (name.startsWith('data-') && policy.allowedAttributes.has('data-*'))
+        || (name.startsWith('aria-') && policy.allowedAttributes.has('aria-*'));
+}
+
+function allowedOn(policy, tag, name) {
+    return allowedEverywhere(policy, name) || policy.tagAttributes.get(tag)?.has(name) === true;
+}
+
 function policyConfig(policy) {
     const attributes = [...policy.allowedAttributes];
+    const tagOnly = [...policy.tagAttributes.values()].flatMap((names) => [...names]);
     return {
         ALLOWED_TAGS: [...policy.allowedTags].filter((tag) => !DENIED_TAGS.has(tag)),
-        ALLOWED_ATTR: attributes.filter((name) => !name.includes('*') && !/^on/i.test(name)),
+        ALLOWED_ATTR: [...new Set([...attributes, ...tagOnly])].filter((name) => !name.includes('*') && !/^on/i.test(name)),
         ALLOW_DATA_ATTR: attributes.includes('data-*'),
         ALLOW_ARIA_ATTR: attributes.includes('aria-*'),
         KEEP_CONTENT: true
     };
 }
 
-function createPurifier(config, policy, doc) {
+function createPurifier(config, policy, doc, scoped) {
     const purifier = DOMPurify();
     purifier.setConfig({ ...config, ALLOWED_URI_REGEXP: SAFE_URI, RETURN_DOM_FRAGMENT: true });
     purifier.addHook('uponSanitizeAttribute', (node, data) => {
-        if (data.attrName === 'src' && node.localName === 'img' && !isAllowedImageSource(data.attrValue, policy, doc)) {
+        if (scoped && !allowedOn(policy, node.localName, data.attrName)) {
+            data.keepAttr = false;
+        } else if (data.attrName === 'src' && node.localName === 'img' && !isAllowedImageSource(data.attrValue, policy, doc)) {
             data.keepAttr = false;
         } else if (data.attrName === 'style') {
             data.attrValue = safeDeclarations(data.attrValue);
@@ -72,8 +85,8 @@ export class Sanitizer {
     constructor(policy, doc) {
         this.#policy = policy;
         this.#doc = doc;
-        this.#strict = createPurifier(policyConfig(policy), policy, doc);
-        this.#loose = createPurifier({ USE_PROFILES: { html: true } }, policy, doc);
+        this.#strict = createPurifier(policyConfig(policy), policy, doc, true);
+        this.#loose = createPurifier({ USE_PROFILES: { html: true } }, policy, doc, false);
     }
 
     clean(html) {
@@ -89,7 +102,8 @@ export class Sanitizer {
     }
 
     isAllowedAttribute(tag, name, value) {
-        if (typeof value !== 'string' || !/^[a-z_:][-a-z0-9_:.]*$/i.test(name) || /^on/i.test(name)) {
+        if (typeof value !== 'string' || !/^[a-z_:][-a-z0-9_:.]*$/i.test(name) || /^on/i.test(name)
+            || !allowedOn(this.#policy, tag.toLowerCase(), name.toLowerCase())) {
             return false;
         }
         if (name.toLowerCase() === 'href') {

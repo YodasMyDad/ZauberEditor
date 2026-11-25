@@ -21,6 +21,7 @@
         --rte-color-danger: light-dark(#dc2626, #f87171);
         --rte-color-backdrop: rgb(15 23 42 / 0.5);
         --rte-color-shadow: light-dark(rgb(15 23 42 / 0.1), rgb(0 0 0 / 0.4));
+        --rte-color-find: light-dark(rgb(250 204 21 / 0.6), rgb(202 138 4 / 0.7));
 
         --rte-shadow-sm: 0 1px 2px var(--rte-color-shadow);
         --rte-shadow-md: 0 4px 6px -1px var(--rte-color-shadow), 0 2px 4px -2px var(--rte-color-shadow);
@@ -60,6 +61,7 @@
         --rte-grip-width: 2.5rem;
         --rte-grip-height: 1.25rem;
         --rte-toast-width: 22rem;
+        --rte-char-cell-size: 2.75rem;
 
         --rte-font-family: inherit;
         --rte-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -89,6 +91,7 @@
         --rte-z-handles: 10;
         --rte-z-toast: 20;
         --rte-z-dropdown: 1000;
+        --rte-z-fullscreen: 5000;
         --rte-z-overlay: 10000;
         --rte-opacity-disabled: 0.45;
         --rte-opacity-muted: 0.6;
@@ -180,7 +183,7 @@
         }
     }
 
-    :where(.rte-toolbar-btn, .rte-dropdown-item, .rte-btn, .rte-slideout-close) {
+    :where(.rte-toolbar-btn, .rte-dropdown-item, .rte-btn, .rte-slideout-close, .rte-char-btn) {
         margin: 0;
         border: 0;
         font-family: inherit;
@@ -196,7 +199,7 @@
         }
     }
 
-    :where(.rte-toolbar-btn, .rte-dropdown-item, .rte-btn, .rte-slideout-close, .rte-input, .rte-select, .rte-checkbox-label input):focus-visible {
+    :where(.rte-toolbar-btn, .rte-dropdown-item, .rte-btn, .rte-slideout-close, .rte-char-btn, .rte-input, .rte-select, .rte-checkbox-label input):focus-visible {
         outline: var(--rte-border-width-thick) solid var(--rte-color-focus);
         outline-offset: var(--rte-focus-offset);
     }
@@ -500,9 +503,6 @@
 
     :where(.rte-editor-resize-handle) {
         --rte-icon-size: var(--rte-icon-size-sm);
-        position: absolute;
-        inset-block-end: 0;
-        inset-inline: 0;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -808,6 +808,69 @@
         }
     }
 
+    :where(.rte-find-status) {
+        min-block-size: 1lh;
+        color: var(--rte-color-text-muted);
+        font-size: var(--rte-font-size-sm);
+    }
+
+    :where(.rte-content, .rte-content *)::highlight(rte-find) {
+        background-color: var(--rte-color-find);
+    }
+
+    :where(.rte-char-grid) {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(var(--rte-char-cell-size), 1fr));
+        gap: var(--rte-space-2xs);
+    }
+
+    :where(.rte-char-btn) {
+        --_rte-bg: var(--rte-color-bg-subtle);
+        --_rte-fg: var(--rte-color-text);
+        --_rte-border: var(--rte-color-border);
+        min-block-size: var(--rte-char-cell-size);
+
+        &:hover {
+            --_rte-bg: var(--rte-color-bg-hover);
+            --_rte-border: var(--rte-color-border-hover);
+        }
+    }
+
+    :where(html.rte-scroll-lock) {
+        overflow: hidden;
+    }
+
+    :where(.zauber-rte[data-rte-fullscreen]) {
+        position: fixed;
+        inset: 0;
+        z-index: var(--rte-z-fullscreen);
+        display: flex;
+        flex-direction: column;
+        inline-size: auto;
+        max-inline-size: none;
+        border-radius: 0;
+
+        & :where(.rte-toolbar) {
+            border-radius: 0;
+        }
+
+        & :where(.rte-editor-container) {
+            display: flex;
+            flex: 1 1 0;
+            flex-direction: column;
+            min-block-size: 0;
+        }
+
+        & :where(.rte-content, .rte-source-view) {
+            flex: 1 1 0;
+            max-block-size: none;
+        }
+
+        & :where(.rte-editor-resize-handle) {
+            display: none;
+        }
+    }
+
     @keyframes rte-fade-in {
         from {
             opacity: 0;
@@ -829,7 +892,7 @@
 }
 
 :is(.zauber-rte, .zauber-rte-portal) {
-    & :is(.rte-toolbar-btn, .rte-dropdown-item, .rte-btn, .rte-slideout-close) {
+    & :is(.rte-toolbar-btn, .rte-dropdown-item, .rte-btn, .rte-slideout-close, .rte-char-btn) {
         border-radius: var(--rte-radius-sm);
         background-color: var(--_rte-bg);
         color: var(--_rte-fg);
@@ -847,6 +910,16 @@
 
     & .rte-slideout-close {
         padding: 0;
+    }
+
+    & .rte-char-btn {
+        padding: 0;
+        border: var(--rte-border-width) solid var(--_rte-border);
+        font-size: var(--rte-font-size-lg);
+    }
+
+    & .rte-char-btn-named {
+        font-size: var(--rte-font-size-xs);
     }
 
     & .rte-btn {

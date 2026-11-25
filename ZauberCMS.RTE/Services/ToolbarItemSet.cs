@@ -3,10 +3,15 @@ using ZauberCMS.RTE.Models;
 
 namespace ZauberCMS.RTE.Services;
 
-internal sealed class ToolbarItemSet(FrozenDictionary<string, IToolbarItem> items, IReadOnlyList<IToolbarItem> created)
+internal sealed class ToolbarItemSet(
+    FrozenDictionary<string, IToolbarItem> items,
+    IReadOnlyList<IToolbarItem> created,
+    FrozenSet<string> removedIds)
     : IAsyncDisposable
 {
     public IReadOnlyDictionary<string, IToolbarItem> Items => items;
+
+    public bool WasRemoved(string itemId) => removedIds.Contains(itemId);
 
     public async ValueTask DisposeAsync()
     {

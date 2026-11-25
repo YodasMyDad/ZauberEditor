@@ -1,5 +1,7 @@
+import { hasStrayBreaks, removeStrayBreaks } from './breaks.js';
 import {
-    LAYOUT_TAGS, hasVisibleContent, hasVisibleText, isBlock, isElement, isText, isTextBlock, nodeIndex, removeWithEmptyInlines
+    ATOMIC_SELECTOR, LAYOUT_TAGS, hasVisibleContent, hasVisibleText, isAtomic, isBlock, isElement, isText, isTextBlock, nodeIndex,
+    removeWithEmptyInlines, retag
 } from './dom.js';
 
 export const SELECTED_IMAGE_CLASS = 'rte-image-selected';
@@ -29,8 +31,18 @@ function withoutHolder(content, holder) {
     return copy;
 }
 
-function render(content, holder, action) {
+function cleanCopy(content, holder) {
     const root = withoutHolder(content, holder);
+    if (!hasStrayBreaks(root)) {
+        return root;
+    }
+    const copy = root === content ? content.cloneNode(true) : root;
+    removeStrayBreaks(copy);
+    return copy;
+}
+
+function render(content, holder, action, clean = true) {
+    const root = clean ? cleanCopy(content, holder) : withoutHolder(content, holder);
     const marked = [...root.getElementsByClassName(SELECTED_IMAGE_CLASS)];
     marked.forEach(clearImageMark);
     try {
@@ -49,27 +61,95 @@ const outerHtml = (node) => {
     return isText(node) ? escapeText(node.data) : '';
 };
 
-const isBlank = (node) => (isText(node) && !hasVisibleText(node.data))
-    || (isElement(node) && (node.localName === 'p' || node.localName === 'div') && !hasVisibleContent(node))
-    || (!isText(node) && !isElement(node));
+const isStray = (node) => !isElement(node) && !(isText(node) && hasVisibleText(node.data));
+const isEmptyBlock = (node) => (node.localName === 'p' || node.localName === 'div') && !hasVisibleContent(node);
 
-export function serializeContent(content, holder) {
-    return render(content, holder, (root) => {
-        const nodes = [...root.childNodes];
-        let start = 0;
-        let end = nodes.length;
-        while (start < end && isBlank(nodes[start])) {
-            start++;
+function outputNodes(root) {
+    const nodes = [...root.childNodes].filter((node) => !isStray(node));
+    return nodes.every(isEmptyBlock) ? [] : nodes;
+}
+
+function collectFlow(parent, parts) {
+    for (const child of parent.childNodes) {
+        if (isText(child)) {
+            parts.push(child);
+        } else if (!isElement(child)) {
+            continue;
+        } else if (child.localName === 'pre' || child.localName === 'br') {
+            parts.push('\n');
+        } else if (isBlock(child)) {
+            parts.push('\n');
+            collectFlow(child, parts);
+            parts.push('\n');
+        } else if (isAtomic(child)) {
+            parts.push('x');
+        } else {
+            collectFlow(child, parts);
         }
-        while (end > start && isBlank(nodes[end - 1])) {
-            end--;
+    }
+}
+
+const isFilled = (character) => character !== undefined && /\S/.test(character);
+
+function relaxSpaces(root) {
+    const parts = ['\n'];
+    collectFlow(root, parts);
+    parts.push('\n');
+    const pieces = parts.map((part) => (typeof part === 'string' ? part : part.data));
+    const flow = pieces.join('');
+    let offset = 0;
+    parts.forEach((part, index) => {
+        const start = offset;
+        offset += pieces[index].length;
+        if (typeof part !== 'string' && part.data.includes(NO_BREAK_SPACE)) {
+            const last = part.data.length - 1;
+            part.data = part.data.replace(/\u00A0/g, (match, at) => ((at === 0 || at === last) && isFilled(flow[start + at - 1]) && isFilled(flow[start + at + 1]) ? ' ' : match));
         }
-        return nodes.slice(start, end).map(outerHtml).join('');
     });
 }
 
+function trimPreNewline(pre) {
+    pre.normalize();
+    const last = pre.lastChild;
+    if (isText(last) && last.data.endsWith('\n') && !last.data.endsWith('\n\n')) {
+        last.data = last.data.slice(0, -1);
+    }
+}
+
+function emptyBlankBlocks(root) {
+    for (const block of root.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li, td, th, div, address')) {
+        if (isTextBlock(block) && !block.querySelector(ATOMIC_SELECTOR) && /^\s*$/.test(block.textContent)) {
+            block.replaceChildren();
+        }
+    }
+}
+
+function tidyOutput(root, aliases) {
+    for (const [alias, primary] of aliases) {
+        if (alias !== primary) {
+            root.querySelectorAll(alias).forEach((element) => retag(element, primary));
+        }
+    }
+    root.querySelectorAll('pre').forEach(trimPreNewline);
+    root.normalize();
+    relaxSpaces(root);
+    emptyBlankBlocks(root);
+}
+
+function renderOutput(content, holder, aliases, action) {
+    return render(content, holder, (root) => {
+        const copy = root === content ? content.cloneNode(true) : root;
+        tidyOutput(copy, aliases);
+        return action(outputNodes(copy));
+    });
+}
+
+export function serializeContent(content, holder, aliases) {
+    return renderOutput(content, holder, aliases, (nodes) => nodes.map(outerHtml).join(''));
+}
+
 export function snapshotHtml(content, holder) {
-    return render(content, holder, (root) => root.innerHTML);
+    return render(content, holder, (root) => root.innerHTML, false);
 }
 
 export function contentText(content, holder) {
@@ -112,8 +192,8 @@ function formatNode(node, depth) {
     return [indent + open, ...inner, indent + close].join('\n');
 }
 
-export function formatHtml(content, holder) {
-    return render(content, holder, (root) => [...root.childNodes].map((node) => formatNode(node, 0)).filter(Boolean).join('\n'));
+export function formatHtml(content, holder, aliases) {
+    return renderOutput(content, holder, aliases, (nodes) => nodes.map((node) => formatNode(node, 0)).filter(Boolean).join('\n'));
 }
 
 export function toUtf8(text) {
@@ -121,12 +201,24 @@ export function toUtf8(text) {
 }
 
 export function jsonBytes(value) {
-    return value === null ? new Uint8Array(0) : encoder.encode(JSON.stringify(value));
+    return encoder.encode(JSON.stringify(value ?? null));
 }
 
-export function fitsInline(text, limit) {
-    if (text.length * 3 <= limit) {
-        return true;
+const isHighSurrogate = (code) => code >= 0xd800 && code <= 0xdbff;
+
+export function utf8Chunks(text, limit) {
+    const buffer = new Uint8Array(limit);
+    const chunks = [];
+    let bytes = 0;
+    for (let start = 0; start < text.length;) {
+        let end = Math.min(start + limit, text.length);
+        if (end < text.length && isHighSurrogate(text.charCodeAt(end - 1))) {
+            end--;
+        }
+        const { read, written } = encoder.encodeInto(text.slice(start, end), buffer);
+        chunks.push(text.slice(start, start + read));
+        start += read;
+        bytes += written;
     }
-    return text.length <= limit && encoder.encode(text).length <= limit;
+    return { chunks: chunks.length > 0 ? chunks : [''], bytes };
 }

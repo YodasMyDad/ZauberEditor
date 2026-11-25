@@ -52,24 +52,37 @@ public sealed class ZauberRichTextEditorContentTests : EditorTestContext
     }
 
     [Fact]
-    public async Task LargeContentIsPulledThroughAStream()
+    public async Task LargeContentArrivesInChunksAndIsDeliveredWithTheLastOne()
     {
         var settings = new EditorSettings { MaxContentBytes = 50_000 };
         var large = $"<p>{new string('x', 20_000)}</p>";
-        Interop.GetHtmlAsync(50_000, Arg.Any<CancellationToken>()).Returns(large);
         RenderBound("<p>a</p>", parameters => parameters.Add(editor => editor.Settings, settings));
 
-        await Callbacks.OnContentChangedAsync(null, "paste", 0);
+        await Callbacks.OnContentChunkAsync(large[..12_000]);
+        _values.ShouldBeEmpty();
+        await Callbacks.OnContentChangedAsync(large[12_000..], "paste", 0);
 
         _values.ShouldBe([large]);
         _changes.ShouldBe([new EditorChangeArgs(large, ChangeSource.Paste)]);
+        await Interop.DidNotReceive().GetHtmlAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task ContentTooLargeToTransferLeavesTheValueAloneAndWarnsTheUser()
+    public void ValueChangedRunsBeforeTheNotificationYieldsSoAQueuedSaveSeesTheLatestValue()
     {
-        Interop.GetHtmlAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromException<string>(new EditorContentTooLargeException(20, 10)));
+        RenderBound("<p>a</p>");
+
+        var chunk = Callbacks.OnContentChunkAsync("<p>first half, ");
+        var last = Callbacks.OnContentChangedAsync("second half</p>", "input", 0);
+
+        chunk.IsCompletedSuccessfully.ShouldBeTrue();
+        last.IsCompletedSuccessfully.ShouldBeTrue();
+        _values.ShouldBe(["<p>first half, second half</p>"]);
+    }
+
+    [Fact]
+    public async Task ContentTooLargeToDeliverLeavesTheValueAloneAndWarnsTheUser()
+    {
         var cut = RenderBound("<p>a</p>");
 
         await Callbacks.OnContentChangedAsync(null, "input", 0);
@@ -77,6 +90,89 @@ public sealed class ZauberRichTextEditorContentTests : EditorTestContext
         _values.ShouldBeEmpty();
         _changes.ShouldBeEmpty();
         cut.Find(".rte-toast-warning .rte-toast-message").TextContent.ShouldContain("too large to save");
+    }
+
+    [Fact]
+    public async Task ChunksBeyondMaxContentBytesAreDiscardedAndTheNextChangeStartsClean()
+    {
+        var cut = RenderBound("<p>a</p>", parameters => parameters.Add(editor => editor.Settings, new EditorSettings { MaxContentBytes = 10 }));
+
+        await Callbacks.OnContentChunkAsync("<p>12345");
+        await Callbacks.OnContentChangedAsync("678</p>", "input", 0);
+
+        _values.ShouldBeEmpty();
+        cut.Find(".rte-toast-warning .rte-toast-message").TextContent.ShouldContain("too large to save");
+        await Callbacks.OnContentChangedAsync("<p>b</p>", "input", 0);
+        _values.ShouldBe(["<p>b</p>"]);
+    }
+
+    [Fact]
+    public async Task ChunksOfANotificationFromAnEarlierRevisionAreDiscarded()
+    {
+        var cut = RenderBound("<p>a</p>");
+        cut.Render(parameters => parameters.Add(editor => editor.Value, "<p>reset</p>"));
+
+        await Callbacks.OnContentChunkAsync("<p>stale ");
+        await Callbacks.OnContentChangedAsync("content</p>", "input", 0);
+        await Callbacks.OnContentChangedAsync("<p>fresh</p>", "input", 1);
+
+        _values.ShouldBe(["<p>fresh</p>"]);
+    }
+
+    [Fact]
+    public async Task FlushAsyncWaitsUntilValueChangedHasFinishedForPendingContent()
+    {
+        var stored = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cut = RenderEditor(parameters => parameters
+            .Add(editor => editor.Value, "<p>a</p>")
+            .Add(editor => editor.ValueChanged, async (string? html) =>
+            {
+                await stored.Task;
+                _values.Add(html);
+            }));
+        Interop.FlushAsync(Arg.Any<CancellationToken>()).Returns(call =>
+        {
+            _ = Callbacks.OnContentChangedAsync("<p>pending</p>", "input", 0);
+            return Task.CompletedTask;
+        });
+
+        var flush = cut.Instance.Api.FlushAsync(TestContext.Current.CancellationToken);
+
+        flush.IsCompleted.ShouldBeFalse();
+        _values.ShouldBeEmpty();
+        stored.SetResult();
+        await flush.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        _values.ShouldBe(["<p>pending</p>"]);
+    }
+
+    [Fact]
+    public async Task FlushAsyncAlsoWaitsForContentAlreadyBeingDelivered()
+    {
+        var stored = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var host = Render<BoundEditorHost>(parameters => parameters
+            .Add(bound => bound.InitialHtml, "<p>a</p>")
+            .Add(bound => bound.BeforeStoring, _ => stored.Task));
+        var editor = host.FindComponent<ZauberRichTextEditor>().Instance;
+        var notification = Callbacks.OnContentChangedAsync("<p>typed</p>", "input", 0);
+
+        var flush = editor.Api.FlushAsync(TestContext.Current.CancellationToken);
+
+        flush.IsCompleted.ShouldBeFalse();
+        stored.SetResult();
+        await Task.WhenAll(notification, flush).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        host.Instance.Html.ShouldBe("<p>typed</p>");
+    }
+
+    [Fact]
+    public async Task FlushAsyncWithNothingPendingCompletesWithoutRaisingChanges()
+    {
+        var cut = RenderBound("<p>a</p>");
+
+        await cut.Instance.Api.FlushAsync(TestContext.Current.CancellationToken);
+
+        await Interop.Received(1).FlushAsync(Arg.Any<CancellationToken>());
+        _values.ShouldBeEmpty();
+        _changes.ShouldBeEmpty();
     }
 
     [Fact]
@@ -149,36 +245,6 @@ public sealed class ZauberRichTextEditorContentTests : EditorTestContext
         _values.ShouldBeEmpty();
         await Callbacks.OnContentChangedAsync("<p>typed after the reset</p>", "input", 1);
         _values.ShouldBe(["<p>typed after the reset</p>"]);
-    }
-
-    [Fact]
-    public async Task PulledContentIsDroppedWhenTheParentPushedWhileItWasInFlight()
-    {
-        var pull = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Interop.GetHtmlAsync(Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(pull.Task);
-        var cut = RenderBound("<p>a</p>");
-
-        var notification = Callbacks.OnContentChangedAsync(null, "paste", 0);
-        cut.Render(parameters => parameters.Add(editor => editor.Value, "<p>reset</p>"));
-        pull.SetResult("<p>large pasted content</p>");
-        await notification.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-
-        _values.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task PulledContentIsDroppedWhenANewerNotificationArrivedWhileItWasInFlight()
-    {
-        var pull = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Interop.GetHtmlAsync(Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(pull.Task);
-        RenderBound("<p>a</p>");
-
-        var older = Callbacks.OnContentChangedAsync(null, "paste", 0);
-        await Callbacks.OnContentChangedAsync("<p>newer</p>", "input", 0);
-        pull.SetResult("<p>older</p>");
-        await older.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-
-        _values.ShouldBe(["<p>newer</p>"]);
     }
 
     [Fact]
@@ -289,15 +355,21 @@ public sealed class ZauberRichTextEditorContentTests : EditorTestContext
     {
         var item = new RecordingItem();
         Services.AddZauberRte(options => options.AddToolbarItem(item));
-        var pull = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Interop.GetHtmlAsync(Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(pull.Task);
-        var cut = RenderBound("<p>a</p>", parameters => parameters.Add(editor => editor.Toolbar, new ToolbarLayout(new ToolbarItemRef(RecordingItem.ItemId))));
+        var stored = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cut = RenderEditor(parameters => parameters
+            .Add(editor => editor.Value, "<p>a</p>")
+            .Add(editor => editor.ValueChanged, async (string? html) =>
+            {
+                await stored.Task;
+                _values.Add(html);
+            })
+            .Add(editor => editor.Toolbar, new ToolbarLayout(new ToolbarItemRef(RecordingItem.ItemId))));
 
-        var notification = Callbacks.OnContentChangedAsync(null, "input", 0);
+        var notification = Callbacks.OnContentChangedAsync("<p>latest</p>", "input", 0);
         var click = cut.Find($".rte-btn-{RecordingItem.ItemId}").ClickAsync(new());
 
         item.Executions.ShouldBeEmpty();
-        pull.SetResult("<p>latest</p>");
+        stored.SetResult();
         await Task.WhenAll(notification, click).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         _values.ShouldBe(["<p>latest</p>"]);

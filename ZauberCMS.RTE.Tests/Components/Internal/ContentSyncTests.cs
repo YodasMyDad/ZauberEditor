@@ -87,7 +87,8 @@ public sealed class ContentSyncTests
         var sync = new ContentSync("<p>a</p>");
         sync.ParameterChanged("<p>pushed</p>");
 
-        sync.Receive(0).ShouldBeNull();
+        sync.IsCurrent(0).ShouldBeFalse();
+        sync.Accept(0, "<p>typed</p>").ShouldBeFalse();
 
         sync.KnownHtml.ShouldBe("<p>pushed</p>");
     }
@@ -98,35 +99,8 @@ public sealed class ContentSyncTests
         var sync = new ContentSync("<p>a</p>");
         sync.ParameterChanged("<p>pushed</p>");
 
-        var notification = sync.Receive(1).ShouldNotBeNull();
-
-        sync.Accept(notification, "<p>pushed and typed</p>").ShouldBeTrue();
+        sync.Accept(1, "<p>pushed and typed</p>").ShouldBeTrue();
         sync.KnownHtml.ShouldBe("<p>pushed and typed</p>");
-    }
-
-    [Fact]
-    public void PulledContentIsDroppedWhenTheParentPushedMeanwhile()
-    {
-        var sync = new ContentSync("<p>a</p>");
-        var pulling = sync.Receive(0).ShouldNotBeNull();
-
-        sync.ParameterChanged("<p>pushed</p>");
-
-        sync.Accept(pulling, "<p>old large content</p>").ShouldBeFalse();
-        sync.KnownHtml.ShouldBe("<p>pushed</p>");
-    }
-
-    [Fact]
-    public void PulledContentIsDroppedWhenANewerNotificationArrivedMeanwhile()
-    {
-        var sync = new ContentSync("<p>a</p>");
-        var older = sync.Receive(0).ShouldNotBeNull();
-        var newer = sync.Receive(0).ShouldNotBeNull();
-
-        sync.Accept(newer, "<p>newer</p>").ShouldBeTrue();
-        sync.Accept(older, "<p>older</p>").ShouldBeFalse();
-
-        sync.KnownHtml.ShouldBe("<p>newer</p>");
     }
 
     [Fact]
@@ -178,6 +152,5 @@ public sealed class ContentSyncTests
         sync.KnownHtml.ShouldBeNull();
     }
 
-    private static bool Change(ContentSync sync, string html) =>
-        sync.Receive(sync.Revision) is { } notification && sync.Accept(notification, html);
+    private static bool Change(ContentSync sync, string html) => sync.Accept(sync.Revision, html);
 }

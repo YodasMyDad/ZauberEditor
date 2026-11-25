@@ -134,6 +134,14 @@ export function ensurePlaceholder(element) {
     }
 }
 
+export function placeholderOf(block) {
+    if (!block || hasOwnContent(block)) {
+        return null;
+    }
+    const breaks = [...block.querySelectorAll('br')].filter((br) => !blockOf(br, block));
+    return breaks.length === 1 ? breaks[0] : null;
+}
+
 export function removeTrailingBreak(element) {
     let last = element.lastChild;
     while (isText(last) && !hasVisibleText(last.data)) {

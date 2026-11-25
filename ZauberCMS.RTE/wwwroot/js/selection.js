@@ -75,14 +75,39 @@ export function startNode(range) {
     return startContainer.childNodes[Math.min(startOffset, startContainer.childNodes.length - 1)];
 }
 
+function leafPoint(node, offset, atEnd) {
+    const child = isElement(node) ? node.childNodes[atEnd ? offset - 1 : offset] : null;
+    if (isText(child)) {
+        return [child, atEnd ? child.length : 0];
+    }
+    return isElement(child) && !isAtomic(child) && child.hasChildNodes() ? edgePosition(child, atEnd) : [node, offset];
+}
+
+function savedPoint(node, offset, atEnd, descend) {
+    const [leaf, leafOffset] = descend ? leafPoint(node, offset, atEnd) : [node, offset];
+    return [leaf, leafOffset, isElement(leaf) ? leaf.childNodes[leafOffset] ?? leaf.lastChild : null];
+}
+
+function restoredPoint(content, [node, offset, child]) {
+    if (content.contains(node)) {
+        return [node, Math.min(offset, maxOffset(node))];
+    }
+    return child && content.contains(child) ? [child.parentNode, nodeIndex(child)] : null;
+}
+
 export function preserveSelection(content, action) {
     const range = rangeIn(content);
-    const saved = range && [range.startContainer, range.startOffset, range.endContainer, range.endOffset];
+    const saved = range && [
+        savedPoint(range.startContainer, range.startOffset, false, !range.collapsed),
+        savedPoint(range.endContainer, range.endOffset, true, !range.collapsed)
+    ];
     const result = action();
-    if (saved && content.contains(saved[0]) && content.contains(saved[2])) {
+    const start = saved && restoredPoint(content, saved[0]);
+    const end = saved && restoredPoint(content, saved[1]);
+    if (start && end) {
         const restored = createRange(content);
-        restored.setStart(saved[0], Math.min(saved[1], maxOffset(saved[0])));
-        restored.setEnd(saved[2], Math.min(saved[3], maxOffset(saved[2])));
+        restored.setStart(...start);
+        restored.setEnd(...end);
         applyRange(content, restored);
     }
     return result;

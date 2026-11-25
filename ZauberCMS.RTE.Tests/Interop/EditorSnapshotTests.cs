@@ -8,7 +8,7 @@ public sealed class EditorSnapshotTests
     [Fact]
     public void CopiesTheReportedSelectionState()
     {
-        var snapshot = new EditorSnapshot(["strong", "EM"], "H2", "center", true, true, true, true, true, true, true, true);
+        var snapshot = new EditorSnapshot(["strong", "EM"], "H2", "center", true, true, true, true, true, true, true, true, true, true, true, 12, 64);
 
         var state = snapshot.ApplyTo(EditorState.Empty);
 
@@ -24,7 +24,12 @@ public sealed class EditorSnapshotTests
         state.InLink.ShouldBeTrue();
         state.InImage.ShouldBeTrue();
         state.InTable.ShouldBeTrue();
+        state.CanOutdent.ShouldBeTrue();
+        state.IsFullscreen.ShouldBeTrue();
+        state.IsPlainTextPaste.ShouldBeTrue();
         state.PrefersDarkScheme.ShouldBeTrue();
+        state.WordCount.ShouldBe(12);
+        state.CharacterCount.ShouldBe(64);
     }
 
     [Fact]
@@ -62,5 +67,5 @@ public sealed class EditorSnapshotTests
     public void AlignmentIsMapped(string? alignment, TextAlignment expected) =>
         (Empty with { Alignment = alignment }).ApplyTo(EditorState.Empty).Alignment.ShouldBe(expected);
 
-    private static EditorSnapshot Empty => new(null, null, null, false, false, false, false, false, false, false, false);
+    private static EditorSnapshot Empty => new(null, null, null, false, false, false, false, false, false, false, false, false, false, false, 0, 0);
 }

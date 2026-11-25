@@ -1,7 +1,12 @@
 using Bunit;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using ZauberCMS.RTE.Components;
 using ZauberCMS.RTE.Interop;
 using ZauberCMS.RTE.Models;
+using ZauberCMS.RTE.Services;
+using ZauberCMS.RTE.Tests.TestSupport;
 
 namespace ZauberCMS.RTE.Tests.Components;
 
@@ -69,12 +74,12 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
     {
         var cut = RenderEditor();
 
-        cut.FindAll(".rte-toolbar > [role=group]").Count.ShouldBe(5);
+        cut.FindAll(".rte-toolbar > [role=group]").Count.ShouldBe(8);
         var separators = cut.FindAll(".rte-toolbar > [role=separator]");
-        separators.Count.ShouldBe(4);
+        separators.Count.ShouldBe(7);
         separators.ShouldAllBe(separator => separator.GetAttribute("aria-orientation") == "vertical");
         var buttons = cut.FindAll(".rte-toolbar button.rte-toolbar-btn");
-        buttons.Count.ShouldBe(24);
+        buttons.Count.ShouldBe(33);
         buttons.ShouldAllBe(button => button.GetAttribute("type") == "button" && !string.IsNullOrWhiteSpace(button.GetAttribute("aria-label")));
         cut.FindAll(".rte-toolbar button .rte-icon").ShouldAllBe(icon => icon.GetAttribute("aria-hidden") == "true");
     }
@@ -107,7 +112,7 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
 
         var stops = cut.FindAll(".rte-toolbar button[tabindex='0']");
         stops.ShouldHaveSingleItem().ClassList.ShouldContain("rte-btn-bold");
-        cut.FindAll(".rte-toolbar button.rte-toolbar-btn").Count(button => button.GetAttribute("tabindex") == "-1").ShouldBe(23);
+        cut.FindAll(".rte-toolbar button.rte-toolbar-btn").Count(button => button.GetAttribute("tabindex") == "-1").ShouldBe(32);
     }
 
     [Fact]
@@ -127,7 +132,7 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
         var cut = RenderEditor(parameters => parameters.Add(editor => editor.Toolbar, new ToolbarLayout(new ToolbarGroup("undo", "bold"))));
         cut.Find(".rte-btn-bold").GetAttribute("tabindex").ShouldBe("0");
 
-        await Callbacks.OnStateChangedAsync(new EditorSnapshot([], "p", "left", false, true, true, false, false, false, false, false));
+        await Callbacks.OnStateChangedAsync(new EditorSnapshot([], "p", "left", false, true, true, false, false, false, false, false, false, false, false, 0, 0));
 
         cut.Find(".rte-btn-undo").GetAttribute("tabindex").ShouldBe("0");
         cut.Find(".rte-btn-bold").GetAttribute("tabindex").ShouldBe("-1");
@@ -150,8 +155,9 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
         var menu = cut.Find("[role=menu]");
         menu.GetAttribute("aria-label").ShouldBe("Headings");
         var items = cut.FindAll("[role=menu] > button");
-        items.Count.ShouldBe(6);
-        items.ShouldAllBe(item => item.GetAttribute("role") == "menuitemradio" && item.GetAttribute("aria-checked") == "false");
+        items.Count.ShouldBe(8);
+        items.ShouldAllBe(item => item.GetAttribute("role") == "menuitemradio");
+        items.Select(item => item.GetAttribute("aria-checked")).ShouldBe(["true", "false", "false", "false", "false", "false", "false", "false"]);
     }
 
     [Fact]
@@ -172,7 +178,7 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
         EditorState? reported = null;
         var cut = RenderEditor(parameters => parameters.Add(editor => editor.OnStateChanged, (EditorState state) => reported = state));
 
-        await Callbacks.OnStateChangedAsync(new EditorSnapshot(["strong"], "h2", "center", false, true, true, false, false, false, false, false));
+        await Callbacks.OnStateChangedAsync(new EditorSnapshot(["strong"], "h2", "center", false, true, true, false, false, false, false, false, false, false, false, 0, 0));
 
         cut.Find(".rte-btn-bold").GetAttribute("aria-pressed").ShouldBe("true");
         cut.Find(".rte-btn-bold").ClassList.ShouldContain("rte-btn-active");
@@ -190,7 +196,7 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
     public async Task ActiveHeadingIsCheckedInTheMenu()
     {
         var cut = RenderEditor();
-        await Callbacks.OnStateChangedAsync(new EditorSnapshot([], "h3", null, false, true, false, false, false, false, false, false));
+        await Callbacks.OnStateChangedAsync(new EditorSnapshot([], "h3", null, false, true, false, false, false, false, false, false, false, false, false, 0, 0));
 
         cut.Find(".rte-dropdown-headings > button").Click();
 
@@ -250,5 +256,23 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
         var cut = RenderEditor(parameters => parameters.Add(editor => editor.Toolbar, new ToolbarLayout(new ToolbarGroup("bold", "nope"))));
 
         cut.FindAll(".rte-toolbar button").ShouldHaveSingleItem().ClassList.ShouldContain("rte-btn-bold");
+    }
+
+    [Fact]
+    public void NeverRegisteredIdsLogAWarningAndRemovedIdsLogDebugOnce()
+    {
+        var logger = Substitute.For<ILogger<ZauberRichTextEditor>>();
+        logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+        Services.AddSingleton(logger);
+        Services.AddZauberRte(options => options.RemoveToolbarItem("italic"));
+        var layout = new ToolbarLayout(new ToolbarGroup("bold", "nope", "ITALIC"));
+
+        var cut = RenderEditor(parameters => parameters.Add(editor => editor.Toolbar, layout));
+        cut.Render(parameters => parameters.Add(editor => editor.Toolbar, layout));
+
+        var logs = SubstituteCalls.Logs(logger);
+        logs.Length.ShouldBe(2);
+        logs.ShouldContain(log => log.Level == LogLevel.Warning && log.Message.Contains("nope") && !log.Message.Contains("ITALIC"));
+        logs.ShouldContain(log => log.Level == LogLevel.Debug && log.Message.Contains("ITALIC") && !log.Message.Contains("nope"));
     }
 }

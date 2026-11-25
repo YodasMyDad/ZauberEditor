@@ -40,6 +40,18 @@ internal sealed class EditorApi(IEditorHost host) : IEditorApi
         return RunAsync(interop => interop.SetBlockStyleAsync(styles, cancellationToken), cancellationToken);
     }
 
+    public Task IndentAsync(CancellationToken cancellationToken = default) =>
+        RunAsync(interop => interop.IndentAsync(cancellationToken), cancellationToken);
+
+    public Task OutdentAsync(CancellationToken cancellationToken = default) =>
+        RunAsync(interop => interop.OutdentAsync(cancellationToken), cancellationToken);
+
+    public Task SetTextStyleAsync(string styleName, string? value, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(styleName);
+        return RunAsync(interop => interop.SetTextStyleAsync(styleName, value, cancellationToken), cancellationToken);
+    }
+
     public Task ClearFormattingAsync(CancellationToken cancellationToken = default) =>
         RunAsync(interop => interop.ClearFormattingAsync(cancellationToken), cancellationToken);
 
@@ -54,6 +66,8 @@ internal sealed class EditorApi(IEditorHost host) : IEditorApi
         ArgumentNullException.ThrowIfNull(text);
         return RunAsync(interop => interop.InsertTextAsync(text, cancellationToken), cancellationToken);
     }
+
+    public Task FlushAsync(CancellationToken cancellationToken = default) => host.FlushAsync(cancellationToken);
 
     public Task<string> GetHtmlAsync(CancellationToken cancellationToken = default) =>
         RunAsync(interop => interop.GetHtmlAsync(Settings.MaxContentBytes, cancellationToken), cancellationToken);
@@ -108,6 +122,32 @@ internal sealed class EditorApi(IEditorHost host) : IEditorApi
     public Task ToggleSourceViewAsync(CancellationToken cancellationToken = default) =>
         host.ToggleSourceViewAsync(cancellationToken);
 
+    public Task SetFullscreenAsync(bool fullscreen, CancellationToken cancellationToken = default) =>
+        RunAsync(interop => interop.SetFullscreenAsync(fullscreen, cancellationToken), cancellationToken);
+
+    public Task SetPlainTextPasteAsync(bool plainText, CancellationToken cancellationToken = default) =>
+        RunAsync(interop => interop.SetPlainTextPasteAsync(plainText, cancellationToken), cancellationToken);
+
+    public Task<FindResult> FindAsync(string text, bool matchCase = false, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return RunAsync(interop => interop.FindAsync(text, matchCase, cancellationToken), cancellationToken);
+    }
+
+    public Task<FindResult> ReplaceAsync(string text, string replacement, bool matchCase = false, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(replacement);
+        return RunAsync(interop => interop.ReplaceAsync(text, replacement, matchCase, cancellationToken), cancellationToken);
+    }
+
+    public Task<int> ReplaceAllAsync(string text, string replacement, bool matchCase = false, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(replacement);
+        return RunAsync(interop => interop.ReplaceAllAsync(text, replacement, matchCase, cancellationToken), cancellationToken);
+    }
+
     public Task SetThemeAsync(Theme theme, CancellationToken cancellationToken = default) =>
         host.SetThemeAsync(theme, cancellationToken);
 
@@ -115,7 +155,21 @@ internal sealed class EditorApi(IEditorHost host) : IEditorApi
         IReadOnlyDictionary<string, object?>? parameters = null,
         CancellationToken cancellationToken = default)
         where TPanel : PanelBase =>
-        host.OpenPanelAsync(PanelRequest.Create<TPanel>(parameters), cancellationToken);
+        OpenPanelAsync(typeof(TPanel), parameters, cancellationToken);
+
+    public Task OpenPanelAsync(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] Type panelType,
+        IReadOnlyDictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(panelType);
+        if (panelType.IsAbstract || !panelType.IsAssignableTo(typeof(PanelBase)))
+        {
+            throw new ArgumentException($"'{panelType.FullName}' is not a concrete component derived from PanelBase.", nameof(panelType));
+        }
+
+        return host.OpenPanelAsync(PanelRequest.Create(panelType, parameters), cancellationToken);
+    }
 
     public Task ClosePanelAsync(CancellationToken cancellationToken = default) => host.ClosePanelAsync(cancellationToken);
 

@@ -10,12 +10,15 @@ internal sealed class EditorCallbacks(IEditorEventSink sink)
     public Task OnContentChangedAsync(string? html, string source, int revision) =>
         sink.ContentChangedAsync(html, ParseSource(source), revision);
 
+    [JSInvokable("OnContentChunk")]
+    public Task OnContentChunkAsync(string chunk) => sink.ContentChunkAsync(chunk);
+
     [JSInvokable("OnStateChanged")]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(EditorSnapshot))]
     public Task OnStateChangedAsync(EditorSnapshot snapshot) => sink.StateChangedAsync(snapshot);
 
     [JSInvokable("OnShortcut")]
-    public Task OnShortcutAsync(string itemId) => sink.ShortcutAsync(itemId);
+    public Task OnShortcutAsync(string id, bool custom) => sink.ShortcutAsync(id, custom);
 
     [JSInvokable("OnFocusChanged")]
     public Task OnFocusChangedAsync(bool focused) => sink.FocusChangedAsync(focused);

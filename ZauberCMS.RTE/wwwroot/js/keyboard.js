@@ -1,5 +1,8 @@
-import { handleBackspace, handleDelete, handleEnter, handleTab } from './keys.js';
+import { coversAllContent, isContentEmpty, resetEmptyContent } from './content.js';
+import { blockOf, placeholderOf } from './dom.js';
 import { insertBreak, replaceSelection } from './insert.js';
+import { handleBackspace, handleDelete, handleEnter, handleTab } from './keys.js';
+import { caretAt, startNode } from './selection.js';
 import { historyShortcut, matchShortcut } from './shortcuts.js';
 
 const TYPED_EDITS = new Map([
@@ -17,7 +20,36 @@ function replacementText(event) {
     return DELETING.test(event.inputType) ? '' : null;
 }
 
+function typeIntoEmpty(content, range, text) {
+    if (!range.collapsed || !text) {
+        return false;
+    }
+    const node = content.ownerDocument.createTextNode(text);
+    const placeholder = placeholderOf(blockOf(startNode(range), content));
+    if (placeholder) {
+        placeholder.replaceWith(node);
+    } else {
+        range.insertNode(node);
+    }
+    caretAt(content, node, node.length);
+    return true;
+}
+
+function clearAll(content, range) {
+    if (!coversAllContent(content, range)) {
+        return false;
+    }
+    resetEmptyContent(content);
+    return true;
+}
+
+const startsFresh = (ctx, event) => event.inputType === 'insertText' && !ctx.caretMarks.holder && isContentEmpty(ctx.content);
+
+const isPlainPaste = (event) => (event.ctrlKey || event.metaKey) && event.shiftKey && !event.altKey
+    && (event.code === 'KeyV' || event.key?.toLowerCase() === 'v');
+
 function onKeyDown(ctx, actions, event) {
+    ctx.pasteTextOnce = isPlainPaste(event);
     if (event.isComposing) {
         return;
     }
@@ -27,12 +59,12 @@ function onKeyDown(ctx, actions, event) {
         actions.travel(direction);
         return;
     }
-    const itemId = matchShortcut(ctx.config.shortcuts, event);
-    if (itemId) {
+    const binding = matchShortcut(ctx.config.shortcuts, event);
+    if (binding) {
         event.preventDefault();
         if (!ctx.config.readOnly) {
             ctx.changes.flush();
-            ctx.channel.shortcut(itemId);
+            ctx.channel.shortcut(binding.id, binding.custom);
         }
         return;
     }
@@ -46,6 +78,7 @@ function onKeyDown(ctx, actions, event) {
         return;
     }
     if (event.key === 'Escape' && ctx.images.selected) {
+        event.preventDefault();
         ctx.images.deselect();
     }
 }
@@ -65,11 +98,22 @@ function onBeforeInput(ctx, actions, event) {
         event.preventDefault();
         return;
     }
+    if (type === 'insertParagraph' || type === 'insertLineBreak') {
+        ctx.changes.flush();
+    }
     ctx.changes.begin();
     if (event.isComposing) {
         return;
     }
+    if (startsFresh(ctx, event) && actions.type((range) => typeIntoEmpty(ctx.content, range, event.data))) {
+        event.preventDefault();
+        return;
+    }
     const text = replacementText(event);
+    if (text === '' && actions.type((range) => clearAll(ctx.content, range))) {
+        event.preventDefault();
+        return;
+    }
     if (text !== null && actions.type((range) => replaceSelection(ctx.content, range, text))) {
         event.preventDefault();
         return;

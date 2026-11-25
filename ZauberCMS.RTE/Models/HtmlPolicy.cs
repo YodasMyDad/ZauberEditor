@@ -23,6 +23,10 @@ public sealed record HtmlPolicy
     /// <summary>Allowed attribute names; <c>data-*</c> and <c>aria-*</c> allow those families.</summary>
     public IReadOnlySet<string> AllowedAttributes { get; init; } = DefaultAttributes;
 
+    /// <summary>Attributes allowed only on the given tag, in addition to <see cref="AllowedAttributes"/> (case-insensitive).</summary>
+    public IReadOnlyDictionary<string, IReadOnlySet<string>> TagAttributes { get; init => field = Normalise(value); } =
+        FrozenDictionary<string, IReadOnlySet<string>>.Empty;
+
     /// <summary>Whether images may use <c>data:</c> URLs.</summary>
     public bool AllowDataUrls { get; init; } = true;
 
@@ -36,8 +40,20 @@ public sealed record HtmlPolicy
         && AllowDataUrls == other.AllowDataUrls
         && AllowExternalImages == other.AllowExternalImages
         && ValueEquality.Set(AllowedTags, other.AllowedTags)
-        && ValueEquality.Set(AllowedAttributes, other.AllowedAttributes);
+        && ValueEquality.Set(AllowedAttributes, other.AllowedAttributes)
+        && ValueEquality.SetMap(TagAttributes, other.TagAttributes);
 
     /// <inheritdoc />
     public override int GetHashCode() => HashCode.Combine(AllowDataUrls, AllowExternalImages);
+
+    private static FrozenDictionary<string, IReadOnlySet<string>> Normalise(IReadOnlyDictionary<string, IReadOnlySet<string>> tagAttributes)
+    {
+        ArgumentNullException.ThrowIfNull(tagAttributes);
+        return tagAttributes
+            .GroupBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .ToFrozenDictionary(
+                group => group.Key,
+                IReadOnlySet<string> (group) => group.SelectMany(pair => pair.Value).ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+                StringComparer.OrdinalIgnoreCase);
+    }
 }

@@ -16,10 +16,13 @@ public sealed class ToolbarLayoutTests
         arrangement.Slots.Select(slot => slot.Item.Id).ShouldBe(
         [
             "bold", "italic", "underline", "strike", "code", "subscript", "superscript",
+            "textColor", "backgroundColor",
             "headings", "blockquote",
-            "ul", "ol", "link", "unlink", "image", "table",
+            "ul", "ol", "outdent", "indent",
+            "link", "unlink", "image", "table", "horizontalRule", "specialCharacters",
             "alignLeft", "alignCenter", "alignRight", "justified",
-            "clean-html", "undo", "redo", "viewSource", "themeToggle"
+            "clean-html", "undo", "redo", "findReplace", "pastePlainText",
+            "viewSource", "fullscreen", "themeToggle"
         ]);
         arrangement.Items.Select(item => item.Id).ShouldBe(Registries.Items().Keys, ignoreOrder: true);
     }

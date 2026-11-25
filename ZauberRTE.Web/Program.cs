@@ -13,9 +13,9 @@ builder.Services.AddZauberRte(options =>
     options.AddToolbarItem<HighlightItem>();
     options.AddToolbarItem<InsertTimeItem>();
     options.AddToolbarItem<CalloutItem>();
-    options.AddToolbarItem<TextColorDropdownItem>();
-    options.AddToolbarItem<RemoveTextColorItem>();
-    foreach (var color in TextColorItem.Palette)
+    options.AddToolbarItem<InkColorDropdownItem>();
+    options.AddToolbarItem<RemoveInkColorItem>();
+    foreach (var color in InkColorItem.Palette)
     {
         options.AddToolbarItem(color);
     }

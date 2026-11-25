@@ -24,6 +24,9 @@ public static class ToolbarItemIds
     /// <summary>Inline code, or a code block when nothing is selected.</summary>
     public const string Code = "code";
 
+    /// <summary>Paragraph, listed in the headings dropdown.</summary>
+    public const string Paragraph = "paragraph";
+
     /// <summary>Heading level 1.</summary>
     public const string Heading1 = "h1";
 
@@ -42,7 +45,10 @@ public static class ToolbarItemIds
     /// <summary>Heading level 6.</summary>
     public const string Heading6 = "h6";
 
-    /// <summary>Dropdown of the heading levels.</summary>
+    /// <summary>Code block, listed in the headings dropdown.</summary>
+    public const string CodeBlock = "codeBlock";
+
+    /// <summary>Dropdown of the paragraph, heading levels and code block.</summary>
     public const string Headings = "headings";
 
     /// <summary>Block quote.</summary>
@@ -53,6 +59,12 @@ public static class ToolbarItemIds
 
     /// <summary>Numbered list.</summary>
     public const string OrderedList = "ol";
+
+    /// <summary>Indent the block, or nest the list item under the one before it.</summary>
+    public const string Indent = "indent";
+
+    /// <summary>Outdent the block, or lift the list item out of its list.</summary>
+    public const string Outdent = "outdent";
 
     /// <summary>Align left.</summary>
     public const string AlignLeft = "alignLeft";
@@ -78,6 +90,18 @@ public static class ToolbarItemIds
     /// <summary>Insert a table.</summary>
     public const string Table = "table";
 
+    /// <summary>Insert a horizontal line.</summary>
+    public const string HorizontalRule = "horizontalRule";
+
+    /// <summary>Insert a special character.</summary>
+    public const string SpecialCharacters = "specialCharacters";
+
+    /// <summary>Dropdown of text colours; its swatches have ids such as <c>textColor-red</c>.</summary>
+    public const string TextColor = "textColor";
+
+    /// <summary>Dropdown of highlight colours; its swatches have ids such as <c>backgroundColor-yellow</c>.</summary>
+    public const string BackgroundColor = "backgroundColor";
+
     /// <summary>Remove formatting from the selection.</summary>
     public const string ClearFormatting = "clean-html";
 
@@ -87,8 +111,17 @@ public static class ToolbarItemIds
     /// <summary>Redo.</summary>
     public const string Redo = "redo";
 
+    /// <summary>Find and replace text.</summary>
+    public const string FindReplace = "findReplace";
+
+    /// <summary>Toggle pasting as plain text.</summary>
+    public const string PastePlainText = "pastePlainText";
+
     /// <summary>Toggle the HTML source view.</summary>
     public const string ViewSource = "viewSource";
+
+    /// <summary>Toggle full screen.</summary>
+    public const string Fullscreen = "fullscreen";
 
     /// <summary>Switch between light and dark themes.</summary>
     public const string ThemeToggle = "themeToggle";

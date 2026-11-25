@@ -1,4 +1,4 @@
-import { ZWSP, elementOf, hasAnyContent, removeWithEmptyInlines, splitAt } from './dom.js';
+import { ZWSP, blockOf, elementOf, hasAnyContent, placeholderOf, removeWithEmptyInlines, splitAt } from './dom.js';
 import { caretAt, rangeIn } from './selection.js';
 
 export class CaretMarks {
@@ -9,11 +9,17 @@ export class CaretMarks {
         this.#content = content;
     }
 
-    enter(range, tag) {
+    enter(range, tag, styles = []) {
         const doc = this.#content.ownerDocument;
         const element = doc.createElement(tag);
+        styles.forEach(([property, value]) => element.style.setProperty(property, value));
         const text = doc.createTextNode(ZWSP);
         element.append(text);
+        const placeholder = placeholderOf(blockOf(range.startContainer, this.#content));
+        if (placeholder) {
+            range.setStartBefore(placeholder);
+            range.collapse(true);
+        }
         range.insertNode(element);
         this.#hold(text);
         return false;

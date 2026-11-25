@@ -1,6 +1,6 @@
 import {
     CELL_TAGS, closestWithin, emptyParagraph, ensurePlaceholder, hasVisibleContent, isBlock, isList, removeEmptyInlines,
-    retag, setAttributes, splitAt, unique, wrapInlineRuns
+    removeWithEmptyAncestors, retag, setAttributes, splitAt, unique, wrapInlineRuns
 } from './dom.js';
 import { caretInside, preserveSelection } from './selection.js';
 import { asTextBlock, textBlocksInRange } from './text-blocks.js';
@@ -179,6 +179,38 @@ export function enterInListItem(content, range, item) {
     tidyItem(item);
     tidyItem(tail);
     caretInside(content, tail, false);
+}
+
+function outermostList(item, content) {
+    let list = item.parentElement;
+    let parent = list.parentElement;
+    while (parent && parent !== content && !CELL_TAGS.has(parent.localName)) {
+        if (isList(parent)) {
+            list = parent;
+        }
+        parent = parent.parentElement;
+    }
+    return list;
+}
+
+function pruneEdgeItems(list, atEnd) {
+    for (let items = list.querySelectorAll('li'); items.length > 0; items = list.querySelectorAll('li')) {
+        const item = atEnd ? items[items.length - 1] : items[0];
+        if (hasVisibleContent(item)) {
+            return;
+        }
+        removeWithEmptyAncestors(item, list.parentNode);
+    }
+    list.remove();
+}
+
+export function placeBesideList(content, range, item, nodes) {
+    const list = outermostList(item, content);
+    const tail = splitAt(list, range.startContainer, range.startOffset);
+    list.after(...nodes);
+    pruneEdgeItems(list, true);
+    pruneEdgeItems(tail, false);
+    return tail;
 }
 
 export function outdentAtCaret(content, item) {

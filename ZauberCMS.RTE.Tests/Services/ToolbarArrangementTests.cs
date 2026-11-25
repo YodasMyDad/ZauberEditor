@@ -56,8 +56,8 @@ public sealed class ToolbarArrangementTests
         var arrangement = ToolbarArrangement.Create(new ToolbarLayout(new ToolbarGroup("headings")), _items);
 
         var slot = arrangement.Slots.ShouldHaveSingleItem();
-        slot.Children.Select(child => child.Id).ShouldBe(["h1", "h2", "h3", "h4", "h5", "h6"]);
-        arrangement.Items.Select(item => item.Id).ShouldBe(["headings", "h1", "h2", "h3", "h4", "h5", "h6"]);
+        slot.Children.Select(child => child.Id).ShouldBe(["paragraph", "h1", "h2", "h3", "h4", "h5", "h6", "codeBlock"]);
+        arrangement.Items.Select(item => item.Id).ShouldBe(["headings", "paragraph", "h1", "h2", "h3", "h4", "h5", "h6", "codeBlock"]);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class ToolbarArrangementTests
         var arrangement = ToolbarArrangement.Create(new ToolbarLayout(new ToolbarGroup("headings")), items);
 
         arrangement.MissingIds.ShouldBe(["h5"]);
-        arrangement.Slots[0].Children.Select(child => child.Id).ShouldBe(["h1", "h2", "h3", "h4", "h6"]);
+        arrangement.Slots[0].Children.Select(child => child.Id).ShouldBe(["paragraph", "h1", "h2", "h3", "h4", "h6", "codeBlock"]);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class ToolbarArrangementTests
         var arrangement = ToolbarArrangement.Create(new ToolbarLayout(new ToolbarGroup("headings", "h2", "bold"), new ToolbarItemRef("bold")), _items);
 
         arrangement.Slots.Count.ShouldBe(4);
-        arrangement.Items.Select(item => item.Id).ShouldBe(["headings", "h1", "h2", "h3", "h4", "h5", "h6", "bold"]);
+        arrangement.Items.Select(item => item.Id).ShouldBe(["headings", "paragraph", "h1", "h2", "h3", "h4", "h5", "h6", "codeBlock", "bold"]);
     }
 
     [Fact]

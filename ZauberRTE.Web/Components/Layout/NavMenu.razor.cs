@@ -6,6 +6,7 @@ public sealed partial class NavMenu
     [
         ("", "Full toolbar"),
         ("custom-items", "Custom items & panel"),
+        ("toolbar-catalog", "Toolbar catalogue"),
         ("multiple-editors", "Multiple editors"),
         ("read-only", "Read-only"),
         ("themes", "Themes"),

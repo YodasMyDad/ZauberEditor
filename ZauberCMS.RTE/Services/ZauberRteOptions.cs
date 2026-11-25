@@ -17,7 +17,7 @@ public sealed class ZauberRteOptions
     public ZauberRteOptions AddToolbarItem<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TItem>()
         where TItem : class, IToolbarItem
     {
-        _registrations.Add(ToolbarItemRegistration.ForFactory(static services => ActivatorUtilities.CreateInstance<TItem>(services)));
+        _registrations.Add(ToolbarItemRegistration.ForFactory(typeof(TItem), static services => ActivatorUtilities.CreateInstance<TItem>(services)));
         return this;
     }
 
@@ -49,7 +49,7 @@ public sealed class ZauberRteOptions
         {
             if (type is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } && type.IsAssignableTo(typeof(IToolbarItem)))
             {
-                _registrations.Add(ToolbarItemRegistration.ForFactory(services => (IToolbarItem)ActivatorUtilities.CreateInstance(services, type)));
+                _registrations.Add(ToolbarItemRegistration.ForFactory(type, services => (IToolbarItem)ActivatorUtilities.CreateInstance(services, type)));
             }
         }
 

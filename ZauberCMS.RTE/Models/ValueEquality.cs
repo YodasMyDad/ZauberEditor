@@ -18,4 +18,8 @@ internal static class ValueEquality
 
     public static bool Set(IReadOnlySet<string> left, IReadOnlySet<string> right) =>
         ReferenceEquals(left, right) || (left.SetEquals(right) && right.SetEquals(left));
+
+    public static bool SetMap(IReadOnlyDictionary<string, IReadOnlySet<string>> left, IReadOnlyDictionary<string, IReadOnlySet<string>> right) =>
+        ReferenceEquals(left, right)
+        || (left.Count == right.Count && left.All(pair => right.TryGetValue(pair.Key, out var set) && Set(pair.Value, set)));
 }

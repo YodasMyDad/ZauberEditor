@@ -47,11 +47,21 @@ public sealed class EditorApiTests : IDisposable
         { (api, token) => api.GetLinkAtCursorAsync(token), nameof(IEditorInterop.GetLinkAsync), [4096L] },
         { (api, token) => api.GetImageAtCursorAsync(token), nameof(IEditorInterop.GetImageAsync), [4096L] },
         { (api, token) => api.GetHtmlAsync(token), nameof(IEditorInterop.GetHtmlAsync), [4096L] },
-        { (api, token) => api.GetTextAsync(token), nameof(IEditorInterop.GetTextAsync), [4096L] }
+        { (api, token) => api.GetTextAsync(token), nameof(IEditorInterop.GetTextAsync), [4096L] },
+        { (api, token) => api.IndentAsync(token), nameof(IEditorInterop.IndentAsync), [] },
+        { (api, token) => api.OutdentAsync(token), nameof(IEditorInterop.OutdentAsync), [] },
+        { (api, token) => api.SetTextStyleAsync("color", "#ef4444", token), nameof(IEditorInterop.SetTextStyleAsync), ["color", "#ef4444"] },
+        { (api, token) => api.SetTextStyleAsync("color", null, token), nameof(IEditorInterop.SetTextStyleAsync), ["color", null] },
+        { (api, token) => api.SetFullscreenAsync(true, token), nameof(IEditorInterop.SetFullscreenAsync), [true] },
+        { (api, token) => api.SetPlainTextPasteAsync(true, token), nameof(IEditorInterop.SetPlainTextPasteAsync), [true] },
+        { (api, token) => api.FindAsync("the", true, token), nameof(IEditorInterop.FindAsync), ["the", true] },
+        { (api, token) => api.ReplaceAsync("the", "a", false, token), nameof(IEditorInterop.ReplaceAsync), ["the", "a", false] },
+        { (api, token) => api.ReplaceAllAsync("the", "a", cancellationToken: token), nameof(IEditorInterop.ReplaceAllAsync), ["the", "a", false] }
     };
 
     public static TheoryData<Func<IEditorApi, CancellationToken, Task>, string, object?[]> HostCommands => new()
     {
+        { (api, token) => api.FlushAsync(token), nameof(IEditorHost.FlushAsync), [] },
         { (api, token) => api.ToggleSourceViewAsync(token), nameof(IEditorHost.ToggleSourceViewAsync), [] },
         { (api, token) => api.SetThemeAsync(Theme.Dark, token), nameof(IEditorHost.SetThemeAsync), [Theme.Dark] },
         { (api, token) => api.ClosePanelAsync(token), nameof(IEditorHost.ClosePanelAsync), [] },
@@ -69,7 +79,11 @@ public sealed class EditorApiTests : IDisposable
         { api => api.InsertHtmlAsync(null!), typeof(ArgumentNullException) },
         { api => api.InsertTextAsync(null!), typeof(ArgumentNullException) },
         { api => api.SetHtmlAsync(null!), typeof(ArgumentNullException) },
-        { api => api.ShowToastAsync(" "), typeof(ArgumentException) }
+        { api => api.ShowToastAsync(" "), typeof(ArgumentException) },
+        { api => api.SetTextStyleAsync(" ", "red"), typeof(ArgumentException) },
+        { api => api.FindAsync(null!), typeof(ArgumentNullException) },
+        { api => api.ReplaceAsync("a", null!), typeof(ArgumentNullException) },
+        { api => api.ReplaceAllAsync(null!, "b"), typeof(ArgumentNullException) }
     };
 
     public void Dispose() => _cancellation.Dispose();
@@ -123,7 +137,7 @@ public sealed class EditorApiTests : IDisposable
     {
         var token = _cancellation.Token;
         var selection = new SelectionInfo("text", IsCollapsed: false);
-        var link = new LinkInfo("https://example.com", "Example", null, null);
+        var link = new LinkInfo("https://example.com", "Example", null, null) { Rel = "nofollow" };
         var image = new ImageInfo("/a.png", "A", null, 10, 20);
         _interop.GetSelectionAsync(4096, token).Returns(selection);
         _interop.GetLinkAsync(4096, token).Returns(link);
@@ -188,6 +202,32 @@ public sealed class EditorApiTests : IDisposable
         request.Instance.ShouldBeNull();
         call.GetArguments()[1].ShouldBe(_cancellation.Token);
     }
+
+    [Fact]
+    public async Task OpenPanelByTypePassesAPanelRequestToTheHost()
+    {
+        await _api.OpenPanelAsync(typeof(ImagePanel), null, _cancellation.Token);
+
+        var call = SubstituteCalls.To(_host, nameof(IEditorHost.OpenPanelAsync)).ShouldHaveSingleItem();
+        call.GetArguments()[0].ShouldBeOfType<PanelRequest>().Content.ShouldNotBeNull();
+        call.GetArguments()[1].ShouldBe(_cancellation.Token);
+    }
+
+    [Theory]
+    [InlineData(typeof(string))]
+    [InlineData(typeof(PanelBase))]
+    [InlineData(typeof(SlideOutPanel))]
+    public async Task OpenPanelByTypeRejectsTypesThatAreNotConcretePanels(Type panelType)
+    {
+        var exception = await Should.ThrowAsync<ArgumentException>(() => _api.OpenPanelAsync(panelType));
+
+        exception.ParamName.ShouldBe("panelType");
+        _host.ReceivedCalls().Where(call => call.GetMethodInfo().Name == nameof(IEditorHost.OpenPanelAsync)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task OpenPanelByTypeRejectsNull() =>
+        await Should.ThrowAsync<ArgumentNullException>(() => _api.OpenPanelAsync(null!));
 
     [Fact]
     public void StateAndSettingsComeFromTheHost()

@@ -5,7 +5,8 @@ export function compileShortcuts(shortcuts) {
     for (const shortcut of shortcuts ?? []) {
         if (shortcut?.itemId && shortcut?.key) {
             const key = String(shortcut.key).toLowerCase();
-            map.set(signature(Boolean(shortcut.mod), Boolean(shortcut.shift), Boolean(shortcut.alt), key), shortcut.itemId);
+            map.set(signature(Boolean(shortcut.mod), Boolean(shortcut.shift), Boolean(shortcut.alt), key),
+                { id: shortcut.itemId, custom: shortcut.custom === true });
         }
     }
     return map;
@@ -35,9 +36,9 @@ export function matchShortcut(map, event) {
     }
     const mod = event.ctrlKey || event.metaKey;
     for (const key of candidateKeys(event)) {
-        const itemId = map.get(signature(mod, event.shiftKey, event.altKey, key));
-        if (itemId) {
-            return itemId;
+        const binding = map.get(signature(mod, event.shiftKey, event.altKey, key));
+        if (binding) {
+            return binding;
         }
     }
     return null;

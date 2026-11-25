@@ -6,7 +6,7 @@ namespace ZauberRTE.Web.Toolbar;
 public static class DemoToolbar
 {
     public static ToolbarLayout Layout { get; } = new(
-        new ToolbarGroup(ToolbarItemIds.Bold, ToolbarItemIds.Italic, HighlightItem.ItemId, TextColorDropdownItem.ItemId),
+        new ToolbarGroup(ToolbarItemIds.Bold, ToolbarItemIds.Italic, HighlightItem.ItemId, InkColorDropdownItem.ItemId),
         new ToolbarSeparator(),
         new ToolbarGroup(ToolbarItemIds.Headings, ToolbarItemIds.UnorderedList, CalloutItem.ItemId, InsertTimeItem.ItemId),
         new ToolbarSeparator(),

@@ -4,7 +4,8 @@
                        State="_state"
                        AriaLabel="@($"{AriaLabel} toolbar")"
                        ContentId="@_contentId"
-                       OnExecute="ExecuteItemAsync" />
+                       OnExecute="ExecuteItemAsync"
+                       OnDismiss="FocusFromToolbarAsync" />
     </CascadingValue>
 
     <div class="rte-editor-container">

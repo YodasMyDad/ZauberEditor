@@ -1,0 +1,49 @@
+@page "/toolbar-catalog"
+@rendermode InteractiveServer
+
+<PageTitle>Toolbar catalogue</PageTitle>
+
+<h1>Toolbar catalogue</h1>
+<p class="lead-text">
+    <code>IToolbarItemCatalog</code> lists every registered toolbar item, built-in and custom, so a CMS can offer a
+    "pick your toolbar buttons" screen. Tick items to build a <code>ToolbarLayout</code> for the editor below.
+</p>
+
+<table class="catalog">
+    <thead>
+        <tr>
+            <th scope="col">Use</th>
+            <th scope="col">Icon</th>
+            <th scope="col">Id</th>
+            <th scope="col">Label</th>
+            <th scope="col">Shortcut</th>
+            <th scope="col">Kind</th>
+            <th scope="col">Built-in</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Items)
+        {
+            <tr @key="item.Id">
+                <td>
+                    <input type="checkbox"
+                           aria-label="@($"Use {item.Label}")"
+                           checked="@_selected.Contains(item.Id)"
+                           @onchange="() => Toggle(item.Id)" />
+                </td>
+                <td class="catalog-icon">@Icon(item)</td>
+                <td><code>@item.Id</code></td>
+                <td>@item.Label</td>
+                <td>@item.Shortcut</td>
+                <td>@item.Kind</td>
+                <td>@(item.IsBuiltIn ? "yes" : "no")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<section class="demo-section">
+    <h2>Your toolbar</h2>
+    <p class="lead-text"><code>@Layout.ToJson()</code></p>
+    <ZauberRichTextEditor @bind-Value="_html" Toolbar="Layout" AriaLabel="Catalogue editor" />
+</section>

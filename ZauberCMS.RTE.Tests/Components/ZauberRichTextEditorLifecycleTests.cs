@@ -105,6 +105,37 @@ public sealed class ZauberRichTextEditorLifecycleTests : EditorTestContext
     }
 
     [Fact]
+    public async Task DisposeDeliversPendingContentBeforeReleasingTheScript()
+    {
+        List<string?> values = [];
+        var cut = RenderEditor(parameters => parameters
+            .Add(editor => editor.Value, "<p>a</p>")
+            .Add(editor => editor.ValueChanged, (string? html) => values.Add(html)));
+        var callbacks = Callbacks;
+        Interop.FlushAsync(Arg.Any<CancellationToken>()).Returns(_ => callbacks.OnContentChangedAsync("<p>typed</p>", "input", 0));
+
+        await cut.Instance.DisposeAsync();
+
+        values.ShouldBe(["<p>typed</p>"]);
+        Received.InOrder(() =>
+        {
+            Interop.FlushAsync(Arg.Any<CancellationToken>());
+            Interop.DisposeAsync();
+        });
+    }
+
+    [Fact]
+    public async Task DisposeAfterTheConnectionIsLostStillReleasesEverything()
+    {
+        var cut = RenderEditor();
+        Interop.FlushAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new JSDisconnectedException("gone")));
+
+        await Should.NotThrowAsync(cut.Instance.DisposeAsync().AsTask());
+
+        await Interop.Received(1).DisposeAsync();
+    }
+
+    [Fact]
     public async Task DisposingTwiceIsSafe()
     {
         var cut = RenderEditor();

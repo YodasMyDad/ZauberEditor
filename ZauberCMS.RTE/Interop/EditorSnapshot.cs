@@ -14,7 +14,12 @@ internal sealed record EditorSnapshot(
     bool InLink,
     bool InImage,
     bool InTable,
-    bool PrefersDark)
+    bool CanOutdent,
+    bool Fullscreen,
+    bool PlainPaste,
+    bool PrefersDark,
+    int Words,
+    int Characters)
 {
     public EditorState ApplyTo(EditorState state) => state with
     {
@@ -34,6 +39,11 @@ internal sealed record EditorSnapshot(
         InLink = InLink,
         InImage = InImage,
         InTable = InTable,
-        PrefersDarkScheme = PrefersDark
+        CanOutdent = CanOutdent,
+        IsFullscreen = Fullscreen,
+        IsPlainTextPaste = PlainPaste,
+        PrefersDarkScheme = PrefersDark,
+        WordCount = Words,
+        CharacterCount = Characters
     };
 }

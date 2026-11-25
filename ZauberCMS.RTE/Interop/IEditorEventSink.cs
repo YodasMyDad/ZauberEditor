@@ -6,9 +6,11 @@ internal interface IEditorEventSink
 {
     Task ContentChangedAsync(string? html, ChangeSource source, int revision);
 
+    Task ContentChunkAsync(string chunk);
+
     Task StateChangedAsync(EditorSnapshot snapshot);
 
-    Task ShortcutAsync(string itemId);
+    Task ShortcutAsync(string id, bool custom);
 
     Task FocusChangedAsync(bool focused);
 

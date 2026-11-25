@@ -23,17 +23,23 @@ public sealed record ToolbarLayout(params IReadOnlyList<ToolbarLayoutEntry> Entr
             ToolbarItemIds.Bold, ToolbarItemIds.Italic, ToolbarItemIds.Underline, ToolbarItemIds.Strike,
             ToolbarItemIds.Code, ToolbarItemIds.Subscript, ToolbarItemIds.Superscript),
         new ToolbarSeparator(),
+        new ToolbarGroup(ToolbarItemIds.TextColor, ToolbarItemIds.BackgroundColor),
+        new ToolbarSeparator(),
         new ToolbarGroup(ToolbarItemIds.Headings, ToolbarItemIds.Blockquote),
         new ToolbarSeparator(),
+        new ToolbarGroup(ToolbarItemIds.UnorderedList, ToolbarItemIds.OrderedList, ToolbarItemIds.Outdent, ToolbarItemIds.Indent),
+        new ToolbarSeparator(),
         new ToolbarGroup(
-            ToolbarItemIds.UnorderedList, ToolbarItemIds.OrderedList, ToolbarItemIds.Link, ToolbarItemIds.Unlink,
-            ToolbarItemIds.Image, ToolbarItemIds.Table),
+            ToolbarItemIds.Link, ToolbarItemIds.Unlink, ToolbarItemIds.Image, ToolbarItemIds.Table,
+            ToolbarItemIds.HorizontalRule, ToolbarItemIds.SpecialCharacters),
         new ToolbarSeparator(),
         new ToolbarGroup(ToolbarItemIds.AlignLeft, ToolbarItemIds.AlignCenter, ToolbarItemIds.AlignRight, ToolbarItemIds.Justify),
         new ToolbarSeparator(),
         new ToolbarGroup(
-            ToolbarItemIds.ClearFormatting, ToolbarItemIds.Undo, ToolbarItemIds.Redo, ToolbarItemIds.ViewSource,
-            ToolbarItemIds.ThemeToggle));
+            ToolbarItemIds.ClearFormatting, ToolbarItemIds.Undo, ToolbarItemIds.Redo, ToolbarItemIds.FindReplace,
+            ToolbarItemIds.PastePlainText),
+        new ToolbarSeparator(),
+        new ToolbarGroup(ToolbarItemIds.ViewSource, ToolbarItemIds.Fullscreen, ToolbarItemIds.ThemeToggle));
 
     /// <summary>Whether both layouts have the same entries in the same order.</summary>
     /// <param name="other">The layout to compare with.</param>

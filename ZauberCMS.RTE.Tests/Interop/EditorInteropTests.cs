@@ -14,7 +14,7 @@ public sealed class EditorInteropTests : IDisposable
     private static readonly Dictionary<string, string> Attributes = new() { ["class"] = "note" };
     private static readonly Dictionary<string, string> Styles = new() { ["text-align"] = "right" };
     private static readonly ElementReference Panel = new("panel");
-    private static readonly EditorInitOptions Options = EditorInitOptions.Create(null, true, null, new EditorSettings(), []);
+    private static readonly EditorInitOptions Options = EditorInitOptions.Create(null, true, null, new EditorSettings(), [], []);
 
     private static readonly Dictionary<string, (Func<IEditorInterop, CancellationToken, Task> Call, string Identifier, object?[] Arguments)> Calls = new()
     {
@@ -27,8 +27,17 @@ public sealed class EditorInteropTests : IDisposable
         ["blockType"] = ((interop, token) => interop.SetBlockTypeAsync("h2", null, token), "setBlockType", ["h2", null]),
         ["blockStyle"] = ((interop, token) => interop.SetBlockStyleAsync(Styles, token), "setBlockStyle", [Styles]),
         ["clear"] = ((interop, token) => interop.ClearFormattingAsync(token), "clearFormatting", []),
+        ["indent"] = ((interop, token) => interop.IndentAsync(token), "indent", []),
+        ["outdent"] = ((interop, token) => interop.OutdentAsync(token), "outdent", []),
+        ["textStyle"] = ((interop, token) => interop.SetTextStyleAsync("color", null, token), "setTextStyle", ["color", null]),
+        ["fullscreen"] = ((interop, token) => interop.SetFullscreenAsync(true, token), "setFullscreen", [true]),
+        ["plainPaste"] = ((interop, token) => interop.SetPlainTextPasteAsync(false, token), "setPlainTextPaste", [false]),
+        ["find"] = ((interop, token) => interop.FindAsync("the", true, token), "find", ["the", true]),
+        ["replace"] = ((interop, token) => interop.ReplaceAsync("the", "a", false, token), "replace", ["the", "a", false]),
+        ["replaceAll"] = ((interop, token) => interop.ReplaceAllAsync("the", "a", true, token), "replaceAll", ["the", "a", true]),
         ["insertHtml"] = ((interop, token) => interop.InsertHtmlAsync("<hr>", token), "insertHtml", ["<hr>"]),
         ["insertText"] = ((interop, token) => interop.InsertTextAsync("x", token), "insertText", ["x"]),
+        ["flush"] = ((interop, token) => interop.FlushAsync(token), "flush", []),
         ["undo"] = ((interop, token) => interop.UndoAsync(token), "undo", []),
         ["redo"] = ((interop, token) => interop.RedoAsync(token), "redo", []),
         ["save"] = ((interop, token) => interop.SaveSelectionAsync(token), "saveSelection", []),
@@ -131,12 +140,26 @@ public sealed class EditorInteropTests : IDisposable
     }
 
     [Fact]
-    public void OnlyTheBoundedStateSnapshotIsReturnedInline() =>
+    public void OnlyBoundedResultsAreReturnedInline() =>
         typeof(IEditorInterop).GetMethods()
             .Where(method => method.ReturnType.IsGenericType)
             .Select(method => method.Name)
             .Except(Reads.Keys)
-            .ShouldBe([nameof(IEditorInterop.GetStateAsync)]);
+            .ShouldBe(
+                [
+                    nameof(IEditorInterop.GetStateAsync), nameof(IEditorInterop.FindAsync),
+                    nameof(IEditorInterop.ReplaceAsync), nameof(IEditorInterop.ReplaceAllAsync)
+                ],
+                ignoreOrder: true);
+
+    [Fact]
+    public async Task MissingFindResultsMeanNoMatches()
+    {
+        _instance.InvokeAsync<FindResult>("find", Arg.Any<CancellationToken>(), Arg.Any<object?[]>())
+            .Returns(ValueTask.FromResult<FindResult>(null!));
+
+        (await _interop.FindAsync("x", false, _cancellation.Token)).ShouldBe(FindResult.None);
+    }
 
     [Theory]
     [MemberData(nameof(ReadNames))]
@@ -153,11 +176,11 @@ public sealed class EditorInteropTests : IDisposable
     {
         var src = $"data:image/png;base64,{new string('A', 40_000)}";
         Returns("getSelectionStream", StreamOf("""{"text":"héllo","isCollapsed":false}"""));
-        Returns("getLinkStream", StreamOf("""{"href":"https://example.com","text":"Example","title":null,"target":"_blank"}"""));
+        Returns("getLinkStream", StreamOf("""{"href":"https://example.com","text":"Example","title":null,"target":"_blank","rel":"nofollow"}"""));
         Returns("getImageStream", StreamOf($$"""{"src":"{{src}}","alt":"A","title":null,"width":10,"height":null}"""));
 
         (await _interop.GetSelectionAsync(100_000, _cancellation.Token)).ShouldBe(new SelectionInfo("héllo", false));
-        (await _interop.GetLinkAsync(100_000, _cancellation.Token)).ShouldBe(new LinkInfo("https://example.com", "Example", null, "_blank"));
+        (await _interop.GetLinkAsync(100_000, _cancellation.Token)).ShouldBe(new LinkInfo("https://example.com", "Example", null, "_blank") { Rel = "nofollow" });
         (await _interop.GetImageAsync(100_000, _cancellation.Token)).ShouldBe(new ImageInfo(src, "A", null, 10, null));
     }
 
@@ -171,6 +194,34 @@ public sealed class EditorInteropTests : IDisposable
         (await _interop.GetSelectionAsync(1024, _cancellation.Token)).ShouldBeNull();
         (await _interop.GetLinkAsync(1024, _cancellation.Token)).ShouldBeNull();
         (await _interop.GetImageAsync(1024, _cancellation.Token)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task JsonNullMeansNothingAtTheCursor()
+    {
+        Returns("getSelectionStream", StreamOf("null"));
+        Returns("getLinkStream", StreamOf("null"));
+        Returns("getImageStream", StreamOf("null"));
+
+        (await _interop.GetSelectionAsync(1024, _cancellation.Token)).ShouldBeNull();
+        (await _interop.GetLinkAsync(1024, _cancellation.Token)).ShouldBeNull();
+        (await _interop.GetImageAsync(1024, _cancellation.Token)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ZeroLengthStreamRejectedByBlazorMeansNothingAtTheCursor()
+    {
+        var rejected = new JSException(
+            "An exception occurred executing JS interop.",
+            new ArgumentOutOfRangeException("totalLength", 0L, "Length must be a positive value."));
+        _instance.InvokeAsync<IJSStreamReference>(Arg.Any<string>(), Arg.Any<CancellationToken>(), Arg.Any<object?[]?>())
+            .Returns(ValueTask.FromException<IJSStreamReference>(rejected));
+
+        (await _interop.GetSelectionAsync(1024, _cancellation.Token)).ShouldBeNull();
+        (await _interop.GetLinkAsync(1024, _cancellation.Token)).ShouldBeNull();
+        (await _interop.GetImageAsync(1024, _cancellation.Token)).ShouldBeNull();
+        (await _interop.GetHtmlAsync(1024, _cancellation.Token)).ShouldBe(string.Empty);
+        LoggedCount().ShouldBe(0);
     }
 
     [Fact]

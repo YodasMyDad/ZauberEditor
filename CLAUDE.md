@@ -18,7 +18,8 @@ internal.
   - `Components/Internal/` — implementation details: `EditorToolbar`, `ToolbarButton`, `ToolbarDropdown`,
     `SlideOutPanel`, `ToastRegion`, the built-in `LinkPanel` / `ImagePanel` / `TablePanel` (Razor, see the
     [component exception](#blazor-components)), plus internal `EditorApi` (the `IEditorApi` implementation),
-    `ContentSync` (echo tracking), `PanelRequest`, `ToolbarPresenter`, `UrlRules`, `EditorLog`
+    `ContentSync` (echo tracking), `ContentChunks` (joins chunked notifications), `PanelRequest`,
+    `ToolbarPresenter`, `UrlRules`, `EditorLog`
   - `Models/` — public API, one type per file: `IToolbarItem`, `ToolbarItemBase`, `ToolbarItemKind`, `ToolbarItemIds`,
     `IEditorApi`, `EditorState`, `SelectionInfo` / `LinkInfo` / `ImageInfo`, `EditorSettings`, `EditorDimensions`,
     `ImageConstraints`, `HtmlPolicy`, `ToolbarLayout` + `ToolbarLayoutEntry` / `ToolbarGroup` / `ToolbarItemRef` /
@@ -35,10 +36,12 @@ internal.
     per scope), `IEditorInterop` / `EditorInterop` (typed calls on the per-editor `IJSObjectReference`, one guarded
     invocation helper), `EditorCallbacks` (`[JSInvokable]` bridge → `IEditorEventSink`), `EditorInitOptions`,
     `EditorSnapshot`, `HtmlPolicyOptions`, `ImageOptions`, `ShortcutBinding`, `InteropLog`
-  - `wwwroot/js/` — ~35 flat ES modules (each a few hundred lines at most): entry `zauber-rte.js` (`createEditor`),
-    `editor.js` (the `Editor` class), and `selection`, `ranges`, `marks`, `blocks`, `lists`, `tables`, `insert`,
-    `clipboard`, `office`, `sanitize`, `history`, `changes`, `state`, `keyboard`, `keys`, `shortcuts`, `links`,
-    `images`, `resize`, `drag`, `panel`, `source-view`, `serialize`, `scheduler`, `channel`, `dom`, ...
+  - `wwwroot/js/` — 41 flat ES modules (each a few hundred lines at most): entry `zauber-rte.js` (`createEditor`),
+    `editor.js` (the `Editor` class), `transactions` (edit, type, insert, travel), `config`, `channel` (JS → .NET),
+    `changes` (debounce, notify), `serialize`, `counts`, `state`, `history`, `scheduler`, `events`, `keyboard`, `keys`,
+    `shortcuts`, `toolbar`, `selection`, `ranges`, `caret-marks`, `dom`, `content`, `breaks`, `text-blocks`, `blocks`,
+    `lists`, `indent`, `marks`, `tables`, `insert`, `clipboard`, `office`, `sanitize`, `validation`, `links`, `images`,
+    `resize`, `drag`, `panel`, `find`, `fullscreen`, `source-view`
   - `wwwroot/js/lib/purify.es.mjs` (+ `.map`, `purify.LICENSE`) — vendored DOMPurify ES build, refreshed with
     `npm run build` in `ZauberCMS.RTE/`
   - `wwwroot/css/zauber-editor.css` — all styles: tokens, themes, components, in `@layer zauber-rte`
@@ -90,17 +93,27 @@ is published; otherwise the patch of the highest version is bumped. So for a min
   `ElementReference`s and holds the returned per-instance `Editor` as an `IJSObjectReference`. JS owns the content
   DOM (Blazor renders no children into `.rte-content`). JS → .NET goes through one `DotNetObjectReference<EditorCallbacks>`
   per editor: `OnContentChanged`, `OnStateChanged` (rAF-coalesced, only when changed), `OnShortcut`,
-  `OnFocusChanged`, `OnImageResized`, `OnPanelEscape`, `OnError` (replaces `console.*`). `DisposeAsync` calls
-  `dispose()` (one `AbortController.abort()`, observers disconnected) and releases every reference.
+  `OnFocusChanged`, `OnImageResized`, `OnPanelEscape`, `OnError` (replaces `console.*`). `DisposeAsync` first calls
+  `flush()` and awaits the resulting `ValueChanged` (skipped if disconnected), then `dispose()` (one
+  `AbortController.abort()`, observers disconnected) and releases every reference.
 - **Content sync.** JS debounces content notifications (`ChangeDelay`) and flushes them on blur, before commands and
-  after paste/undo/redo/source edits; C# never reads HTML back after a notification. `ContentSync` keeps the HTML the
+  after paste/undo/redo/source edits; C# never reads HTML back after a notification, so `ValueChanged` runs in the
+  same dispatcher step as the notification and a Save click queued behind the blur sees the new value.
+  `IEditorApi.FlushAsync` calls JS `flush()` and awaits the content work it triggered (no-op when nothing is pending). `ContentSync` keeps the HTML the
   DOM holds plus a bounded queue of values emitted through `ValueChanged` that the parent hasn't echoed back yet; a
   `Value` parameter that matches a pending echo (or the known HTML) is ignored, anything else is pushed to JS as
   `setHtml(html, 'parameter')` (sanitised, history reset, no notification). `EditContext` is notified when
   `ValueExpression` is set.
-- **Large content.** Notifications carry the HTML inline up to 12,000 UTF-8 bytes; above that they carry `null` and
-  C# pulls `getHtmlStream()` as an `IJSStreamReference`, so the default 32 KB SignalR limit is enough. Content over
-  `EditorSettings.MaxContentBytes` is not transferred (logged).
+- **Large content.** HTML is split into pieces of at most 12,000 UTF-8 bytes (never splitting a surrogate pair):
+  `OnContentChunk` for all but the last, then `OnContentChanged` with the last; `ContentChunks` joins them, so the
+  default 32 KB SignalR limit is enough. Content over `EditorSettings.MaxContentBytes` is sent as `null` (C# also caps
+  the buffer): warning toast + log. API reads (`GetHtmlAsync`, ...) still use `IJSStreamReference`.
+- **Output HTML.** Applied to a copy (`serialize.js`), never the live DOM. A trailing `<br>` that ends a block is
+  dropped unless it follows another `<br>`; every block is kept, an empty one (or one of only spaces/`&nbsp;`) as
+  `<p></p>`; only a document made entirely of empty blocks emits `""`. A single `&nbsp;` with non-space text on both
+  sides (across inline tags) becomes a space; tag aliases are written as their primary tag; a `pre`'s single trailing
+  `
+` is dropped. The live DOM keeps a placeholder `<br>` only in empty blocks, for caret placement.
 - **Sanitising.** Every HTML entry point (parameter, `SetHtmlAsync`, `InsertHtmlAsync`, paste, drop, source view) is
   sanitised with a per-editor DOMPurify instance configured from `EditorSettings.HtmlPolicy`, with a URL scheme
   allow-list and a fixed deny-list of dangerous tags. `HtmlBuilder` encodes text and attribute values.

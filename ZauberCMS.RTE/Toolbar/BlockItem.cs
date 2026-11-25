@@ -3,13 +3,16 @@ using ZauberCMS.RTE.Models;
 namespace ZauberCMS.RTE.Toolbar;
 
 internal sealed class BlockItem(
-    string tag,
+    string id,
     string label,
     string? iconSvg = null,
     string? tooltip = null,
-    string? shortcut = null) : ToolbarItemBase
+    string? shortcut = null,
+    string? tag = null) : ToolbarItemBase
 {
-    public override string Id => tag;
+    private readonly string _tag = tag ?? id;
+
+    public override string Id => id;
 
     public override string Label => label;
 
@@ -21,8 +24,8 @@ internal sealed class BlockItem(
 
     public override bool IsToggle => true;
 
-    public override bool IsActive(EditorState state) => state.BlockType == tag;
+    public override bool IsActive(EditorState state) => state.BlockType == _tag;
 
     public override Task ExecuteAsync(IEditorApi api, CancellationToken cancellationToken) =>
-        api.SetBlockTypeAsync(IsActive(api.State) ? "p" : tag, cancellationToken: cancellationToken);
+        api.SetBlockTypeAsync(IsActive(api.State) ? "p" : _tag, cancellationToken: cancellationToken);
 }

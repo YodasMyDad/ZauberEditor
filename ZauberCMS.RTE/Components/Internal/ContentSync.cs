@@ -4,7 +4,6 @@ internal sealed class ContentSync(string? initialValue)
 {
     private readonly List<string> _inFlightEchoes = [];
     private string? _lastParameter = initialValue;
-    private int _received;
 
     public string? KnownHtml { get; private set; } = initialValue;
 
@@ -33,14 +32,11 @@ internal sealed class ContentSync(string? initialValue)
         return true;
     }
 
-    public ContentNotification? Receive(int revision) =>
-        revision == Revision ? new(revision, ++_received) : null;
+    public bool IsCurrent(int revision) => revision == Revision;
 
-    public bool Accept(ContentNotification notification, string html)
+    public bool Accept(int revision, string html)
     {
-        if (notification.Revision != Revision
-            || notification.Sequence != _received
-            || string.Equals(html, KnownHtml, StringComparison.Ordinal))
+        if (!IsCurrent(revision) || string.Equals(html, KnownHtml, StringComparison.Ordinal))
         {
             return false;
         }

@@ -162,6 +162,69 @@ function toggleWord(content, word, family) {
     caretAt(content, texts[0], word.offset - word.start);
 }
 
+function styledOf(node, property, content) {
+    for (let element = elementOf(node); element && element !== content && !isBlock(element); element = element.parentElement) {
+        if (element.style.getPropertyValue(property)) {
+            return element;
+        }
+    }
+    return null;
+}
+
+function clearStyle(node, property, content) {
+    for (let element = styledOf(node, property, content); element; element = styledOf(node, property, content)) {
+        detach(element, node, true);
+        detach(element, node, false);
+        element.style.removeProperty(property);
+        if (element.getAttribute('style') === '') {
+            element.removeAttribute('style');
+        }
+        if (element.localName === 'span' && element.attributes.length === 0) {
+            unwrapElement(element);
+        }
+    }
+}
+
+function styleTexts(content, texts, property, value) {
+    for (const text of texts) {
+        clearStyle(text, property, content);
+        if (value) {
+            wrapNode(text, 'span', [['style', `${property}: ${value}`]]);
+        }
+    }
+}
+
+function styleWord(content, word, property, value) {
+    const range = createRange(content);
+    range.setStart(word.text, word.start);
+    range.setEnd(word.text, word.end);
+    const texts = selectedTexts(range);
+    styleTexts(content, texts, property, value);
+    caretAt(content, texts[0], word.offset - word.start);
+    return true;
+}
+
+export function setInlineStyle(content, range, property, value, caretMarks) {
+    if (range.collapsed) {
+        const word = wordAround(range);
+        if (word) {
+            return styleWord(content, word, property, value);
+        }
+        if (value) {
+            return caretMarks.enter(range, 'span', [[property, value]]);
+        }
+        const styled = styledOf(range.startContainer, property, content);
+        return styled ? caretMarks.exit(range, styled) : false;
+    }
+    const texts = selectedTexts(range);
+    if (texts.length === 0) {
+        return false;
+    }
+    styleTexts(content, texts, property, value);
+    selectTexts(content, texts);
+    return true;
+}
+
 export function toggleMark(content, range, config, tag, caretMarks) {
     const family = markFamily(config, tag);
     if (range.collapsed) {

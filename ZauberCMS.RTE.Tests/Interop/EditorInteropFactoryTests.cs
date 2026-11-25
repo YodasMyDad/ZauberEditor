@@ -8,7 +8,7 @@ namespace ZauberCMS.RTE.Tests.Interop;
 
 public sealed class EditorInteropFactoryTests : IAsyncDisposable
 {
-    private static readonly EditorInitOptions Options = EditorInitOptions.Create("<p>x</p>", false, null, new EditorSettings(), []);
+    private static readonly EditorInitOptions Options = EditorInitOptions.Create("<p>x</p>", false, null, new EditorSettings(), [], []);
 
     private readonly IJSRuntime _js = Substitute.For<IJSRuntime>();
     private readonly IJSObjectReference _module = Substitute.For<IJSObjectReference>();

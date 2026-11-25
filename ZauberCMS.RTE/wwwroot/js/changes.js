@@ -1,6 +1,7 @@
+import { countContent } from './counts.js';
 import { Debouncer } from './scheduler.js';
 import { bookmark } from './selection.js';
-import { fitsInline, serializeContent, snapshotHtml } from './serialize.js';
+import { serializeContent, snapshotHtml, utf8Chunks } from './serialize.js';
 
 export class ChangeTracker {
     #ctx;
@@ -8,6 +9,7 @@ export class ChangeTracker {
     #dirty = false;
     #lastSent = null;
     #before = null;
+    #counts = { words: 0, characters: 0 };
 
     constructor(ctx) {
         this.#ctx = ctx;
@@ -16,6 +18,10 @@ export class ChangeTracker {
 
     get dirty() {
         return this.#dirty;
+    }
+
+    get counts() {
+        return this.#counts;
     }
 
     begin() {
@@ -52,24 +58,33 @@ export class ChangeTracker {
     }
 
     notify(source) {
-        const html = serializeContent(this.#ctx.content, this.#ctx.caretMarks.holder);
+        const html = serializeContent(this.#ctx.content, this.#ctx.caretMarks.holder, this.#ctx.config.aliases);
         if (html === this.#lastSent) {
             return;
         }
         this.#lastSent = html;
-        this.#ctx.channel.contentChanged(fitsInline(html, this.#ctx.config.inlineLimit) ? html : null, source, this.#ctx.revision);
+        this.#count();
+        const { config, channel, revision } = this.#ctx;
+        const { chunks, bytes } = utf8Chunks(html, config.inlineLimit);
+        channel.contentChanged(bytes > config.maxContentBytes ? null : chunks, source, revision);
     }
 
     baseline() {
         this.#debounce.cancel();
         this.#dirty = false;
         this.#before = null;
-        this.#lastSent = serializeContent(this.#ctx.content, this.#ctx.caretMarks.holder);
+        this.#lastSent = serializeContent(this.#ctx.content, this.#ctx.caretMarks.holder, this.#ctx.config.aliases);
+        this.#count();
         this.#ctx.history.reset(this.#entry());
     }
 
     dispose() {
         this.#debounce.cancel();
+    }
+
+    #count() {
+        this.#counts = countContent(this.#ctx.content, this.#ctx.caretMarks.holder);
+        this.#ctx.state.schedule();
     }
 
     #entry() {

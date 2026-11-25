@@ -15,7 +15,8 @@ export function linkInfo(link) {
         href: link.getAttribute('href') ?? '',
         text: link.textContent.replaceAll(ZWSP, ''),
         title: link.getAttribute('title'),
-        target: link.getAttribute('target')
+        target: link.getAttribute('target'),
+        rel: link.getAttribute('rel')
     };
 }
 
