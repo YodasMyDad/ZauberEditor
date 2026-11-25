@@ -5,7 +5,9 @@ import { Channel } from './channel.js';
 import { bindClipboard, normalizeFragment } from './clipboard.js';
 import { createConfig, markFamily } from './config.js';
 import { refreshEmptyState, replaceContent } from './content.js';
-import { BLOCK_TAGS, LIST_TAGS, blockOf } from './dom.js';
+import { BLOCK_TAGS, LIST_TAGS, blockOf, isEmbed } from './dom.js';
+import { EmbedTool, selectedEmbed } from './embed-tool.js';
+import { embedInfo, matchEmbed, placeholderHtml } from './embeds.js';
 import { bindContentEvents } from './events.js';
 import { Finder } from './find.js';
 import { Fullscreen } from './fullscreen.js';
@@ -29,6 +31,10 @@ import { bindToolbar } from './toolbar.js';
 import { Transactions } from './transactions.js';
 import { blockType, inlineTag, validAttributes, validStyles, wrapperName, wrapperTag } from './validation.js';
 
+function createSanitizer(ctx) {
+    return new Sanitizer(ctx.config.policy, ctx.config.embeds.providers, ctx.content.ownerDocument, (message) => ctx.channel.rejected(message));
+}
+
 export class Editor {
     #ctx;
     #tx;
@@ -45,16 +51,17 @@ export class Editor {
             plainPaste: false,
             pasteTextOnce: false,
             options: { ...options },
-            sanitizer: new Sanitizer(config.policy, content.ownerDocument),
             history: new History(config.historyLimit),
             ranges: new RangeKeeper(content),
             caretMarks: new CaretMarks(content),
             darkScheme: content.ownerDocument.defaultView?.matchMedia?.('(prefers-color-scheme: dark)') ?? null
         };
         this.#ctx = ctx;
+        ctx.sanitizer = createSanitizer(ctx);
         ctx.changes = new ChangeTracker(ctx);
         ctx.state = new StateTracker(ctx);
         ctx.images = new ImageTool(ctx);
+        ctx.embeds = new EmbedTool(ctx);
         ctx.sourceView = new SourceView(ctx);
         ctx.panel = new PanelHost(ctx);
         ctx.fullscreen = new Fullscreen(ctx);
@@ -271,6 +278,30 @@ export class Editor {
         return image ? this.#ctx.images.select(image) : false;
     }
 
+    getEmbedStream() {
+        const embed = selectedEmbed(this.#ctx.ranges.latest());
+        return jsonBytes(embed ? embedInfo(embed) : null);
+    }
+
+    insertEmbed(url) {
+        const ctx = this.#ctx;
+        const match = matchEmbed(ctx.config.embeds.providers, url);
+        const fragment = match ? ctx.sanitizer.clean(placeholderHtml(ctx.content.ownerDocument, match)) : null;
+        const embed = fragment?.firstElementChild;
+        if (!isEmbed(embed)) {
+            return false;
+        }
+        const existing = selectedEmbed(ctx.ranges.latest());
+        if (existing) {
+            return this.#tx.edit(() => {
+                existing.replaceWith(embed);
+                ctx.ranges.select(nodeRange(ctx.content, embed));
+                return true;
+            });
+        }
+        return this.#tx.insert(fragment, 'command', null);
+    }
+
     focus() {
         if (!this.#disposed && !this.#ctx.sourceView.active) {
             this.#ctx.ranges.ensure();
@@ -282,11 +313,11 @@ export class Editor {
             return;
         }
         const ctx = this.#ctx;
-        const policyChanged = partial?.policy !== undefined;
+        const policyChanged = partial?.policy !== undefined || partial?.embeds !== undefined;
         Object.assign(ctx.options, partial ?? {});
         ctx.config = createConfig(ctx.options);
         if (policyChanged) {
-            ctx.sanitizer = new Sanitizer(ctx.config.policy, ctx.content.ownerDocument);
+            ctx.sanitizer = createSanitizer(ctx);
         }
         ctx.history.limit = ctx.config.historyLimit;
         this.#applyConfig();
@@ -358,7 +389,7 @@ export class Editor {
     }
 
     #applyConfig() {
-        const { content, source, config, images } = this.#ctx;
+        const { content, source, config, images, channel } = this.#ctx;
         content.contentEditable = config.readOnly ? 'false' : 'true';
         content.setAttribute('aria-readonly', String(config.readOnly));
         source.readOnly = config.readOnly;
@@ -369,6 +400,9 @@ export class Editor {
         }
         if (config.readOnly) {
             images.deselect();
+        }
+        if (config.embeds.invalid.length > 0) {
+            channel.error(`Embed URL patterns that are not valid JavaScript regular expressions were ignored: ${config.embeds.invalid.join(' ')}`);
         }
     }
 

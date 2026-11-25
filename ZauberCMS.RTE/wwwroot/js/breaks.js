@@ -1,5 +1,5 @@
 import {
-    CONTAINER_TAGS, blockOf, createBreak, hasBlockChild, hasOwnContent, hasVisibleText, isAtomic, isBlock, isText,
+    blockOf, createBreak, hasBlockChild, hasOwnContent, hasVisibleText, isAtomic, isBlock, isContainer, isText,
     removeWithEmptyInlines
 } from './dom.js';
 import { preserveSelection, rangeIn, startNode } from './selection.js';
@@ -46,7 +46,7 @@ export function removeStrayBreaks(root, keepPlaceholders = false) {
     removeAll(strayBreaks(root, keepPlaceholders), root);
 }
 
-const needsPlaceholder = (element) => isBlock(element) && !CONTAINER_TAGS.has(element.localName) && !hasBlockChild(element)
+const needsPlaceholder = (element) => isBlock(element) && !isContainer(element) && !hasBlockChild(element)
     && !hasOwnContent(element) && !Array.prototype.some.call(element.childNodes, isBreak);
 
 export function tidyBreaks(root) {

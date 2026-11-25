@@ -105,6 +105,10 @@ function onBeforeInput(ctx, actions, event) {
     if (event.isComposing) {
         return;
     }
+    if (actions.type((range) => ctx.embeds.input(range, type, event.data))) {
+        event.preventDefault();
+        return;
+    }
     if (startsFresh(ctx, event) && actions.type((range) => typeIntoEmpty(ctx.content, range, event.data))) {
         event.preventDefault();
         return;

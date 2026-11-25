@@ -1,5 +1,6 @@
 import { isBlock, removeEmptyInlines, retag, unwrapElement } from './dom.js';
-import { textFragment } from './insert.js';
+import { embedTransfer } from './embeds.js';
+import { deleteSelection, insertFragment, replaceSelection, textFragment } from './insert.js';
 import { prepareOfficeHtml } from './office.js';
 import { createRange } from './selection.js';
 import { SELECTED_IMAGE_CLASS, clearImageMark } from './serialize.js';
@@ -170,6 +171,35 @@ async function insertTransfer(ctx, actions, data, range) {
     }
 }
 
+function writeEmbeds(ctx, data) {
+    const range = ctx.ranges.current();
+    const transfer = range && !range.collapsed && data ? embedTransfer(range) : null;
+    if (transfer) {
+        data.setData('text/html', transfer.html);
+        data.setData('text/plain', transfer.text);
+    }
+    return transfer && { range: range.cloneRange(), html: transfer.html };
+}
+
+function copyEmbeds(ctx, event) {
+    if (!writeEmbeds(ctx, event.clipboardData)) {
+        return false;
+    }
+    event.preventDefault();
+    return true;
+}
+
+function moveEmbeds(ctx, actions, dragged, target) {
+    if (!target || dragged.range.isPointInRange(target.startContainer, target.startOffset)) {
+        return;
+    }
+    const fragment = normalizeFragment(ctx.sanitizer.clean(dragged.html), ctx.config, ctx.sanitizer);
+    actions.edit(() => {
+        deleteSelection(ctx.content, dragged.range);
+        return insertFragment(ctx.content, target, fragment);
+    }, 'paste');
+}
+
 export function bindClipboard(ctx, actions) {
     const { content, signal, channel } = ctx;
     const options = { signal };
@@ -188,11 +218,26 @@ export function bindClipboard(ctx, actions) {
         }
         insertTransfer(ctx, actions, event.clipboardData, range).catch(report);
     }), options);
-    content.addEventListener('dragstart', (event) => {
+    content.addEventListener('copy', channel.guard((event) => copyEmbeds(ctx, event)), options);
+    content.addEventListener('cut', channel.guard((event) => {
+        if (copyEmbeds(ctx, event)) {
+            actions.type((range) => ctx.embeds.input(range, 'deleteByCut') || replaceSelection(content, range, ''));
+        }
+    }), options);
+    let dragged = null;
+    content.addEventListener('dragstart', channel.guard((event) => {
         event.dataTransfer?.setData(DRAG_TYPE, dragToken);
+        dragged = writeEmbeds(ctx, event.dataTransfer);
+    }), options);
+    content.addEventListener('dragend', () => {
+        dragged = null;
     }, options);
     content.addEventListener('drop', channel.guard((event) => {
         if (event.dataTransfer?.getData(DRAG_TYPE) === dragToken && !ctx.config.readOnly) {
+            if (dragged) {
+                event.preventDefault();
+                moveEmbeds(ctx, actions, dragged, pointRange(content, event.clientX, event.clientY));
+            }
             return;
         }
         event.preventDefault();

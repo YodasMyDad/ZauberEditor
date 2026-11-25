@@ -83,6 +83,15 @@ public interface IEditorApi
     /// <summary>Selects the image at the cursor.</summary>
     Task SelectImageAtCursorAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Gets the selected embed, or null.</summary>
+    Task<EmbedInfo?> GetEmbedAtCursorAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Embeds the video at <paramref name="url"/> at the selection, replacing the selected embed if there is one.</summary>
+    /// <param name="url">A link to a video on one of <see cref="EditorSettings.EmbedProviders"/>.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>False when no provider matches the URL or the editor cannot take the embed.</returns>
+    Task<bool> InsertEmbedAsync(string url, CancellationToken cancellationToken = default);
+
     /// <summary>Undoes the last change.</summary>
     Task UndoAsync(CancellationToken cancellationToken = default);
 

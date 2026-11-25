@@ -8,4 +8,5 @@ namespace ZauberCMS.RTE.Interop;
 [JsonSerializable(typeof(SelectionInfo))]
 [JsonSerializable(typeof(LinkInfo))]
 [JsonSerializable(typeof(ImageInfo))]
+[JsonSerializable(typeof(EmbedInfo))]
 internal sealed partial class InteropJsonContext : JsonSerializerContext;

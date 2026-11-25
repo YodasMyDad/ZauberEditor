@@ -110,6 +110,15 @@ internal sealed class EditorApi(IEditorHost host) : IEditorApi
     public Task SelectImageAtCursorAsync(CancellationToken cancellationToken = default) =>
         RunAsync(interop => interop.SelectImageAsync(cancellationToken), cancellationToken);
 
+    public Task<EmbedInfo?> GetEmbedAtCursorAsync(CancellationToken cancellationToken = default) =>
+        RunAsync(interop => interop.GetEmbedAsync(Settings.MaxContentBytes, cancellationToken), cancellationToken);
+
+    public Task<bool> InsertEmbedAsync(string url, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+        return RunAsync(interop => interop.InsertEmbedAsync(url, cancellationToken), cancellationToken);
+    }
+
     public Task UndoAsync(CancellationToken cancellationToken = default) =>
         RunAsync(interop => interop.UndoAsync(cancellationToken), cancellationToken);
 

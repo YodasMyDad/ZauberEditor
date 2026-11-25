@@ -23,4 +23,32 @@ public sealed record EditorSettings
 
     /// <summary>Largest content, in UTF-8 bytes, the editor will transfer to .NET.</summary>
     public long MaxContentBytes { get; init; } = 10 * 1024 * 1024;
+
+    /// <summary>The video sites that can be embedded; iframes from other sites are removed. Defaults to <see cref="EmbedProvider.Defaults"/>.</summary>
+    public IReadOnlyList<EmbedProvider> EmbedProviders { get; init => field = UniqueProviders(value); } = EmbedProvider.Defaults;
+
+    /// <summary>Whether both have the same values, comparing collections by content.</summary>
+    /// <param name="other">The settings to compare with.</param>
+    public bool Equals(EditorSettings? other) =>
+        other is not null
+        && ToolbarLayout == other.ToolbarLayout
+        && Dimensions == other.Dimensions
+        && ImageConstraints == other.ImageConstraints
+        && HtmlPolicy == other.HtmlPolicy
+        && HistoryLimit == other.HistoryLimit
+        && ChangeDelay == other.ChangeDelay
+        && MaxContentBytes == other.MaxContentBytes
+        && ValueEquality.Sequence(EmbedProviders, other.EmbedProviders);
+
+    /// <inheritdoc />
+    public override int GetHashCode() =>
+        HashCode.Combine(ToolbarLayout, Dimensions, ImageConstraints, HtmlPolicy, HistoryLimit, ChangeDelay, MaxContentBytes);
+
+    private static EmbedProvider[] UniqueProviders(IReadOnlyList<EmbedProvider> providers)
+    {
+        var list = LayoutGuard.NoNulls(providers, nameof(providers));
+        return list.DistinctBy(provider => provider.Name).Count() == list.Count
+            ? [.. list]
+            : throw new ArgumentException("Embed provider names must be unique.", nameof(providers));
+    }
 }

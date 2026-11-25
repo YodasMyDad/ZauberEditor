@@ -16,6 +16,7 @@ internal sealed class EditorInteropFactory(IJSRuntime jsRuntime, ILogger<EditorI
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(HtmlPolicyOptions))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ImageOptions))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ShortcutBinding))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(EmbedProviderOptions))]
     public async Task<IEditorInterop?> CreateAsync(
         ElementReference root,
         ElementReference content,

@@ -45,6 +45,7 @@ public sealed class EditorInteropTests : IDisposable
         ["forget"] = ((interop, token) => interop.ClearSavedSelectionAsync(token), "clearSavedSelection", []),
         ["selectLink"] = ((interop, token) => interop.SelectLinkAsync(token), "selectLink", []),
         ["selectImage"] = ((interop, token) => interop.SelectImageAsync(token), "selectImage", []),
+        ["insertEmbed"] = ((interop, token) => interop.InsertEmbedAsync("https://youtu.be/dQw4w9WgXcQ", token), "insertEmbed", ["https://youtu.be/dQw4w9WgXcQ"]),
         ["focus"] = ((interop, token) => interop.FocusAsync(token), "focus", []),
         ["configure"] = ((interop, token) => interop.ConfigureAsync(Options, token), "configure", [Options]),
         ["enterSource"] = ((interop, token) => interop.EnterSourceViewAsync(token), "enterSourceView", []),
@@ -70,7 +71,8 @@ public sealed class EditorInteropTests : IDisposable
         [nameof(IEditorInterop.GetTextAsync)] = ((interop, max, token) => interop.GetTextAsync(max, token), "getTextStream"),
         [nameof(IEditorInterop.GetSelectionAsync)] = ((interop, max, token) => interop.GetSelectionAsync(max, token), "getSelectionStream"),
         [nameof(IEditorInterop.GetLinkAsync)] = ((interop, max, token) => interop.GetLinkAsync(max, token), "getLinkStream"),
-        [nameof(IEditorInterop.GetImageAsync)] = ((interop, max, token) => interop.GetImageAsync(max, token), "getImageStream")
+        [nameof(IEditorInterop.GetImageAsync)] = ((interop, max, token) => interop.GetImageAsync(max, token), "getImageStream"),
+        [nameof(IEditorInterop.GetEmbedAsync)] = ((interop, max, token) => interop.GetEmbedAsync(max, token), "getEmbedStream")
     };
 
     public static TheoryData<string> CallNames => [.. Calls.Keys];
@@ -148,7 +150,8 @@ public sealed class EditorInteropTests : IDisposable
             .ShouldBe(
                 [
                     nameof(IEditorInterop.GetStateAsync), nameof(IEditorInterop.FindAsync),
-                    nameof(IEditorInterop.ReplaceAsync), nameof(IEditorInterop.ReplaceAllAsync)
+                    nameof(IEditorInterop.ReplaceAsync), nameof(IEditorInterop.ReplaceAllAsync),
+                    nameof(IEditorInterop.InsertEmbedAsync)
                 ],
                 ignoreOrder: true);
 
@@ -182,6 +185,22 @@ public sealed class EditorInteropTests : IDisposable
         (await _interop.GetSelectionAsync(100_000, _cancellation.Token)).ShouldBe(new SelectionInfo("héllo", false));
         (await _interop.GetLinkAsync(100_000, _cancellation.Token)).ShouldBe(new LinkInfo("https://example.com", "Example", null, "_blank") { Rel = "nofollow" });
         (await _interop.GetImageAsync(100_000, _cancellation.Token)).ShouldBe(new ImageInfo(src, "A", null, 10, null));
+    }
+
+    [Fact]
+    public async Task EmbedIsReadAsJson()
+    {
+        Returns("getEmbedStream", StreamOf("""{"provider":"youtube","id":"dQw4w9WgXcQ","url":"https://youtu.be/dQw4w9WgXcQ"}"""));
+
+        (await _interop.GetEmbedAsync(1024, _cancellation.Token)).ShouldBe(new EmbedInfo("youtube", "dQw4w9WgXcQ", "https://youtu.be/dQw4w9WgXcQ"));
+    }
+
+    [Fact]
+    public async Task InsertEmbedReturnsWhetherTheScriptAcceptedTheUrl()
+    {
+        _instance.InvokeAsync<bool>("insertEmbed", Arg.Any<CancellationToken>(), Arg.Any<object?[]?>()).Returns(ValueTask.FromResult(true));
+
+        (await _interop.InsertEmbedAsync("https://vimeo.com/76979871", _cancellation.Token)).ShouldBeTrue();
     }
 
     [Fact]

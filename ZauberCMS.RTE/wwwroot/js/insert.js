@@ -1,8 +1,8 @@
 import { tidyBreaks } from './breaks.js';
 import {
-    CELL_TAGS, MEDIA_SELECTOR, blockOf, cellOf, closestWithin, createBreak, ensurePlaceholder, hasOwnContent,
-    hasVisibleContent, isBlock, isList, isText, isTextBlock, maxOffset, mergeBlocks, placeholderOf, removeEmptyInlines,
-    splitAt, wrapInlineRuns
+    CELL_TAGS, MEDIA_SELECTOR, blockOf, cellOf, closestWithin, createBreak, emptyParagraph, ensurePlaceholder, hasOwnContent,
+    hasVisibleContent, isAtomicBlock, isBlock, isEmbed, isList, isText, isTextBlock, maxOffset, mergeBlocks, placeholderOf,
+    removeEmptyInlines, splitAt, wrapInlineRuns
 } from './dom.js';
 import { placeBesideList } from './lists.js';
 import { applyRange, caretAt, caretInside, createRange, edgePosition, isRangeEmpty, pointAt, startNode, unitsBefore } from './selection.js';
@@ -250,6 +250,9 @@ export function insertFragment(content, range, fragment) {
     }
     wrapInlineRuns(fragment);
     tidyBreaks(fragment);
+    if (isEmbed(fragment.lastElementChild)) {
+        fragment.append(emptyParagraph(content.ownerDocument));
+    }
     let block = blockOf(startNode(collapsed), content);
     if (block?.localName === 'pre') {
         insertInline(content, collapsed, content.ownerDocument.createTextNode(fragment.textContent));
@@ -257,7 +260,7 @@ export function insertFragment(content, range, fragment) {
     }
     const nodes = [...fragment.children];
     const item = block && listItemAround(content, block);
-    if (item && nodes.some((node) => node.localName === 'hr')) {
+    if (item && nodes.some(isAtomicBlock)) {
         insertBesideList(content, collapsed, item, nodes);
         return true;
     }

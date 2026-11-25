@@ -576,7 +576,7 @@ You can override every built-in id: `bold`, `italic`, `underline`, `strike`, `su
 `textColor` and its swatches (`textColor-red` ... `textColor-default`), `backgroundColor` and its swatches
 (`backgroundColor-yellow` ... `backgroundColor-none`), `paragraph`, `h1`–`h6`, `codeBlock`, `headings`,
 `blockquote`, `ul`, `ol`, `indent`, `outdent`, `alignLeft`, `alignCenter`, `alignRight`, `justified`, `link`,
-`unlink`, `image`, `table`, `horizontalRule`, `specialCharacters`, `clean-html`, `undo`, `redo`, `findReplace`,
+`unlink`, `image`, `embed`, `table`, `horizontalRule`, `specialCharacters`, `clean-html`, `undo`, `redo`, `findReplace`,
 `pastePlainText`, `viewSource`, `fullscreen` and `themeToggle`. To replace the link or image dialog, override `link`
 or `image` with an item that opens your own panel. To use your own palette, override `textColor` or
 `backgroundColor` with a dropdown that lists your own swatch items.

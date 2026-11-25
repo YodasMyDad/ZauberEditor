@@ -38,6 +38,7 @@ internal static class BuiltInToolbarItems
         new LinkItem(),
         new UnlinkItem(),
         new ImageItem(),
+        new EmbedItem(),
         new TableItem(),
         new HorizontalRuleItem(),
         new SpecialCharactersItem(),

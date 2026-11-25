@@ -1,6 +1,6 @@
 import {
     ATOMIC_SELECTOR, CELL_TAGS, HEADING_TAGS, blockOf, cellOf, closestWithin, emptyParagraph, ensurePlaceholder, hasOwnContent,
-    hasVisibleContent, isTextBlock, isText, maxOffset, mergeBlocks, removeTrailingBreak, removeWithEmptyAncestors, retag,
+    hasVisibleContent, isAtomicBlock, isTextBlock, isText, maxOffset, mergeBlocks, removeTrailingBreak, removeWithEmptyAncestors, retag,
     splitAt, wrapInlineRuns
 } from './dom.js';
 import { deleteSelection, insertBreak, insertNewline, restOfBlockEmpty } from './insert.js';
@@ -112,8 +112,8 @@ function caretAtEnd(block) {
     return isText(last) ? [last, last.length] : [block, block.childNodes.length];
 }
 
-function removeRule(rule) {
-    rule.remove();
+function removeAtomic(element) {
+    element.remove();
     return true;
 }
 
@@ -157,8 +157,8 @@ export function handleBackspace(content, range) {
     if (block.parentElement?.localName === 'blockquote' && block.parentElement !== content && !block.previousElementSibling) {
         return liftOutOfQuote(content, block, false);
     }
-    if (block.previousElementSibling?.localName === 'hr') {
-        return removeRule(block.previousElementSibling);
+    if (isAtomicBlock(block.previousElementSibling)) {
+        return removeAtomic(block.previousElementSibling);
     }
     const previous = adjacentTextBlock(content, block, true);
     if (!previous) {
@@ -182,8 +182,8 @@ export function handleDelete(content, range) {
     if (CELL_TAGS.has(block.localName)) {
         return true;
     }
-    if (block.nextElementSibling?.localName === 'hr') {
-        return removeRule(block.nextElementSibling);
+    if (isAtomicBlock(block.nextElementSibling)) {
+        return removeAtomic(block.nextElementSibling);
     }
     const next = adjacentTextBlock(content, block, false);
     if (!next) {

@@ -19,7 +19,7 @@ public sealed class ToolbarLayoutTests
             "textColor", "backgroundColor",
             "headings", "blockquote",
             "ul", "ol", "outdent", "indent",
-            "link", "unlink", "image", "table", "horizontalRule", "specialCharacters",
+            "link", "unlink", "image", "embed", "table", "horizontalRule", "specialCharacters",
             "alignLeft", "alignCenter", "alignRight", "justified",
             "clean-html", "undo", "redo", "findReplace", "pastePlainText",
             "viewSource", "fullscreen", "themeToggle"

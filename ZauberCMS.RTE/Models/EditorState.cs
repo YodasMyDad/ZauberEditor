@@ -41,6 +41,9 @@ public sealed record EditorState
     /// <summary>Whether an image is selected.</summary>
     public bool InImage { get; init; }
 
+    /// <summary>Whether an embed is selected.</summary>
+    public bool InEmbed { get; init; }
+
     /// <summary>Whether the cursor is inside a table.</summary>
     public bool InTable { get; init; }
 

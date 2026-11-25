@@ -40,6 +40,7 @@ export function bindContentEvents(ctx) {
         const range = ctx.ranges.track();
         if (range) {
             ctx.images.sync(range);
+            ctx.embeds.sync(range);
             if (!composing) {
                 ctx.caretMarks.settle();
             }

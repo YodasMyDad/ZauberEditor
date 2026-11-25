@@ -88,6 +88,8 @@ public sealed class ToolbarItemStateTests
         { ToolbarItemIds.Link, States.Ready, false },
         { ToolbarItemIds.Image, States.Ready with { InImage = true }, true },
         { ToolbarItemIds.Image, States.Ready, false },
+        { ToolbarItemIds.Embed, States.Ready with { InEmbed = true }, true },
+        { ToolbarItemIds.Embed, States.Ready with { InImage = true }, false },
         { ToolbarItemIds.ViewSource, States.Ready with { IsSourceView = true }, true },
         { ToolbarItemIds.ViewSource, States.Ready, false },
         { ToolbarItemIds.ThemeToggle, States.Ready with { Theme = Theme.Dark }, true },

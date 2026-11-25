@@ -21,6 +21,7 @@ first. 3.0 is a major release with breaking changes.
 - [Settings](#settings)
 - [Toolbar layouts](#toolbar-layouts)
 - [Built-in toolbar items](#built-in-toolbar-items)
+- [Embeds](#embeds)
 - [Keyboard](#keyboard)
 - [Theming and styling](#theming-and-styling)
 - [Accessibility](#accessibility)
@@ -46,6 +47,8 @@ first. 3.0 is a major release with breaking changes.
   highlight colours, headings, quotes, lists, indentation, alignment, links, images (URL or upload, with resize
   handles), tables, horizontal lines, special characters, clear formatting, undo/redo, find and replace, plain-text
   paste, full screen, an HTML source view, and live word and character counts.
+- **Video embeds.** Paste a YouTube or Vimeo link, or one from your own providers, to insert a preview card. The
+  content stores a small placeholder, never an `<iframe>`, and your site expands it with `EmbedProvider.BuildIframeHtml`.
 - **Office-friendly paste.** Word lists come through as real lists, empty table cells are kept, and pasted image files
   are embedded when the image settings and policy allow it.
 - **Themes.** Light, dark and auto (follows the OS), driven by CSS custom properties that you can override without
@@ -320,6 +323,8 @@ When focus has moved to a button outside the editor, commands apply at the last 
 | `SaveSelectionAsync()` / `RestoreSelectionAsync()` / `ClearSavedSelectionAsync()` | Remembers and restores the selection, typically around opening a panel. |
 | `GetLinkAtCursorAsync()` / `SelectLinkAtCursorAsync()` | Returns `LinkInfo(Href, Text, Title, Target)`, with `Rel`, for the link at the cursor, or selects the whole link. |
 | `GetImageAtCursorAsync()` / `SelectImageAtCursorAsync()` | Returns `ImageInfo(Src, Alt, Title, Width, Height)` for the selected image, or selects it. |
+| `GetEmbedAtCursorAsync()` | Returns `EmbedInfo(Provider, Id, Url)` for the selected embed, or `null`. |
+| `InsertEmbedAsync(url)` | Embeds the video at `url` at the selection, or replaces the selected embed. Returns `false` when no provider in `EmbedProviders` matches. See [Embeds](#embeds). |
 | `UndoAsync()` / `RedoAsync()` | Undo and redo. |
 | `FocusAsync()` | Moves focus into the editor. |
 | `ToggleSourceViewAsync()` | Switches between the rich view and the HTML source view. |
@@ -386,6 +391,7 @@ public static class EditorPresets
 | `HistoryLimit` | `100` | Maximum number of undo steps. Typing is grouped into one step per pause. |
 | `ChangeDelay` | `250 ms` | How long typing must pause before the bound value updates. |
 | `MaxContentBytes` | `10 MB` | Largest content, in UTF-8 bytes, that the editor transfers to .NET. Changes above it aren't delivered, and a warning is logged. |
+| `EmbedProviders` | `EmbedProvider.Defaults` (YouTube, Vimeo) | The video sites that can be embedded; iframes from any other site are removed. `[]` turns embeds off. See [Embeds](#embeds). |
 
 ### `EditorDimensions`
 
@@ -458,7 +464,7 @@ Two layouts are built in:
 | Layout | Items |
 | --- | --- |
 | `ToolbarLayout.Simple` | `bold italic underline` \| `clean-html` \| `alignLeft alignCenter alignRight` |
-| `ToolbarLayout.Full` (default) | `bold italic underline strike code subscript superscript` \| `textColor backgroundColor` \| `headings blockquote` \| `ul ol outdent indent` \| `link unlink image table horizontalRule specialCharacters` \| `alignLeft alignCenter alignRight justified` \| `clean-html undo redo findReplace pastePlainText` \| `viewSource fullscreen themeToggle` |
+| `ToolbarLayout.Full` (default) | `bold italic underline strike code subscript superscript` \| `textColor backgroundColor` \| `headings blockquote` \| `ul ol outdent indent` \| `link unlink image embed table horizontalRule specialCharacters` \| `alignLeft alignCenter alignRight justified` \| `clean-html undo redo findReplace pastePlainText` \| `viewSource fullscreen themeToggle` |
 
 Build your own from `ToolbarItemIds` constants and your own items' ids:
 
@@ -539,6 +545,7 @@ constants rather than literal strings. Ids are case-insensitive.
 | `link` | `Link` | Opens the link panel (URL, text, title, new window) | Ctrl+K |
 | `unlink` | `Unlink` | Removes the link at the cursor | |
 | `image` | `Image` | Opens the image panel (URL or upload, alt text); edits the selected image | |
+| `embed` | `Embed` | Opens the embed panel: paste a video link from one of `EmbedProviders`; other links show an error. Active, and edits the link, when an embed is selected | |
 | `table` | `Table` | Opens the table panel (rows, columns, header row; up to 20 x 20) | |
 | `horizontalRule` | `HorizontalRule` | Inserts an `<hr>` with the caret in a paragraph after it. Inside a list, the line goes after the list (the list is split at the caret), never into a list item | |
 | `specialCharacters` | `SpecialCharacters` | Opens a panel of common characters (© ® ™ € £ ¥ ° ± × ÷ – — … « » ‘ ’ “ ” § ¶ • † ½ ¼ ¾ → ← and a non-breaking space) | |
@@ -553,6 +560,110 @@ constants rather than literal strings. Ids are case-insensitive.
 
 On macOS, Cmd works wherever Ctrl is listed. To replace or remove a built-in item, see
 [Extending the editor](#extending-the-editor).
+
+## Embeds
+
+The `embed` item (in `ToolbarLayout.Full`, after `image`) opens a panel where the user pastes a video link. The
+editor matches it against `EditorSettings.EmbedProviders` and stores a placeholder, not an `<iframe>`:
+
+```html
+<figure data-embed="youtube" data-embed-id="dQw4w9WgXcQ" data-embed-url="https://youtu.be/dQw4w9WgXcQ"></figure>
+```
+
+`data-embed` is the provider's `Name`, `data-embed-id` the video id (1 to 64 letters, digits, `-` or `_`), and
+`data-embed-url` the link it was made from. That is exactly what `ValueChanged`, `GetHtmlAsync` and the source view
+contain. `figure` and `data-*` are in the default `HtmlPolicy`, so placeholders survive sanitising.
+
+**In the editor** each placeholder shows as a non-editable card with the provider's name, the link and, for YouTube,
+the video's thumbnail (from `i.ytimg.com`; Vimeo shows a play icon). Click a card to select it: `EditorState.InEmbed`
+is then true and the `embed` button is active. Press Delete or Backspace to remove it, Enter to add a paragraph after
+it, or the `embed` button to change its URL. Backspace at the start of the paragraph after a card, or Delete at the end
+of the one before, removes it. Cards can be cut, copied, pasted and dragged, and every change is undoable. The card's
+markup is editor-only and never reaches the output. Size it with `--rte-embed-width` (default `36rem`) and
+`--rte-embed-thumbnail-width` (`8rem`); a selected card has `.rte-embed-selected`.
+
+**Existing iframes are converted, not stripped.** When the `Value`, `SetHtmlAsync`, `InsertHtmlAsync`, paste, drop or
+the source view brings in an `<iframe>` whose `src` matches a provider, it becomes a placeholder before sanitising. A
+wrapper that holds only the iframe, such as `<p>` or `<div class="video">`, is replaced too. Iframes from any other site
+are removed, and the editor shows a warning toast and logs it. Placeholders for a provider the editor doesn't know, or
+with an invalid id, are removed the same way.
+
+### Providers
+
+YouTube (`youtube.com/watch?v=`, `youtu.be/`, `/embed/`, `/shorts/`, `/live/`, `youtube-nocookie.com/embed/`) and
+Vimeo (`vimeo.com/{id}`, channel and group links, `player.vimeo.com/video/{id}`) are built in; query strings and
+timestamps are ignored. Add your own with `EmbedProvider`:
+
+```csharp
+var settings = new EditorSettings
+{
+    EmbedProviders =
+    [
+        .. EmbedProvider.Defaults,
+        new EmbedProvider
+        {
+            Name = "loom",
+            DisplayName = "Loom",
+            UrlPatterns = [@"^https://(?:www\.)?loom\.com/(?:share|embed)/(?<id>[a-f0-9]{32})(?=[/?#]|$)"],
+            EmbedUrlTemplate = "https://www.loom.com/embed/{id}"
+        }
+    ]
+};
+```
+
+| Property | Description |
+| --- | --- |
+| `Name` | Stored in `data-embed`: lower-case letters, digits and hyphens, up to 32 characters. Unique within `EmbedProviders`. |
+| `DisplayName` | Shown on the card and in messages. |
+| `UrlPatterns` | Regular expressions with an `id` group, matched case-insensitively against the trimmed URL (`https://` is added when it has no scheme). |
+| `EmbedUrlTemplate` | Absolute `https` player URL with `{id}`. |
+| `ThumbnailUrlTemplate` | Optional absolute `https` preview image URL with `{id}`, shown on the card. |
+
+Providers are validated when you create them. An invalid name, a pattern that isn't a valid JavaScript-compatible
+regular expression (checked with `RegexOptions.ECMAScript`) or has no `(?<id>...)` group, or a template that isn't an
+absolute `https` URL with `{id}` throws `ArgumentException`. Patterns travel to the browser as strings in the editor's
+settings, the same way `HtmlPolicy` does, and are compiled there with the `iu` flags, so the browser never runs code
+from them. A pattern the browser can't compile is skipped and logged. Providers are an editor setting rather than an
+`AddZauberRte` option for the same reason as `HtmlPolicy`: each editor can allow different sites, and your site renders
+with the same list it gives the editor.
+
+### Rendering embeds on your site
+
+The editor never outputs iframes, so expand the placeholders when you render content. `EmbedProvider` has what you need,
+with no HTML parser dependency:
+
+| Member | Description |
+| --- | --- |
+| `EmbedProvider.Find(providers, name)` | The provider for a placeholder's `data-embed`, or `null`. |
+| `BuildIframeHtml(id, title?)` | Encoded `<iframe>` markup with `loading="lazy"`, `allow`, `allowfullscreen`, `referrerpolicy="strict-origin-when-cross-origin"` and a `title`. Throws `ArgumentException` for an invalid id. |
+| `BuildEmbedUrl(id)` / `BuildThumbnailUrl(id)` | The canonical player URL (`https://www.youtube-nocookie.com/embed/{id}`, `https://player.vimeo.com/video/{id}`) and the preview image URL, if any. |
+| `TryMatch(url, out id)` / `EmbedProvider.TryMatch(providers, url, out provider, out id)` | The same URL matching the editor uses. |
+| `EmbedProvider.IsValidId(id)` | Whether an id is 1 to 64 letters, digits, `-` or `_`. |
+
+With your HTML parser of choice (AngleSharp here), replace each placeholder:
+
+```csharp
+foreach (var figure in document.QuerySelectorAll("figure[data-embed]"))
+{
+    var provider = EmbedProvider.Find(providers, figure.GetAttribute("data-embed"));
+    var id = figure.GetAttribute("data-embed-id");
+    if (provider is null || !EmbedProvider.IsValidId(id))
+    {
+        figure.Remove();
+        continue;
+    }
+
+    figure.ClassName = "video-embed";
+    figure.InnerHtml = provider.BuildIframeHtml(id);
+}
+```
+
+```css
+.video-embed iframe { inline-size: 100%; aspect-ratio: 16 / 9; border: 0; }
+```
+
+Use the same `providers` list you pass to `EmbedProviders`, and sanitise the rest of the HTML on the server as usual (see
+[Security](#security)): only placeholders become iframes, and only for providers you allow.
 
 ## Keyboard
 
@@ -715,6 +826,7 @@ The editor's markup uses stable `rte-*` class names that you can target. These a
   dropdown and its menu.
 - `.rte-content`: the editable area. `.rte-source-view`: the source textarea.
 - `.rte-slideout-panel`: a panel. `.rte-toast`: a toast.
+- `figure[data-embed]`: an embed card in the content, plus `.rte-embed-selected` while it is selected.
 
 Icons render inside `<span class="rte-icon">`.
 
@@ -746,6 +858,8 @@ Icons render inside `<span class="rte-icon">`.
   `javascript:` and similar are stripped. Images also accept `data:image/...` when `AllowDataUrls` is on, and only
   same-origin sources when `AllowExternalImages` is off. Links with `target="_blank"` get
   `rel="noopener noreferrer"`. Ctrl/Cmd+click opens a link only if its scheme is allowed, and always with `noopener`.
+- **Iframes never enter the content.** An `<iframe>` from a site in `EmbedProviders` becomes an inert placeholder,
+  and every other iframe is removed with a warning. See [Embeds](#embeds).
 - **`HtmlBuilder` encodes** text and attribute values and rejects invalid tag and attribute names, so values typed
   into panels can't break out of an attribute.
 - **Sanitise on the server too.** The editor's sanitising runs in the user's browser, and a modified client can post
@@ -797,6 +911,11 @@ toggles, dropdowns, panels, dependency injection, overriding built-ins and icons
 .NET 11 can use it, and NuGet picks the matching build. Apps on .NET 9 or earlier stay on 3.x.
 
 There are no API changes from 3.1: update the package reference and rebuild.
+
+**Embeds.** 4.0 also adds video embeds (see [Embeds](#embeds)). `IEditorApi` has two new members,
+`GetEmbedAtCursorAsync` and `InsertEmbedAsync`; add them if you implement the interface yourself. Content with YouTube
+or Vimeo `<iframe>`s now keeps them as embed placeholders instead of losing them, so render placeholders on your site,
+or set `EmbedProviders = []` to strip every iframe as before.
 
 ## Migrating to 3.0
 

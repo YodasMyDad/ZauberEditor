@@ -15,7 +15,8 @@ internal sealed record EditorInitOptions(
     int ChangeDelay,
     int InlineLimit,
     long MaxContentBytes,
-    ImageOptions Image)
+    ImageOptions Image,
+    IReadOnlyList<EmbedProviderOptions> Embeds)
 {
     public const int DefaultInlineLimit = 12_000;
 
@@ -42,7 +43,8 @@ internal sealed record EditorInitOptions(
             (int)settings.ChangeDelay.TotalMilliseconds,
             DefaultInlineLimit,
             settings.MaxContentBytes,
-            ImageOptions.From(settings.ImageConstraints));
+            ImageOptions.From(settings.ImageConstraints),
+            [.. settings.EmbedProviders.Select(EmbedProviderOptions.From)]);
     }
 
     private static IEnumerable<KeyValuePair<string, string>> Aliases(IToolbarItem item) =>

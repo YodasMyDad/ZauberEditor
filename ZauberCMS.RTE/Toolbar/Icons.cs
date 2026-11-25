@@ -32,6 +32,7 @@ internal static class Icons
     public const string Contrast = Open + """<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>""" + Close;
     public const string Indent = Open + """<path d="M11 6h9M11 10h9M11 14h9M4 18h16M4 8l3 2-3 2"/>""" + Close;
     public const string Outdent = Open + """<path d="M11 6h9M11 10h9M11 14h9M4 18h16M7 8l-3 2 3 2"/>""" + Close;
+    public const string Embed = Open + Frame + """<path d="M10 9.5v5l4.5-2.5z"/>""" + Close;
     public const string HorizontalRule = Open + """<path d="M3 12h18M7 7h10M7 17h10"/>""" + Close;
     public const string TextColor = Open + """<path d="M7 16l5-12 5 12M8.8 11.5h6.4M4 20h16"/>""" + Close;
     public const string Highlighter = Open + """<path d="M14.5 4.5l5 5-7 7h-5v-5zM7.5 11.5l5 5M4 20h16"/>""" + Close;

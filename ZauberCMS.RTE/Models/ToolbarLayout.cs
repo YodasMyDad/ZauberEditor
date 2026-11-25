@@ -30,8 +30,8 @@ public sealed record ToolbarLayout(params IReadOnlyList<ToolbarLayoutEntry> Entr
         new ToolbarGroup(ToolbarItemIds.UnorderedList, ToolbarItemIds.OrderedList, ToolbarItemIds.Outdent, ToolbarItemIds.Indent),
         new ToolbarSeparator(),
         new ToolbarGroup(
-            ToolbarItemIds.Link, ToolbarItemIds.Unlink, ToolbarItemIds.Image, ToolbarItemIds.Table,
-            ToolbarItemIds.HorizontalRule, ToolbarItemIds.SpecialCharacters),
+            ToolbarItemIds.Link, ToolbarItemIds.Unlink, ToolbarItemIds.Image, ToolbarItemIds.Embed,
+            ToolbarItemIds.Table, ToolbarItemIds.HorizontalRule, ToolbarItemIds.SpecialCharacters),
         new ToolbarSeparator(),
         new ToolbarGroup(ToolbarItemIds.AlignLeft, ToolbarItemIds.AlignCenter, ToolbarItemIds.AlignRight, ToolbarItemIds.Justify),
         new ToolbarSeparator(),

@@ -59,6 +59,10 @@ internal interface IEditorInterop : IAsyncDisposable
 
     Task SelectImageAsync(CancellationToken cancellationToken);
 
+    Task<EmbedInfo?> GetEmbedAsync(long maxBytes, CancellationToken cancellationToken);
+
+    Task<bool> InsertEmbedAsync(string url, CancellationToken cancellationToken);
+
     Task FocusAsync(CancellationToken cancellationToken);
 
     Task ConfigureAsync(EditorInitOptions options, CancellationToken cancellationToken);

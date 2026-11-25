@@ -106,6 +106,22 @@ public sealed class ToolbarItemExecutionTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EmbedOpensThePanelWithTheEmbedAtTheCursor(bool onEmbed)
+    {
+        var embed = onEmbed ? new EmbedInfo("vimeo", "76979871", "https://vimeo.com/76979871") : null;
+        _api.GetEmbedAtCursorAsync(Arg.Any<CancellationToken>()).Returns(embed);
+
+        await BuiltIn.Item(ToolbarItemIds.Embed).ExecuteAsync(_api, TestContext.Current.CancellationToken);
+
+        var call = SubstituteCalls.To(_api, nameof(IEditorApi.OpenPanelAsync)).ShouldHaveSingleItem();
+        call.GetMethodInfo().GetGenericArguments().ShouldBe([typeof(EmbedPanel)]);
+        var parameters = call.GetArguments()[0].ShouldBeAssignableTo<IReadOnlyDictionary<string, object?>>().ShouldNotBeNull();
+        parameters[nameof(EmbedPanel.Embed)].ShouldBe(embed);
+    }
+
+    [Theory]
     [InlineData(ToolbarItemIds.Headings)]
     [InlineData(ToolbarItemIds.TextColor)]
     [InlineData(ToolbarItemIds.BackgroundColor)]

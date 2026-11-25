@@ -1,3 +1,4 @@
+import { createProviders } from './embeds.js';
 import { compileShortcuts } from './shortcuts.js';
 
 const DEFAULT_IMAGE_TYPES = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -49,7 +50,8 @@ export function createConfig(options) {
         changeDelay: atLeast(options.changeDelay, 0, 300),
         inlineLimit: atLeast(options.inlineLimit, 4, 12000),
         maxContentBytes: atLeast(options.maxContentBytes, 0, 10 * 1024 * 1024),
-        image: createImageRules(options.image)
+        image: createImageRules(options.image),
+        embeds: createProviders(options.embeds)
     };
 }
 

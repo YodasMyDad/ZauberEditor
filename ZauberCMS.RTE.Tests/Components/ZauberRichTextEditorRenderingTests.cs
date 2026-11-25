@@ -79,7 +79,7 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
         separators.Count.ShouldBe(7);
         separators.ShouldAllBe(separator => separator.GetAttribute("aria-orientation") == "vertical");
         var buttons = cut.FindAll(".rte-toolbar button.rte-toolbar-btn");
-        buttons.Count.ShouldBe(33);
+        buttons.Count.ShouldBe(34);
         buttons.ShouldAllBe(button => button.GetAttribute("type") == "button" && !string.IsNullOrWhiteSpace(button.GetAttribute("aria-label")));
         cut.FindAll(".rte-toolbar button .rte-icon").ShouldAllBe(icon => icon.GetAttribute("aria-hidden") == "true");
     }
@@ -112,7 +112,7 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
 
         var stops = cut.FindAll(".rte-toolbar button[tabindex='0']");
         stops.ShouldHaveSingleItem().ClassList.ShouldContain("rte-btn-bold");
-        cut.FindAll(".rte-toolbar button.rte-toolbar-btn").Count(button => button.GetAttribute("tabindex") == "-1").ShouldBe(32);
+        cut.FindAll(".rte-toolbar button.rte-toolbar-btn").Count(button => button.GetAttribute("tabindex") == "-1").ShouldBe(33);
     }
 
     [Fact]

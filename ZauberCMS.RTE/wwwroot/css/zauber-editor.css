@@ -485,6 +485,60 @@
         outline-offset: var(--rte-focus-offset);
     }
 
+    :where(.rte-content figure[data-embed]) {
+        display: flow-root;
+        max-inline-size: var(--rte-embed-width, 36rem);
+        padding: var(--rte-space-sm);
+        border: var(--rte-border-width) solid var(--rte-color-border-strong);
+        border-radius: var(--rte-radius-md);
+        background-color: var(--rte-color-bg-subtle);
+        color: var(--rte-color-text-muted);
+        cursor: default;
+        font-size: var(--rte-font-size-sm);
+        user-select: none;
+
+        &::before {
+            content: "\25B6";
+            display: grid;
+            float: inline-start;
+            place-items: center;
+            inline-size: var(--rte-embed-thumbnail-width, 8rem);
+            aspect-ratio: 16 / 9;
+            margin-inline-end: var(--rte-space-sm);
+            border-radius: var(--rte-radius-sm);
+            background: var(--rte-embed-thumbnail, none) center / cover no-repeat var(--rte-color-accent);
+            color: var(--rte-color-on-accent);
+            font-size: var(--rte-font-size-lg);
+            text-shadow: 0 0 var(--rte-space-2xs) var(--rte-color-backdrop);
+        }
+
+        &::after {
+            content: var(--rte-embed-label) "\A" var(--rte-embed-caption);
+            overflow-wrap: anywhere;
+            white-space: pre-line;
+        }
+
+        &::first-line {
+            color: var(--rte-color-text);
+            font-weight: var(--rte-font-weight-bold);
+        }
+
+        &:hover {
+            border-color: var(--rte-color-border-hover);
+        }
+
+        &.rte-embed-selected {
+            outline: var(--rte-border-width-thick) solid var(--rte-color-focus);
+            outline-offset: var(--rte-focus-offset);
+        }
+    }
+
+    :where(.rte-form-help) {
+        margin-block: var(--rte-space-xs) 0;
+        color: var(--rte-color-text-subtle);
+        font-size: var(--rte-font-size-sm);
+    }
+
     :where(.rte-source-view) {
         display: block;
         inline-size: 100%;

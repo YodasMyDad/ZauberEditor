@@ -21,6 +21,8 @@ internal sealed record EditorSnapshot(
     int Words,
     int Characters)
 {
+    public bool InEmbed { get; init; }
+
     public EditorState ApplyTo(EditorState state) => state with
     {
         ActiveMarks = (Marks ?? []).ToFrozenSet(StringComparer.OrdinalIgnoreCase),
@@ -38,6 +40,7 @@ internal sealed record EditorSnapshot(
         CanRedo = CanRedo,
         InLink = InLink,
         InImage = InImage,
+        InEmbed = InEmbed,
         InTable = InTable,
         CanOutdent = CanOutdent,
         IsFullscreen = Fullscreen,

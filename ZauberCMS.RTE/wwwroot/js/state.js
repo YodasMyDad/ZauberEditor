@@ -1,12 +1,12 @@
 import { primaryMark } from './config.js';
-import { CELL_TAGS, HEADING_TAGS, LIST_TAGS, ZWSP, elementOf, isBlock, isText } from './dom.js';
+import { CELL_TAGS, HEADING_TAGS, LIST_TAGS, ZWSP, elementOf, isBlock, isEmbed, isText } from './dom.js';
 import { indentLevel } from './indent.js';
 import { FrameScheduler } from './scheduler.js';
 import { selectedElement, startNode } from './selection.js';
 
 const MAX_SCANNED_TEXTS = 200;
 const ALIGNMENTS = new Map([['center', 'center'], ['right', 'right'], ['end', 'right'], ['justify', 'justify']]);
-const EMPTY_FACTS = { marks: [], block: 'p', alignment: 'left', inLink: false, inImage: false, inTable: false, canOutdent: false };
+const EMPTY_FACTS = { marks: [], block: 'p', alignment: 'left', inLink: false, inImage: false, inEmbed: false, inTable: false, canOutdent: false };
 
 function alignmentOf(element) {
     if (!isBlock(element)) {
@@ -72,6 +72,7 @@ function inspect(content, range, config, selectedImage) {
         alignment: ALIGNMENTS.get(alignment?.toLowerCase()) ?? 'left',
         inLink,
         inImage: Boolean(image),
+        inEmbed: isEmbed(selectedElement(range)),
         inTable,
         canOutdent
     };

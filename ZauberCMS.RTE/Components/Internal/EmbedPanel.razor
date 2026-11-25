@@ -1,0 +1,27 @@
+@inherits PanelBase
+
+<form class="rte-panel-content" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+    <div class="rte-form-group">
+        <label for="@ElementId("url")" class="rte-label">Video URL</label>
+        <input id="@ElementId("url")"
+               type="text"
+               inputmode="url"
+               autocomplete="off"
+               class="rte-input"
+               placeholder="https://www.youtube.com/watch?v=..."
+               aria-invalid="@(_error is null ? null : "true")"
+               aria-describedby="@ElementId("help")"
+               @bind="_url"
+               @bind:event="oninput" />
+        <p id="@ElementId("help")" class="rte-form-help">@Help</p>
+        @if (_error is not null)
+        {
+            <p class="rte-form-error" role="alert">@_error</p>
+        }
+    </div>
+
+    <div class="rte-panel-actions">
+        <button type="button" class="rte-btn rte-btn-secondary" @onclick="CloseAsync">Cancel</button>
+        <button type="submit" class="rte-btn rte-btn-primary" disabled="@string.IsNullOrWhiteSpace(_url)">@(Embed is null ? "Insert" : "Save")</button>
+    </div>
+</form>

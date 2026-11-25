@@ -38,7 +38,7 @@ public sealed partial class Home
         ("Alignment", _state.Alignment.ToString()),
         ("Focus / selection", $"{YesNo(_state.HasFocus)} / {YesNo(_state.HasSelection)}"),
         ("Undo / redo", $"{YesNo(_state.CanUndo)} / {YesNo(_state.CanRedo)}"),
-        ("In link / image / table", $"{YesNo(_state.InLink)} / {YesNo(_state.InImage)} / {YesNo(_state.InTable)}"),
+        ("In link / image / embed / table", $"{YesNo(_state.InLink)} / {YesNo(_state.InImage)} / {YesNo(_state.InEmbed)} / {YesNo(_state.InTable)}"),
         ("Source view", YesNo(_state.IsSourceView))
     ];
 

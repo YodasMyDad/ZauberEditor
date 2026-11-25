@@ -10,6 +10,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - .NET 11 support: the package targets `net10.0` and `net11.0`, so it works in apps on .NET 10 (LTS) and .NET 11.
+- Video embeds: the `embed` toolbar item (`ToolbarItemIds.Embed`, in `ToolbarLayout.Full` after `image`) opens a panel
+  that turns a YouTube or Vimeo link into a placeholder, `<figure data-embed="youtube" data-embed-id="..."
+  data-embed-url="..."></figure>`, shown in the editor as a non-editable preview card that is selected, deleted,
+  moved, copied and undone as one unit. The card's markup never reaches the output.
+- `EmbedProvider` (with built-in `YouTube`, `Vimeo` and `Defaults`) and `EditorSettings.EmbedProviders`: validated
+  providers whose URL patterns are sent to the browser as data. `BuildEmbedUrl`, `BuildThumbnailUrl`,
+  `BuildIframeHtml`, `TryMatch`, `Find` and `IsValidId` let hosts expand placeholders into iframes when rendering.
+- `<iframe>`s from an allowed provider in the `Value`, `SetHtmlAsync`, `InsertHtmlAsync`, paste, drop or the source
+  view are converted to placeholders; other iframes are still removed, now with a warning toast and a log entry.
+- `IEditorApi.GetEmbedAtCursorAsync()` returning `EmbedInfo(Provider, Id, Url)`, `IEditorApi.InsertEmbedAsync(url)`
+  and `EditorState.InEmbed`.
 
 ### Changed
 

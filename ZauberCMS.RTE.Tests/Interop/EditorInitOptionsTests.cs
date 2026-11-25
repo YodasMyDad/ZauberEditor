@@ -70,6 +70,17 @@ public sealed class EditorInitOptionsTests
     }
 
     [Fact]
+    public void EmbedProvidersAreSentAsData()
+    {
+        var options = EditorInitOptions.Create(null, false, null, new EditorSettings(), FullToolbar, []);
+
+        options.Embeds.Select(embed => (embed.Name, embed.DisplayName, embed.Thumbnail)).ShouldBe(
+            [("youtube", "YouTube", "https://i.ytimg.com/vi/{id}/hqdefault.jpg"), ("vimeo", "Vimeo", null)]);
+        options.Embeds[0].Patterns.ShouldBe(EmbedProvider.YouTube.UrlPatterns);
+        EditorInitOptions.Create(null, false, null, new EditorSettings { EmbedProviders = [] }, FullToolbar, []).Embeds.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void SettingsAreTranslatedForTheScript()
     {
         var settings = new EditorSettings

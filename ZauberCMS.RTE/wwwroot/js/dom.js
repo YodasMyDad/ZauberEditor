@@ -15,7 +15,8 @@ export const FORMAT_TAGS = new Set([
     'abbr', 'b', 'cite', 'code', 'del', 'em', 'font', 'i', 'ins', 'kbd', 'mark', 'q', 's', 'small', 'span', 'strike',
     'strong', 'sub', 'sup', 'u'
 ]);
-export const MEDIA_SELECTOR = 'img, video, audio, iframe, embed, object, svg, canvas, hr';
+export const EMBED_SELECTOR = 'figure[data-embed]';
+export const MEDIA_SELECTOR = `img, video, audio, iframe, embed, object, svg, canvas, hr, ${EMBED_SELECTOR}`;
 export const ATOMIC_SELECTOR = `br, ${MEDIA_SELECTOR}`;
 
 const ATOMIC_TAGS = new Set(['br', 'img', 'hr', 'video', 'audio', 'iframe', 'embed', 'object', 'svg', 'canvas']);
@@ -27,7 +28,10 @@ export const isElement = (node) => node?.nodeType === 1;
 export const isText = (node) => node?.nodeType === 3;
 export const isBlock = (node) => isElement(node) && BLOCK_TAGS.has(node.localName);
 export const isList = (node) => isElement(node) && LIST_TAGS.has(node.localName);
-export const isAtomic = (node) => isElement(node) && ATOMIC_TAGS.has(node.localName);
+export const isEmbed = (node) => isElement(node) && node.localName === 'figure' && node.hasAttribute('data-embed');
+export const isAtomic = (node) => isElement(node) && (ATOMIC_TAGS.has(node.localName) || isEmbed(node));
+export const isAtomicBlock = (node) => node?.localName === 'hr' || isEmbed(node);
+export const isContainer = (element) => CONTAINER_TAGS.has(element.localName) || isEmbed(element);
 export const hasVisibleText = (text) => VISIBLE_TEXT.test(text);
 export const elementOf = (node) => (isElement(node) ? node : node?.parentElement ?? null);
 export const unique = (items) => [...new Set(items)];
@@ -45,7 +49,7 @@ export function cellOf(node, content) {
 
 export function blockOf(node, content) {
     for (let element = elementOf(node); element && element !== content; element = element.parentElement) {
-        if (isBlock(element) && !CONTAINER_TAGS.has(element.localName)) {
+        if (isBlock(element) && !isContainer(element)) {
             return element;
         }
     }
@@ -57,7 +61,7 @@ export function hasBlockChild(element) {
 }
 
 export function isTextBlock(element) {
-    if (!isBlock(element) || CONTAINER_TAGS.has(element.localName)) {
+    if (!isBlock(element) || isContainer(element)) {
         return false;
     }
     let hasBlock = false;

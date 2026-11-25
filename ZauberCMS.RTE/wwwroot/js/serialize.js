@@ -1,8 +1,9 @@
 import { hasStrayBreaks, removeStrayBreaks } from './breaks.js';
 import {
-    ATOMIC_SELECTOR, LAYOUT_TAGS, hasVisibleContent, hasVisibleText, isAtomic, isBlock, isElement, isText, isTextBlock, nodeIndex,
-    removeWithEmptyInlines, retag
+    ATOMIC_SELECTOR, EMBED_SELECTOR, LAYOUT_TAGS, hasVisibleContent, hasVisibleText, isAtomic, isBlock, isElement, isEmbed, isText,
+    isTextBlock, nodeIndex, removeWithEmptyInlines, retag
 } from './dom.js';
+import { bareEmbed } from './embeds.js';
 
 export const SELECTED_IMAGE_CLASS = 'rte-image-selected';
 
@@ -42,7 +43,9 @@ function cleanCopy(content, holder) {
 }
 
 function render(content, holder, action, clean = true) {
-    const root = clean ? cleanCopy(content, holder) : withoutHolder(content, holder);
+    const base = clean ? cleanCopy(content, holder) : withoutHolder(content, holder);
+    const root = base === content && content.querySelector(EMBED_SELECTOR) ? content.cloneNode(true) : base;
+    root.querySelectorAll(EMBED_SELECTOR).forEach(bareEmbed);
     const marked = [...root.getElementsByClassName(SELECTED_IMAGE_CLASS)];
     marked.forEach(clearImageMark);
     try {
@@ -184,7 +187,7 @@ function formatNode(node, depth) {
     if (!isElement(node)) {
         return '';
     }
-    if (!LAYOUT_TAGS.has(node.localName) || isTextBlock(node)) {
+    if (!LAYOUT_TAGS.has(node.localName) || isTextBlock(node) || isEmbed(node)) {
         return indent + node.outerHTML;
     }
     const [open, close] = tagParts(node);

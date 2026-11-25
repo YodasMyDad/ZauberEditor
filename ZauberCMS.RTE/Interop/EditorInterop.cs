@@ -120,12 +120,19 @@ internal sealed class EditorInterop(IJSObjectReference instance, ILogger logger)
 
     public Task SelectImageAsync(CancellationToken cancellationToken) => InvokeVoidAsync("selectImage", cancellationToken);
 
+    public Task<EmbedInfo?> GetEmbedAsync(long maxBytes, CancellationToken cancellationToken) =>
+        ReadJsonAsync("getEmbedStream", InteropJsonContext.Default.EmbedInfo, maxBytes, cancellationToken);
+
+    public Task<bool> InsertEmbedAsync(string url, CancellationToken cancellationToken) =>
+        InvokeAsync<bool>("insertEmbed", cancellationToken, url);
+
     public Task FocusAsync(CancellationToken cancellationToken) => InvokeVoidAsync("focus", cancellationToken);
 
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(EditorInitOptions))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(HtmlPolicyOptions))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ImageOptions))]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ShortcutBinding))]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(EmbedProviderOptions))]
     public Task ConfigureAsync(EditorInitOptions options, CancellationToken cancellationToken) =>
         InvokeVoidAsync("configure", cancellationToken, options);
 

@@ -23,6 +23,8 @@ public sealed class EditorSnapshotTests
         state.CanRedo.ShouldBeTrue();
         state.InLink.ShouldBeTrue();
         state.InImage.ShouldBeTrue();
+        state.InEmbed.ShouldBeFalse();
+        (snapshot with { InEmbed = true }).ApplyTo(EditorState.Empty).InEmbed.ShouldBeTrue();
         state.InTable.ShouldBeTrue();
         state.CanOutdent.ShouldBeTrue();
         state.IsFullscreen.ShouldBeTrue();

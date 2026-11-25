@@ -46,6 +46,8 @@ public sealed class EditorApiTests : IDisposable
         { (api, token) => api.GetSelectionAsync(token), nameof(IEditorInterop.GetSelectionAsync), [4096L] },
         { (api, token) => api.GetLinkAtCursorAsync(token), nameof(IEditorInterop.GetLinkAsync), [4096L] },
         { (api, token) => api.GetImageAtCursorAsync(token), nameof(IEditorInterop.GetImageAsync), [4096L] },
+        { (api, token) => api.GetEmbedAtCursorAsync(token), nameof(IEditorInterop.GetEmbedAsync), [4096L] },
+        { (api, token) => api.InsertEmbedAsync("https://youtu.be/dQw4w9WgXcQ", token), nameof(IEditorInterop.InsertEmbedAsync), ["https://youtu.be/dQw4w9WgXcQ"] },
         { (api, token) => api.GetHtmlAsync(token), nameof(IEditorInterop.GetHtmlAsync), [4096L] },
         { (api, token) => api.GetTextAsync(token), nameof(IEditorInterop.GetTextAsync), [4096L] },
         { (api, token) => api.IndentAsync(token), nameof(IEditorInterop.IndentAsync), [] },

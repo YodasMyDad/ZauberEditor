@@ -7,6 +7,7 @@ export class SourceView {
     #debounce;
     #active = false;
     #pristine = true;
+    #applied = null;
 
     constructor(ctx) {
         this.#ctx = ctx;
@@ -38,6 +39,7 @@ export class SourceView {
     refresh() {
         this.#ctx.source.value = formatHtml(this.#ctx.content, this.#ctx.caretMarks.holder, this.#ctx.config.aliases);
         this.#pristine = true;
+        this.#applied = null;
     }
 
     flush() {
@@ -54,7 +56,9 @@ export class SourceView {
             return;
         }
         this.#ctx.changes.begin();
-        this.#apply();
+        if (this.#ctx.source.value !== this.#applied) {
+            this.#apply();
+        }
         this.#ctx.changes.commit('sourceView');
         this.#ctx.state.schedule();
     }
@@ -65,6 +69,7 @@ export class SourceView {
 
     #apply() {
         const { content, source, sanitizer, ranges } = this.#ctx;
+        this.#applied = source.value;
         replaceContent(content, sanitizer.clean(source.value));
         ranges.forget();
         refreshEmptyState(content);

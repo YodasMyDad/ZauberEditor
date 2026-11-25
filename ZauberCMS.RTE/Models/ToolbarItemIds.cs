@@ -87,6 +87,9 @@ public static class ToolbarItemIds
     /// <summary>Insert or edit an image.</summary>
     public const string Image = "image";
 
+    /// <summary>Embed or edit a video from a supported site.</summary>
+    public const string Embed = "embed";
+
     /// <summary>Insert a table.</summary>
     public const string Table = "table";
 

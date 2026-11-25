@@ -1,3 +1,5 @@
+import { unique } from './dom.js';
+import { convertFrames, prepareEmbeds } from './embeds.js';
 import DOMPurify from './lib/purify.es.mjs';
 
 const SAFE_URI = /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
@@ -78,23 +80,32 @@ function createPurifier(config, policy, doc, scoped) {
 
 export class Sanitizer {
     #policy;
+    #embeds;
+    #report;
     #doc;
     #strict;
     #loose;
 
-    constructor(policy, doc) {
+    constructor(policy, embeds, doc, report) {
         this.#policy = policy;
+        this.#embeds = embeds;
+        this.#report = report;
         this.#doc = doc;
         this.#strict = createPurifier(policyConfig(policy), policy, doc, true);
         this.#loose = createPurifier({ USE_PROFILES: { html: true } }, policy, doc, false);
     }
 
     clean(html) {
-        return this.#finish(this.#strict.sanitize(String(html ?? '')));
+        const frames = convertFrames(String(html ?? ''), this.#embeds);
+        const fragment = this.#strict.sanitize(frames.html);
+        this.#reportRemoved(frames.removed, this.#finish(fragment));
+        return fragment;
     }
 
     restore(html) {
-        return this.#finish(this.#loose.sanitize(String(html ?? '')));
+        const fragment = this.#loose.sanitize(String(html ?? ''));
+        this.#finish(fragment);
+        return fragment;
     }
 
     allowsTag(tag) {
@@ -122,6 +133,16 @@ export class Sanitizer {
         for (const image of fragment.querySelectorAll('img:not([src])')) {
             image.remove();
         }
-        return fragment;
+        return prepareEmbeds(fragment, this.#embeds);
+    }
+
+    #reportRemoved(hosts, placeholders) {
+        if (hosts.length === 0 && placeholders === 0) {
+            return;
+        }
+        const sites = unique(hosts).join(', ') || 'an unsupported site';
+        const allowed = this.#embeds.map((provider) => provider.displayName).join(', ');
+        const advice = allowed ? ` Only ${allowed} videos can be embedded.` : '';
+        this.#report(`Embedded content from ${sites} was removed.${advice}`);
     }
 }
