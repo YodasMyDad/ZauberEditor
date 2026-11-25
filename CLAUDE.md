@@ -1,7 +1,7 @@
 # ZauberEditor
 
 `ZauberCMS.RTE`: an extensible rich-text (WYSIWYG) editor component for Blazor, shipped as a NuGet package (MIT).
-Targets **.NET 10 / C# 14**. The editing engine is JavaScript driven from C# via JS interop.
+The library targets **.NET 10 and .NET 11** (`net10.0;net11.0`) and builds with SDK 11 / **C# 15**. The editing engine is JavaScript driven from C# via JS interop.
 
 This file is the project's **standards document**. The 3.0 audit brought every file in line with the
 [Standards](#standards) below (see [Audit status](#audit-status)); every change since must keep it that way. Where
@@ -143,9 +143,18 @@ is published; otherwise the patch of the highest version is bumped. So for a min
 
 ### Project & build
 
-- `Directory.Build.props` at the root holds shared settings: `TargetFramework net10.0`, `LangVersion latest`,
-  `Nullable enable`, `ImplicitUsings enable`, `TreatWarningsAsErrors true`, `AnalysisLevel latest-recommended`,
-  `EnforceCodeStyleInBuild true`.
+- `global.json` pins SDK `11.0.100` (`rollForward: latestPatch`). `Directory.Build.props` at the root holds shared
+  settings: `LangVersion latest`, `Nullable enable`, `ImplicitUsings enable`, `TreatWarningsAsErrors true`,
+  `AnalysisLevel latest-recommended`, `EnforceCodeStyleInBuild true`. Each project declares its own frameworks: the
+  library and the tests `TargetFrameworks net10.0;net11.0` (the tests run on both, so the .NET 10 runtime must be
+  installed next to SDK 11; CI installs it), the demo and its WebAssembly client `TargetFramework net11.0`.
+- `Directory.Packages.props` versions the `Microsoft.AspNetCore.*` packages per framework (latest 10.0.x for
+  `net10.0`, latest 11.0.x for `net11.0`) with conditional `ItemGroup`s. Packages the framework already provides
+  (`Microsoft.Extensions.*` abstractions) are not referenced (NU1510).
+- **Decided exception:** the test project adds `BL0016` (unguarded JS interop call) to `NoWarn`, because its
+  NSubstitute setups and verifications of `IJSRuntime` / `IJSObjectReference` look like interop calls. The library
+  satisfies BL0016: every JS call is made inside the shared `EditorInterop.GuardAsync` try/catch (the target's
+  `InvokeAsync` is passed as a method group) or inside the `try` of `DisposeAsync`.
 - The library sets `GenerateDocumentationFile true`, so the XML docs ship in the package and, with warnings as errors,
   any public member missing a doc (CS1591) fails the build. **Decided exception:** the test and demo projects also set
   `GenerateDocumentationFile true`, but with `<NoWarn>$(NoWarn);CS1591</NoWarn>`, because the build only enforces
@@ -164,7 +173,7 @@ is published; otherwise the patch of the highest version is bumped. So for a min
   was the audit release). Every release gets a `CHANGELOG.md` entry (Keep a Changelog). For minor/major releases set
   `<Version>` and name the version in the commit message; CI publishes on push to `master` (see Build & run).
 
-### C# (C# 14 / .NET 10)
+### C# (C# 15 / .NET 10 and 11)
 
 - File-scoped namespaces matching the folder path. **One top-level type per file**, file named after the type.
 - `sealed` by default; `internal` for anything that is not deliberate public API. Keep the public surface minimal.
@@ -175,7 +184,9 @@ is published; otherwise the patch of the highest version is bumped. So for a min
   lookup tables built once (e.g. the toolbar registry after discovery).
 - Pattern matching and switch expressions over `if` chains: `is null`, `is not null`, `is "a" or "b"`, property
   patterns. No `== null` / `!= null`.
-- Use C# 14 features where they simplify: `field` keyword for properties needing a backing field, `extension` blocks
+- C# 15 language features are allowed only where they compile for both `net10.0` and `net11.0` (no feature that needs
+  a .NET 11 BCL type, such as `[]` for a `FrozenDictionary`), e.g. collection expression arguments
+  (`[with(StringComparer.Ordinal)]`). Use C# 14 features where they simplify: `field` keyword for properties needing a backing field, `extension` blocks
   for extension members, null-conditional assignment (`a?.B = c`), raw string literals for embedded HTML/CSS.
 - Expression-bodied members for single expressions; `var` for locals; `_camelCase` private fields; PascalCase
   constants and static readonly fields.

@@ -16,14 +16,16 @@ internal sealed class EditorInterop(IJSObjectReference instance, ILogger logger)
         DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties;
 
     public static async Task<TValue?> GuardAsync<TValue>(
-        Func<ValueTask<TValue>> invoke,
+        Func<string, CancellationToken, object?[]?, ValueTask<TValue>> invoke,
         string identifier,
+        object?[] args,
         ILogger logger,
+        CancellationToken cancellationToken,
         bool surfaceDisconnect = false)
     {
         try
         {
-            return await invoke();
+            return await invoke(identifier, cancellationToken, args);
         }
         catch (JSDisconnectedException) when (!surfaceDisconnect)
         {
@@ -159,19 +161,14 @@ internal sealed class EditorInterop(IJSObjectReference instance, ILogger logger)
     {
         try
         {
-            await ReleaseAsync(() => instance.InvokeVoidAsync("dispose"));
-        }
-        finally
-        {
-            await ReleaseAsync(instance.DisposeAsync);
-        }
-    }
-
-    private async Task ReleaseAsync(Func<ValueTask> release)
-    {
-        try
-        {
-            await release();
+            try
+            {
+                await instance.InvokeVoidAsync("dispose");
+            }
+            finally
+            {
+                await instance.DisposeAsync();
+            }
         }
         catch (JSDisconnectedException)
         {
@@ -187,7 +184,7 @@ internal sealed class EditorInterop(IJSObjectReference instance, ILogger logger)
         string identifier,
         CancellationToken cancellationToken,
         params object?[] args) =>
-        GuardAsync(() => instance.InvokeAsync<TValue>(identifier, cancellationToken, args), identifier, logger);
+        GuardAsync(instance.InvokeAsync<TValue>, identifier, args, logger, cancellationToken);
 
     private async Task InvokeVoidAsync(string identifier, CancellationToken cancellationToken, params object?[] args) =>
         await InvokeAsync<IJSVoidResult>(identifier, cancellationToken, args);
@@ -204,11 +201,7 @@ internal sealed class EditorInterop(IJSObjectReference instance, ILogger logger)
 
     private async Task<string> ReadStreamAsync(string identifier, long maxBytes, CancellationToken cancellationToken)
     {
-        var reference = await GuardAsync(
-            () => instance.InvokeAsync<IJSStreamReference>(identifier, cancellationToken),
-            identifier,
-            logger,
-            surfaceDisconnect: true);
+        var reference = await GuardAsync(instance.InvokeAsync<IJSStreamReference>, identifier, [], logger, cancellationToken, surfaceDisconnect: true);
         if (reference is null)
         {
             return string.Empty;

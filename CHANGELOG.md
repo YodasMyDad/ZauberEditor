@@ -5,6 +5,20 @@ All notable changes to ZauberCMS.RTE are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-11-25
+
+### Added
+
+- .NET 11 support: the package targets `net10.0` and `net11.0`, so it works in apps on .NET 10 (LTS) and .NET 11.
+
+### Changed
+
+- Built with the .NET 11 SDK (11.0.100) and C# 15.
+- Dependencies: `Microsoft.AspNetCore.Components.Web` 10.0.15 for `net10.0` and 11.0.0 for `net11.0`. The explicit
+  `Microsoft.Extensions.DependencyInjection.Abstractions`, `Microsoft.Extensions.Logging.Abstractions` and
+  `Microsoft.Extensions.Options` references were dropped; they come with `Microsoft.AspNetCore.Components.Web`.
+- No API changes from 3.1.0.
+
 ## [3.1.0] - 2026-11-25
 
 ### Added

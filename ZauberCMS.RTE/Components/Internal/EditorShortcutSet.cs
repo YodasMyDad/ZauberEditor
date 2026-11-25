@@ -10,14 +10,14 @@ internal sealed class EditorShortcutSet
     private readonly IReadOnlyList<EditorShortcut> _source;
     private readonly FrozenDictionary<string, EditorShortcut> _byId;
 
-    private EditorShortcutSet(IReadOnlyList<EditorShortcut> source, FrozenDictionary<string, EditorShortcut> byId, IReadOnlyList<ShortcutBinding> bindings)
+    private EditorShortcutSet(IReadOnlyList<EditorShortcut> source, IEnumerable<KeyValuePair<string, EditorShortcut>> byId, IReadOnlyList<ShortcutBinding> bindings)
     {
         _source = source;
-        _byId = byId;
+        _byId = byId.ToFrozenDictionary(StringComparer.Ordinal);
         Bindings = bindings;
     }
 
-    public static EditorShortcutSet Empty { get; } = new([], FrozenDictionary<string, EditorShortcut>.Empty, []);
+    public static EditorShortcutSet Empty { get; } = new([], [], []);
 
     public IReadOnlyList<ShortcutBinding> Bindings { get; }
 
@@ -31,7 +31,7 @@ internal sealed class EditorShortcutSet
             return this;
         }
 
-        Dictionary<string, EditorShortcut> byId = new(StringComparer.Ordinal);
+        Dictionary<string, EditorShortcut> byId = [with(StringComparer.Ordinal)];
         foreach (var shortcut in LayoutGuard.NoNulls(source, nameof(shortcuts)))
         {
             if (KeyboardShortcut.TryParse(shortcut.Keys, out var keys))
@@ -41,6 +41,6 @@ internal sealed class EditorShortcutSet
         }
 
         ShortcutBinding[] bindings = [.. byId.Select(pair => ShortcutBinding.From(pair.Key, pair.Value.Keys, custom: true)).OfType<ShortcutBinding>()];
-        return new(source, byId.ToFrozenDictionary(StringComparer.Ordinal), ValueEquality.Sequence(Bindings, bindings) ? Bindings : bindings);
+        return new(source, byId, ValueEquality.Sequence(Bindings, bindings) ? Bindings : bindings);
     }
 }

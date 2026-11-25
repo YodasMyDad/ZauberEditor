@@ -30,9 +30,11 @@ internal sealed class EditorInteropFactory(IJSRuntime jsRuntime, ILogger<EditorI
         }
 
         var instance = await EditorInterop.GuardAsync(
-            () => module.InvokeAsync<IJSObjectReference>("createEditor", CancellationToken.None, root, content, source, toolbar, callbacks, options),
+            module.InvokeAsync<IJSObjectReference>,
             "createEditor",
-            logger);
+            [root, content, source, toolbar, callbacks, options],
+            logger,
+            CancellationToken.None);
 
         return instance is null ? null : new EditorInterop(instance, logger);
     }
@@ -56,10 +58,7 @@ internal sealed class EditorInteropFactory(IJSRuntime jsRuntime, ILogger<EditorI
 
     private async Task<IJSObjectReference?> ImportAsync()
     {
-        var import = _module ??= EditorInterop.GuardAsync(
-            () => jsRuntime.InvokeAsync<IJSObjectReference>("import", CancellationToken.None, ModulePath),
-            "import",
-            logger);
+        var import = _module ??= EditorInterop.GuardAsync(jsRuntime.InvokeAsync<IJSObjectReference>, "import", [ModulePath], logger, CancellationToken.None);
 
         await ((Task)import).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         if ((!import.IsCompletedSuccessfully || await import is null) && ReferenceEquals(_module, import))

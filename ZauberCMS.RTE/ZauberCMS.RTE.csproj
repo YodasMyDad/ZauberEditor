@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
+    <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     <AssemblyName>ZauberCMS.RTE</AssemblyName>
     <RootNamespace>ZauberCMS.RTE</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -10,7 +11,7 @@
 
   <PropertyGroup>
     <PackageId>ZauberCMS.RTE</PackageId>
-    <Version>3.1.0</Version>
+    <Version>4.0.0</Version>
     <Authors>Lee Messenger</Authors>
     <Description>A modern, extensible rich-text editor component for Blazor applications</Description>
     <PackageTags>blazor;richtext;editor;wysiwyg;html</PackageTags>
@@ -30,9 +31,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
 
   <ItemGroup>

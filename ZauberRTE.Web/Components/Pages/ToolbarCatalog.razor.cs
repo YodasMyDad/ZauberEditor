@@ -6,10 +6,7 @@ namespace ZauberRTE.Web.Components.Pages;
 
 public sealed partial class ToolbarCatalog
 {
-    private readonly HashSet<string> _selected = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ToolbarItemIds.Bold, ToolbarItemIds.Italic, ToolbarItemIds.Link
-    };
+    private readonly HashSet<string> _selected = [with(StringComparer.OrdinalIgnoreCase), ToolbarItemIds.Bold, ToolbarItemIds.Italic, ToolbarItemIds.Link];
 
     private string? _html = "<p>Pick toolbar items from the table above.</p>";
 

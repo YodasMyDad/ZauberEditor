@@ -22,7 +22,7 @@ internal sealed class ToolbarRegistry(IOptions<ZauberRteOptions> options, ILogge
     public ToolbarItemSet CreateItemSet(IServiceProvider services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        Dictionary<string, IToolbarItem> items = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, IToolbarItem> items = [with(StringComparer.OrdinalIgnoreCase)];
         List<IToolbarItem> created = [];
         foreach (var registration in _registrations)
         {

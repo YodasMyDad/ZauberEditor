@@ -2,12 +2,13 @@
 
 [![NuGet](https://img.shields.io/nuget/v/ZauberCMS.RTE.svg)](https://www.nuget.org/packages/ZauberCMS.RTE/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/YodasMyDad/ZauberEditor/blob/master/LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-10.0%20%7C%2011.0-blue.svg)](https://dotnet.microsoft.com/)
 
 An extensible WYSIWYG HTML editor component for Blazor. It is built for
 [ZauberCMS](https://github.com/YodasMyDad/ZauberCMS) and released as a standalone package.
 
-Upgrading from 2.x? Read [Migrating to 3.0](#migrating-to-30) first. 3.0 is a major release with breaking changes.
+Upgrading from 3.x? Read [Migrating to 4.0](#migrating-to-40). Upgrading from 2.x? Read [Migrating to 3.0](#migrating-to-30)
+first. 3.0 is a major release with breaking changes.
 
 ## Contents
 
@@ -26,6 +27,7 @@ Upgrading from 2.x? Read [Migrating to 3.0](#migrating-to-30) first. 3.0 is a ma
 - [Security](#security)
 - [Large documents](#large-documents)
 - [Extending the editor](#extending-the-editor)
+- [Migrating to 4.0](#migrating-to-40)
 - [Migrating to 3.0](#migrating-to-30)
 - [License](#license)
 
@@ -56,7 +58,7 @@ Upgrading from 2.x? Read [Migrating to 3.0](#migrating-to-30) first. 3.0 is a ma
 
 ## Requirements
 
-- **.NET 10** (`net10.0`).
+- **.NET 10** (`net10.0`, LTS) or **.NET 11** (`net11.0`). The package ships builds for both.
 - An **interactive render mode** for the component: Interactive Server, Interactive WebAssembly or Interactive Auto.
   Prerendering is supported: the frame renders on the server and editing starts on the first interactive render.
 - A **browser that supports CSS `light-dark()`**: Chrome/Edge 123+, Firefox 120+ or Safari 17.5+.
@@ -788,6 +790,13 @@ Removed items aren't listed, and an override is listed with `IsBuiltIn = false`.
 toggles, dropdowns, panels, dependency injection, overriding built-ins and icons, with working code from the demo app.
 
 ---
+
+## Migrating to 4.0
+
+4.0 adds .NET 11 support. The package now targets both `net10.0` and `net11.0`, so an app on .NET 10 (LTS) or
+.NET 11 can use it, and NuGet picks the matching build. Apps on .NET 9 or earlier stay on 3.x.
+
+There are no API changes from 3.1: update the package reference and rebuild.
 
 ## Migrating to 3.0
 
