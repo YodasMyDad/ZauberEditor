@@ -27,6 +27,7 @@ import { nodeRange, startNode } from './selection.js';
 import { contentText, jsonBytes, serializeContent, toUtf8 } from './serialize.js';
 import { SourceView } from './source-view.js';
 import { StateTracker } from './state.js';
+import { loadStylesheet } from './styles.js';
 import { bindToolbar } from './toolbar.js';
 import { Transactions } from './transactions.js';
 import { blockType, inlineTag, validAttributes, validStyles, wrapperName, wrapperTag } from './validation.js';
@@ -369,6 +370,13 @@ export class Editor {
     closePanel() {
         this.#ctx.finder.clear();
         this.#ctx.panel.close();
+    }
+
+    async loadStyles() {
+        const href = this.#ctx.options.stylesheet;
+        if (href && !await loadStylesheet(this.#ctx.root.ownerDocument, href)) {
+            this.#ctx.channel.error(`The editor stylesheet ${href} did not load; the editor is shown unstyled.`);
+        }
     }
 
     dispose() {

@@ -1,0 +1,39 @@
+@page "/host-css"
+@rendermode InteractiveServer
+
+<PageTitle>Hostile host CSS</PageTitle>
+
+<HeadContent>
+    <link rel="stylesheet" href="@Assets["host-css/hostile.css"]" data-hostile />
+</HeadContent>
+
+<h1>Hostile host CSS</h1>
+<p class="lead-text">
+    This page loads a deliberately hostile global stylesheet: Bootstrap Reboot, Tailwind Preflight and rules such as
+    <code>* { margin: 10px; line-height: 3 }</code>, <code>button { background: hotpink }</code> and
+    <code>input, select { all: unset }</code>. The editors below look the same as on any other page. The second editor
+    adds the <code>rte-neutral</code> class, so its content uses a system font instead of the page's.
+</p>
+
+<div class="host-css-actions" role="group" aria-label="Theme">
+    @foreach (var theme in Themes)
+    {
+        <button @key="theme" type="button" aria-pressed="@(_theme == theme ? "true" : "false")" @onclick="() => _theme = theme">@theme</button>
+    }
+    <button type="button" @onclick="ShowToastAsync">Show toast</button>
+</div>
+
+<ZauberRichTextEditor @ref="_full"
+                      @bind-Value="_html"
+                      Theme="_theme"
+                      Toolbar="ToolbarLayout.Full"
+                      AriaLabel="Full toolbar editor" />
+
+<section class="demo-section">
+    <h2>Neutral content</h2>
+    <ZauberRichTextEditor @bind-Value="_neutralHtml"
+                          class="rte-neutral"
+                          Theme="_theme"
+                          Toolbar="ToolbarLayout.Simple"
+                          AriaLabel="Neutral editor" />
+</section>

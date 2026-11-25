@@ -24,6 +24,7 @@ public sealed class ZauberRichTextEditorScriptTests : BunitContext
     [Fact]
     public void ImportsTheModuleAndCreatesTheEditorWithItsElements()
     {
+        Services.AddZauberRte(options => options.AutoLoadStyles = false);
         var cut = Render<ZauberRichTextEditor>(parameters => parameters.Add(editor => editor.Value, "<p>Hello</p>"));
 
         var create = _module.VerifyInvoke("createEditor");

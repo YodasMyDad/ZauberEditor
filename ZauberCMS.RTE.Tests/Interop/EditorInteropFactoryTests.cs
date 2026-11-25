@@ -60,7 +60,7 @@ public sealed class EditorInteropFactoryTests : IAsyncDisposable
 
         EditorInteropFactory.ModulePath.ShouldStartWith(ContentRoot);
         var asset = Path.Combine(repository.ShouldNotBeNull().FullName, "ZauberCMS.RTE", "wwwroot", EditorInteropFactory.ModulePath[ContentRoot.Length..]);
-        File.ReadAllText(asset).ShouldContain("export function createEditor(");
+        File.ReadAllText(asset).ShouldContain("export async function createEditor(");
     }
 
     [Fact]

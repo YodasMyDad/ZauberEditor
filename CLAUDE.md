@@ -41,7 +41,7 @@ internal.
     `changes` (debounce, notify), `serialize`, `counts`, `state`, `history`, `scheduler`, `events`, `keyboard`, `keys`,
     `shortcuts`, `toolbar`, `selection`, `ranges`, `caret-marks`, `dom`, `content`, `breaks`, `text-blocks`, `blocks`,
     `lists`, `indent`, `marks`, `tables`, `insert`, `clipboard`, `office`, `sanitize`, `validation`, `links`, `images`,
-    `resize`, `drag`, `panel`, `find`, `fullscreen`, `source-view`
+    `resize`, `drag`, `panel`, `find`, `fullscreen`, `source-view`, `styles` (stylesheet auto-load)
   - `wwwroot/js/lib/purify.es.mjs` (+ `.map`, `purify.LICENSE`) — vendored DOMPurify ES build, refreshed with
     `npm run build` in `ZauberCMS.RTE/`
   - `wwwroot/css/zauber-editor.css` — all styles: tokens, themes, components, in `@layer zauber-rte`
@@ -88,6 +88,15 @@ is published; otherwise the patch of the highest version is bumped. So for a min
 - **Panels.** Items with UI call `api.OpenPanelAsync<TPanel>(parameters)` (`TPanel : PanelBase`, abstract `Title`).
   The panel renders in `SlideOutPanel` inside an `ErrorBoundary`; JS `openPanel` portals the overlay to
   `document.body`, traps focus and reports Escape; `closePanel` moves it back and restores the editor selection.
+- **Styles.** Consumers add no `<link>`. While `ZauberRteOptions.AutoLoadStyles` (default `true`) is on and the
+  editor hasn't initialised, the component renders a `<link>` to `Assets["_content/ZauberCMS.RTE/css/zauber-editor.css"]`
+  just before its root (so prerendered and static HTML is styled without JS) and adds
+  `visibility:var(--_rte-styled, hidden)` to the root's inline style; the stylesheet declares `--_rte-styled: visible`,
+  so the root shows as soon as the CSS applies, with no JS. `createEditor` gets the same URL, and `styles.js` adds one
+  `<link>` per document to `<head>`, before the first stylesheet (so consumer rules win ties), or reuses an existing
+  one (a 3.x manual link); one load promise per document, settling on load, error or a 3-second timeout (failure →
+  `OnError`). `createEditor` awaits it, then the component drops its own `<link>` and the cloak. With the option off,
+  nothing is linked or hidden.
 - **JS.** ES modules only. The scoped `EditorInteropFactory` imports `zauber-rte.js` once; the component calls
   `createEditor(root, content, source, toolbar, dotNetRef, options)` in `OnAfterRenderAsync(firstRender)` with
   `ElementReference`s and holds the returned per-instance `Editor` as an `IJSObjectReference`. JS owns the content
@@ -166,7 +175,8 @@ is published; otherwise the patch of the highest version is bumped. So for a min
 - No `GeneratePackageOnBuild`; packing is explicit via `build-nuget.ps1`. Remove pack properties made redundant by RCL
   static web assets (`IncludeContentInPack`, `ContentTargetFolders`) and verify the `.nupkg` contents afterwards.
   Produce a symbols package (`snupkg`); SourceLink is on by default in the SDK.
-- All assets are self-hosted inside the package. No CDN URLs. Built-in icons are inline SVG (`Toolbar/Icons.cs`);
+- All assets are self-hosted inside the package and load themselves (no `<link>` or `<script>` for consumers to add).
+  No CDN URLs. Built-in icons are inline SVG (`Toolbar/Icons.cs`);
   no icon font ships.
 - Vendored JS libraries are committed ES-module builds; any npm script must be cross-platform (no `cp`/`mkdir -p`).
 - Versioning is semver. Breaking changes need a major version and a "Migrating to X.0" section in `README.md` (3.0.0
@@ -226,7 +236,7 @@ is published; otherwise the patch of the highest version is bumped. So for a min
 ### JavaScript
 
 - **ES modules only** (ES2022+). No `window.*` globals. Each component loads what it needs through
-  `IJSObjectReference` (`import('./_content/ZauberCMS.RTE/js/...')`), so consumers add **no** `<script>` tags.
+  `IJSObjectReference` (`import('./_content/ZauberCMS.RTE/js/...')`), so consumers add **no** `<script>` or `<link>` tags.
   DOMPurify is imported as an ES module too.
 - Split by concern into small modules (`selection`, `clipboard`, `images`, `history`, `panel`, `shortcuts`, ...)
   plus a shared `dom` utilities module. No module over a few hundred lines; no duplicated DOM helpers.
@@ -253,10 +263,27 @@ is published; otherwise the patch of the highest version is bumped. So for a min
   (Chrome/Edge 123+, Firefox 120+, Safari 17.5+), which the README states.
 - Everything inside `@layer zauber-rte` and low-specificity selectors (`:where(...)`) so consumers can override without
   `!important`. **No `!important`.**
-- **Decided exception:** unlayered host resets (Bootstrap Reboot, Tailwind Preflight) beat any layered rule, so the
-  stylesheet ends with **one** small unlayered block, scoped to `:is(.zauber-rte, .zauber-rte-portal)` with class
-  specificity and no `!important`. It re-asserts only the properties those resets set on `button`, `input`, `select`,
-  `textarea`, `label`, headings, lists, links and table cells inside the editor. Nothing else goes there.
+- **Zero leakage outward.** Every selector matches only the editor root, its descendants and the portalled
+  `.zauber-rte-portal` / `.rte-slideout-overlay`. No bare element, `html`, `body`, `:root` or `*` selectors; the only
+  page-level hook is `html.rte-scroll-lock`, set only while an editor is full screen. Keyframes, highlight names and
+  custom properties are `rte-` prefixed.
+- **Decided exception:** unlayered host CSS (Bootstrap Reboot, Tailwind Preflight, theme rules on `*`, `p`, `button`,
+  `ul li::before`, `[role=dialog]` ...) beats any layered rule, so the stylesheet ends with **one** unlayered block,
+  scoped to `:is(.zauber-rte, .zauber-rte-portal, .rte-slideout-overlay)`, with no `!important`:
+  - `all: revert-layer` at single-class specificity on the root, on every element with an `rte-` class (plus the
+    `svg` directly inside one, the checkbox input and the image preview `img`), on everything in `.rte-content`, and
+    on their `::before` / `::after` / `::marker` / `::placeholder`. Host rules with only element or universal
+    selectors are discarded there and the layered rules (or the UA defaults) apply. Consumer classes tie and win,
+    because the auto-loaded stylesheet is inserted before the page's own; consumer markup in custom panels without
+    `rte-` classes is untouched.
+  - Two-class rules only where a host selector can tie (`[role=dialog]` position, `[type=button]` background,
+    `:disabled` cursor) or a host *layered* reset can outrank the editor's layer: button, input, heading, list, link and
+    table-cell properties.
+  - Nothing else goes there. The demo's `/host-css` page loads hostile global CSS; the editor must look identical
+    with and without it.
+- **Content styling.** Content inherits the host's font family (`--rte-content-font` overrides it; the `rte-neutral`
+  class gives a system font); its colour is the theme's `--rte-color-text`, because the editor paints its own
+  background. The root sets its own line height, letter spacing, text transform and weight.
 - Native CSS nesting, logical properties (`margin-inline`, `inset-block-start`), `prefers-reduced-motion` for panel and
   dropdown animations. Delete unused rules.
 
@@ -264,7 +291,8 @@ is published; otherwise the patch of the highest version is bumped. So for a min
 
 - `ZauberRTE.Web` (+ `ZauberRTE.Web.Client`) contains only editor demos (no template pages). It has pages covering:
   the full toolbar with `EditForm`, custom toolbar items with a panel, multiple editors on one page, read-only mode,
-  light/dark/auto themes, large content, and the WebAssembly and Auto render modes. Docs samples are copied from it.
+  light/dark/auto themes, large content, hostile host CSS (`/host-css`), and the WebAssembly and Auto render modes.
+  Docs samples are copied from it.
 - `ZauberCMS.RTE.Tests` uses **xUnit v3** (test framework), **bUnit** (Blazor component testing), **Shouldly**
   (assertions) and **NSubstitute** (mocking), covering registration, toolbar items' state logic, `EditorApi`, content
   sync, interop and component rendering/disposal. Interactive editing behaviour is verified in the demo app with

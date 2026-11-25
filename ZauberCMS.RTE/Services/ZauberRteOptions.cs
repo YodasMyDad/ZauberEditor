@@ -12,6 +12,12 @@ public sealed class ZauberRteOptions
 
     internal IReadOnlyList<ToolbarItemRegistration> Registrations => _registrations;
 
+    /// <summary>
+    /// Loads the editor stylesheet automatically on the first editor in a page. Defaults to <see langword="true"/>; turn it off
+    /// when the page links or bundles <c>zauber-editor.css</c> itself.
+    /// </summary>
+    public bool AutoLoadStyles { get; set; } = true;
+
     /// <summary>Adds an item created per editor through dependency injection.</summary>
     /// <typeparam name="TItem">The item type.</typeparam>
     public ZauberRteOptions AddToolbarItem<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TItem>()

@@ -36,8 +36,10 @@ first. 3.0 is a major release with breaking changes.
 
 - **Blazor-native component.** Use `@bind-Value` and `EditForm` validation. It works in Interactive Server,
   WebAssembly and Auto render modes.
-- **Zero script setup.** You add one stylesheet. The JavaScript loads itself as ES modules, and every editor on a page
-  gets its own isolated instance.
+- **Zero setup in the page.** No `<script>` or `<link>` tags: the stylesheet and the ES modules load themselves, and
+  every editor on a page gets its own isolated instance.
+- **Isolated styles.** The editor's CSS matches nothing outside the editor, and it keeps its look under host resets
+  such as Bootstrap Reboot and Tailwind Preflight.
 - **Sanitised by default.** Every way HTML gets into the editor is cleaned with DOMPurify according to your
   `HtmlPolicy`, and URL schemes are allow-listed.
 - **Extensible toolbar.** Register your own buttons, toggles, dropdowns and slide-out panels, override or remove
@@ -88,17 +90,28 @@ toolbar items are registered in that callback (see [Extending the editor](#exten
 For **WebAssembly or Auto** render modes, also call `AddZauberRte(...)` in the client project's `Program.cs`, with
 the same item registrations. Keep the server registration as well, because prerendering runs on the server.
 
-### 2. Add the stylesheet
+### 2. Assets load themselves
 
-In `App.razor` (or your host page), inside `<head>`:
+There's nothing to add to `App.razor`. The first editor on a page adds the stylesheet
+(`_content/ZauberCMS.RTE/css/zauber-editor.css`) to `<head>` once, ahead of your own stylesheets so your rules win
+ties, and the component imports its JavaScript modules (`zauber-rte.js` and its dependencies, including DOMPurify).
+With `MapStaticAssets` the fingerprinted URL is used, and a path base works. All assets ship inside the package;
+nothing loads from a CDN.
 
-```html
-<link href="_content/ZauberCMS.RTE/css/zauber-editor.css" rel="stylesheet" />
+The editor stays hidden (`visibility: hidden`, so it keeps its space) until the stylesheet applies, so it never shows
+unstyled, prerendered HTML included. A prerendered editor links the stylesheet itself, so it is styled even if
+interactivity never starts. If the stylesheet fails to load, the editor is shown after at most 3 seconds and the
+failure is logged.
+
+A `<link href="_content/ZauberCMS.RTE/css/zauber-editor.css" rel="stylesheet" />` kept from 3.x is harmless: the
+editor finds it and doesn't add a second. To bundle or link the CSS yourself, turn auto-loading off:
+
+```csharp
+builder.Services.AddZauberRte(options => options.AutoLoadStyles = false);
 ```
 
-That's the only asset you add. Don't add `<script>` tags: the component imports its JavaScript modules
-(`_content/ZauberCMS.RTE/js/zauber-rte.js` and its dependencies, including DOMPurify) when it first renders. All
-assets ship inside the package; nothing loads from a CDN.
+With a Content-Security-Policy, `style-src` must allow the site's own origin (`'self'`). The hide-until-styled rule
+is an inline `style` attribute; a policy that blocks inline styles just skips it.
 
 ### 3. Import the namespaces
 
@@ -779,6 +792,16 @@ editor panel (`OpenPanelAsync`), or leave full screen first with `await api.SetF
 `EditorSettings.Dimensions`. To size the editor from CSS instead, set those dimensions to `null`. On touch devices
 (`pointer: coarse`), buttons and handles grow automatically. With `prefers-reduced-motion`, animations are turned off.
 
+### Content font
+
+By default the content inherits the host page's font family, so it looks like the published site. Its text colour
+comes from the theme (`--rte-color-text`), because the editor paints its own light or dark background. The host's
+rules for individual elements (`p`, `a`, `ul li::before`, `table td` and so on) don't reach the content.
+
+- `--rte-content-font` sets the content's font family only: `.zauber-rte { --rte-content-font: Georgia, serif; }`.
+- The `rte-neutral` class (`<ZauberRichTextEditor class="rte-neutral" ... />`) gives the editor a system font instead
+  of the page's, for fully neutral styling.
+
 ### Cascade layer and host CSS frameworks
 
 All of the editor's rules live in the cascade layer `@layer zauber-rte`, and its selectors are wrapped in `:where()`
@@ -791,21 +814,20 @@ All of the editor's rules live in the cascade layer `@layer zauber-rte`, and its
 }
 ```
 
-The flip side is that a CSS reset that isn't in a layer also beats the editor's layered rules. Examples are Bootstrap's
-Reboot and Tailwind's Preflight, which restyle `button`, `input`, headings and lists. To survive them, the stylesheet
-ends with one small unlayered block, scoped to `.zauber-rte` and `.zauber-rte-portal`. It re-asserts only the
-properties those resets touch: button and input padding, borders and fonts, headings, lists, links and table borders
-in the content. So Bootstrap needs nothing extra. To override one of those properties, match its specificity (for
-example `.zauber-rte .rte-btn`).
+The flip side is that a CSS reset that isn't in a layer would also beat the editor's layered rules. Examples are
+Bootstrap's Reboot, Tailwind's Preflight and theme rules such as `* { margin: 0 }`, `button { ... }` or
+`ul li::before { content: ... }`. So the stylesheet ends with one small unlayered block, scoped to `.zauber-rte`,
+`.zauber-rte-portal` and `.rte-slideout-overlay`. On the editor's own elements (the root and every element with an
+`rte-` class) and on everything in the content, it sets `all: revert-layer` at single-class specificity: host rules
+with only element and universal selectors are discarded there, and the editor's layered rules (or the browser
+defaults) apply instead. A few properties that an attribute selector such as `[role=dialog]` could tie are also set
+at two-class specificity. So Bootstrap and Tailwind v3 need nothing extra, and the editor looks the same with or
+without them (the demo's `/host-css` page shows it).
 
-Tailwind v3's Preflight also sets `border-width: 0` on every element, and the unlayered block doesn't re-assert every
-border. If you use Tailwind v3, put Preflight into a cascade layer. Disable it in `tailwind.config.js`
-(`corePlugins: { preflight: false }`), then import a copy of Preflight into a layer that comes before the editor's:
-
-```css
-@layer reset, zauber-rte;
-@import url("preflight.css") layer(reset);
-```
+Your stylesheets come after the editor's, so a class selector of your own wins over the guard, as in the example
+above; for the few two-class properties, match that (for example `.zauber-rte .rte-btn`). Classes you put on content
+(`.callout`, `.ink-red`) and markup in your own panels without `rte-` classes are left alone, and rules that reach
+the content through a class on a parent (`.prose p`) still apply.
 
 Tailwind v4 already uses cascade layers. Declare the layer order once, before any stylesheet loads, so Preflight
 (`base`) sits below the editor and your utilities sit above it:
@@ -819,7 +841,8 @@ Tailwind v4 already uses cascade layers. Declare the layer order once, before an
 The editor's markup uses stable `rte-*` class names that you can target. These are the main ones:
 
 - `.zauber-rte`: the root, plus `.rte-readonly`, `.rte-source-mode` and `.rte-fullscreen`. While an editor is full
-  screen, `<html>` has `.rte-scroll-lock`.
+  screen, `<html>` has `.rte-scroll-lock`, which hides the page's scrollbar; it's the only style the editor applies
+  outside its own elements.
 - `.rte-toolbar`, `.rte-toolbar-block`, `.rte-toolbar-single-item` and `.rte-toolbar-separator`: the toolbar and its
   entries.
 - `.rte-toolbar-btn` (plus `.rte-btn-active`): a toolbar button. `.rte-dropdown-{id}` and `.rte-dropdown-menu`: a
@@ -910,10 +933,19 @@ toggles, dropdowns, panels, dependency injection, overriding built-ins and icons
 4.0 adds .NET 11 support. The package now targets both `net10.0` and `net11.0`, so an app on .NET 10 (LTS) or
 .NET 11 can use it, and NuGet picks the matching build. Apps on .NET 9 or earlier stay on 3.x.
 
-There are no API changes from 3.1: update the package reference and rebuild.
+The editor now loads its own stylesheet:
+
+- Remove `<link href="_content/ZauberCMS.RTE/css/zauber-editor.css" rel="stylesheet" />` from `App.razor`, or keep
+  it: the editor finds an existing link and doesn't add a second.
+- If you bundle the CSS yourself, set `options.AutoLoadStyles = false` in `AddZauberRte`.
+- With a Content-Security-Policy, `style-src` must allow `'self'`.
+- The unlayered guard now covers every property of the editor's elements and the content. A host rule that styled
+  the content through element selectors alone (`p { color: ... }`) no longer reaches it; use a class selector
+  (`.zauber-rte .rte-content p`) or the `--rte-*` tokens.
 
 **Embeds.** 4.0 also adds video embeds (see [Embeds](#embeds)). `IEditorApi` has two new members,
-`GetEmbedAtCursorAsync` and `InsertEmbedAsync`; add them if you implement the interface yourself. Content with YouTube
+`GetEmbedAtCursorAsync` and `InsertEmbedAsync`; add them if you implement the interface yourself. Apart from that,
+there are no API changes from 3.1: update the package reference and rebuild. Content with YouTube
 or Vimeo `<iframe>`s now keeps them as embed placeholders instead of losing them, so render placeholders on your site,
 or set `EmbedProviders = []` to strip every iframe as before.
 
@@ -931,7 +963,7 @@ full list of fixes is in the [changelog](https://github.com/YodasMyDad/ZauberEdi
 | `<script src="_content/ZauberCMS.RTE/js/lib/purify.min.js">` | **Remove.** DOMPurify is now imported as an ES module. |
 | `<script src="_content/ZauberCMS.RTE/js/zauber-rte.js">` | **Remove.** The file is now an ES module that the component imports. Loading it as a classic script throws a syntax error. |
 | `<link href="_content/ZauberCMS.RTE/css/fontawesome.min.css">` | **Remove.** Font Awesome is no longer shipped (see [Icons](#7-icons-css-and-themes)). |
-| `<link href="_content/ZauberCMS.RTE/css/zauber-editor.css">` | Keep. |
+| `<link href="_content/ZauberCMS.RTE/css/zauber-editor.css">` | Keep (optional from 4.0, which loads it itself). |
 | `AddSignalR(o => o.MaximumReceiveMessageSize = ...)` for large content or base64 images | Not needed for the editor; content changes arrive in pieces under 12 KB, and every value the API reads back is streamed. |
 | WebAssembly not really supported (the JS was a page-wide global) | Interactive Server, WebAssembly and Auto supported. For WebAssembly or Auto, call `AddZauberRte` in the client project too. |
 | Browsers: "Chrome 80+" etc. | Chrome/Edge 123+, Firefox 120+, Safari 17.5+ (CSS `light-dark()`, cascade layers, nesting). |
