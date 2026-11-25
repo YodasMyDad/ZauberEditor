@@ -1,23 +1,27 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <AssemblyName>ZauberCMS.RTE</AssemblyName>
+    <RootNamespace>ZauberCMS.RTE</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <PackageId>ZauberCMS.RTE</PackageId>
-    <Version>2.1.0</Version>
+    <Version>3.0.0</Version>
     <Authors>Lee Messenger</Authors>
     <Description>A modern, extensible rich-text editor component for Blazor applications</Description>
     <PackageTags>blazor;richtext;editor;wysiwyg;html</PackageTags>
     <RepositoryUrl>https://github.com/YodasMyDad/ZauberEditor</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/YodasMyDad/ZauberEditor</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <IncludeContentInPack>true</IncludeContentInPack>
-    <ContentTargetFolders>contentFiles</ContentTargetFolders>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <AssemblyName>ZauberCMS.RTE</AssemblyName>
-    <RootNamespace>ZauberCMS.RTE</RootNamespace>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,22 +29,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.1" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
 
-    <ItemGroup>
-        <None Include="..\README.md" Pack="true" PackagePath="\" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <!-- Exclude Node.js files from NuGet package -->
-        <Content Remove="package.json" />
-        <Content Remove="package-lock.json" />
-        <Content Remove="node_modules\**" />
-        <None Remove="package.json" />
-        <None Remove="package-lock.json" />
-    </ItemGroup>
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <Content Remove="package.json;package-lock.json" />
+    <None Remove="package.json;package-lock.json" />
+    <InternalsVisibleTo Include="ZauberCMS.RTE.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
 
 </Project>

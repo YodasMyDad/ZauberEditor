@@ -2,26 +2,21 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes"/>
-    <base href="/"/>
-    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]"/>
-    <link rel="stylesheet" href="@Assets["app.css"]"/>
-    <link rel="stylesheet" href="@Assets["ZauberRTE.Web.styles.css"]"/>
-    
-    <!-- Zauber RTE Styles -->
-    <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/fontawesome.min.css"/>
-    <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/zauber-editor.css"/>
-    <ImportMap/>
-    <link rel="icon" type="image/png" href="favicon.png"/>
-    <HeadOutlet @rendermode="InteractiveServer"/>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/zauber-editor.css" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["ZauberRTE.Web.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
 </head>
 
 <body>
-<Routes @rendermode="InteractiveServer"/>
-<script src="_framework/blazor.web.js"></script>
-<script src="_content/ZauberCMS.RTE/js/lib/purify.min.js"></script>
-<script src="_content/ZauberCMS.RTE/js/zauber-rte.js"></script>
+    <Routes />
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 
 </html>

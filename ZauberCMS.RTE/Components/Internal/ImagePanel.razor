@@ -1,0 +1,70 @@
+@inherits PanelBase
+
+<form class="rte-panel-content" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+    @if (AllowUpload)
+    {
+        <div class="rte-form-group">
+            <span id="@ElementId("source")" class="rte-label">Image source</span>
+            <div class="rte-button-row" role="group" aria-labelledby="@ElementId("source")">
+                <button type="button"
+                        class="rte-btn @(_fromFile ? "rte-btn-secondary" : "rte-btn-primary")"
+                        aria-pressed="@ToolbarPresenter.Bool(!_fromFile)"
+                        @onclick="() => _fromFile = false">
+                    From URL
+                </button>
+                <button type="button"
+                        class="rte-btn @(_fromFile ? "rte-btn-primary" : "rte-btn-secondary")"
+                        aria-pressed="@ToolbarPresenter.Bool(_fromFile)"
+                        @onclick="() => _fromFile = true">
+                    From file
+                </button>
+            </div>
+        </div>
+    }
+
+    <div class="rte-form-group">
+        @if (_fromFile)
+        {
+            <label for="@ElementId("file")" class="rte-label">Image file</label>
+            <InputFile id="@ElementId("file")" class="rte-input" accept="@Accept" OnChange="OnFileSelectedAsync" />
+        }
+        else
+        {
+            <label for="@ElementId("url")" class="rte-label">Image URL</label>
+            <input id="@ElementId("url")"
+                   type="text"
+                   inputmode="url"
+                   autocomplete="off"
+                   class="rte-input"
+                   placeholder="https://example.com/image.jpg"
+                   @bind="_url"
+                   @bind:event="oninput" />
+        }
+        @if (_error is not null)
+        {
+            <p class="rte-form-error" role="alert">@_error</p>
+        }
+    </div>
+
+    @if (Source.Length > 0)
+    {
+        <div class="rte-form-group">
+            <span class="rte-label">Preview</span>
+            <div class="rte-image-preview">
+                <img src="@Source" alt="" />
+            </div>
+        </div>
+    }
+
+    <div class="rte-form-group">
+        <label for="@ElementId("alt")" class="rte-label">Alternative text</label>
+        <input id="@ElementId("alt")" type="text" class="rte-input" placeholder="Describe the image" @bind="_alt" @bind:event="oninput" />
+    </div>
+
+    <div class="rte-panel-actions">
+        <button type="button" class="rte-btn rte-btn-secondary" @onclick="CloseAsync">Cancel</button>
+        <button type="submit" class="rte-btn rte-btn-primary" disabled="@(Source.Length == 0)">
+            @(Image is null ? "Insert image" : "Update image")
+        </button>
+    </div>
+</form>

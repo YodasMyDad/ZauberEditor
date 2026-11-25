@@ -1,0 +1,11 @@
+.sizes {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.25rem 1rem;
+    margin-block-start: 1rem;
+}
+
+.sizes dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}

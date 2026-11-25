@@ -1,161 +1,141 @@
+using System.Net;
 using System.Text;
 
 namespace ZauberCMS.RTE.Models;
 
-/// <summary>
-/// Fluent helper for building HTML elements with attributes
-/// </summary>
-public class HtmlBuilder
+/// <summary>Builds an HTML fragment with encoded text and attribute values.</summary>
+public sealed class HtmlBuilder
 {
-    private readonly string _tagName;
-    private readonly Dictionary<string, string> _attributes = new();
-    private string? _content;
-    private readonly List<HtmlBuilder> _children = new();
+    private readonly string? _tagName;
+    private readonly string? _encodedText;
+    private readonly List<KeyValuePair<string, string>> _attributes = [];
+    private readonly List<HtmlBuilder> _children = [];
 
-    private HtmlBuilder(string tagName)
+    private HtmlBuilder(string? tagName, string? encodedText)
     {
         _tagName = tagName;
+        _encodedText = encodedText;
     }
 
-    /// <summary>
-    /// Creates a new HTML element builder
-    /// </summary>
-    public static HtmlBuilder Element(string tagName) => new(tagName);
-
-    /// <summary>
-    /// Creates an anchor (link) element
-    /// </summary>
-    public static HtmlBuilder Link(string href, string text) =>
-        Element("a").Attr("href", href).Text(text);
-
-    /// <summary>
-    /// Creates an image element
-    /// </summary>
-    public static HtmlBuilder Image(string src, string? alt = null)
+    /// <summary>Starts an element.</summary>
+    /// <param name="tagName">The element name, such as <c>p</c>.</param>
+    public static HtmlBuilder Element(string tagName)
     {
-        var builder = Element("img").Attr("src", src);
-        if (!string.IsNullOrEmpty(alt))
-            builder.Attr("alt", alt);
-        return builder;
+        EnsureValidName(tagName);
+        return new(tagName.ToLowerInvariant(), null);
     }
 
-    /// <summary>
-    /// Creates a figure with image and caption
-    /// </summary>
-    public static HtmlBuilder Figure(string src, string? alt, string caption)
-    {
-        var img = Image(src, alt);
-        var figcaption = Element("figcaption").Text(caption);
-        return Element("figure").Class("rte-figure").Child(img).Child(figcaption);
-    }
+    /// <summary>Starts a link with text.</summary>
+    /// <param name="href">The link target.</param>
+    /// <param name="text">The link text.</param>
+    public static HtmlBuilder Link(string href, string text) => Element("a").Attr("href", href).Text(text);
 
-    /// <summary>
-    /// Adds an attribute to the element
-    /// </summary>
-    public HtmlBuilder Attr(string name, string value)
+    /// <summary>Starts an image.</summary>
+    /// <param name="src">The image source.</param>
+    /// <param name="alt">The alternative text.</param>
+    public static HtmlBuilder Image(string src, string? alt = null) => Element("img").Attr("src", src).Attr("alt", alt);
+
+    /// <summary>Starts a figure containing an image and a caption.</summary>
+    /// <param name="src">The image source.</param>
+    /// <param name="alt">The alternative text.</param>
+    /// <param name="caption">The caption text.</param>
+    public static HtmlBuilder Figure(string src, string? alt, string caption) =>
+        Element("figure").Class("rte-figure").Child(Image(src, alt)).Child(Element("figcaption").Text(caption));
+
+    /// <summary>Sets an attribute; a null value leaves it out.</summary>
+    /// <param name="name">The attribute name.</param>
+    /// <param name="value">The attribute value, encoded on output.</param>
+    public HtmlBuilder Attr(string name, string? value)
     {
-        _attributes[name] = value;
+        EnsureValidName(name);
+        if (value is null)
+        {
+            return this;
+        }
+
+        var key = name.ToLowerInvariant();
+        _attributes.RemoveAll(attribute => attribute.Key == key);
+        _attributes.Add(new(key, value));
         return this;
     }
 
-    /// <summary>
-    /// Adds a CSS class to the element
-    /// </summary>
+    /// <summary>Sets several attributes.</summary>
+    /// <param name="attributes">The attributes to set.</param>
+    public HtmlBuilder Attrs(IReadOnlyDictionary<string, string> attributes)
+    {
+        ArgumentNullException.ThrowIfNull(attributes);
+        foreach (var (name, value) in attributes)
+        {
+            Attr(name, value);
+        }
+
+        return this;
+    }
+
+    /// <summary>Sets the <c>class</c> attribute.</summary>
+    /// <param name="className">One or more class names.</param>
     public HtmlBuilder Class(string className) => Attr("class", className);
 
-    /// <summary>
-    /// Adds an ID to the element
-    /// </summary>
-    public HtmlBuilder Id(string id) => Attr("id", id);
-
-    /// <summary>
-    /// Adds a style attribute to the element
-    /// </summary>
-    public HtmlBuilder Style(string style) => Attr("style", style);
-
-    /// <summary>
-    /// Adds multiple attributes from a dictionary
-    /// </summary>
-    public HtmlBuilder Attrs(Dictionary<string, string> attributes)
-    {
-        foreach (var (key, value) in attributes)
-            _attributes[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Sets the text content (will be HTML encoded)
-    /// </summary>
+    /// <summary>Appends encoded text.</summary>
+    /// <param name="text">The text.</param>
     public HtmlBuilder Text(string text)
     {
-        _content = System.Net.WebUtility.HtmlEncode(text);
+        ArgumentNullException.ThrowIfNull(text);
+        _children.Add(new(null, WebUtility.HtmlEncode(text)));
         return this;
     }
 
-    /// <summary>
-    /// Sets raw HTML content (will NOT be encoded)
-    /// </summary>
-    public HtmlBuilder Html(string html)
-    {
-        _content = html;
-        return this;
-    }
-
-    /// <summary>
-    /// Adds a child element
-    /// </summary>
+    /// <summary>Appends a child element.</summary>
+    /// <param name="child">The child element.</param>
     public HtmlBuilder Child(HtmlBuilder child)
     {
+        ArgumentNullException.ThrowIfNull(child);
         _children.Add(child);
         return this;
     }
 
-    /// <summary>
-    /// Builds the HTML string
-    /// </summary>
-    public string Build()
-    {
-        var sb = new StringBuilder();
-        sb.Append('<').Append(_tagName);
+    /// <summary>Returns the HTML.</summary>
+    public string Build() => AppendTo(new StringBuilder()).ToString();
 
-        foreach (var (key, value) in _attributes)
-        {
-            sb.Append(' ').Append(key).Append("=\"").Append(value).Append('"');
-        }
-
-        // Self-closing tags
-        if (IsSelfClosing(_tagName) && _content == null && _children.Count == 0)
-        {
-            sb.Append(" />");
-            return sb.ToString();
-        }
-
-        sb.Append('>');
-
-        // Add content
-        if (_content != null)
-            sb.Append(_content);
-
-        // Add children
-        foreach (var child in _children)
-            sb.Append(child.Build());
-
-        sb.Append("</").Append(_tagName).Append('>');
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Implicitly converts to string
-    /// </summary>
-    public static implicit operator string(HtmlBuilder builder) => builder.Build();
-
-    /// <summary>
-    /// Returns the built HTML string
-    /// </summary>
+    /// <summary>Returns the HTML.</summary>
     public override string ToString() => Build();
 
-    private static bool IsSelfClosing(string tagName) =>
-        tagName is "img" or "br" or "hr" or "input" or "meta" or "link";
-}
+    private StringBuilder AppendTo(StringBuilder html)
+    {
+        if (_tagName is null)
+        {
+            return html.Append(_encodedText);
+        }
 
+        html.Append('<').Append(_tagName);
+        foreach (var (name, value) in _attributes)
+        {
+            html.Append(' ').Append(name).Append("=\"").Append(WebUtility.HtmlEncode(value)).Append('"');
+        }
+
+        html.Append('>');
+        if (IsVoid(_tagName))
+        {
+            return html;
+        }
+
+        foreach (var child in _children)
+        {
+            child.AppendTo(html);
+        }
+
+        return html.Append("</").Append(_tagName).Append('>');
+    }
+
+    private static bool IsVoid(string tagName) =>
+        tagName is "area" or "br" or "col" or "embed" or "hr" or "img" or "input" or "source" or "wbr";
+
+    private static void EnsureValidName(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (!char.IsAsciiLetter(name[0]) || !name.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or ':'))
+        {
+            throw new ArgumentException($"'{name}' is not a valid HTML name.", nameof(name));
+        }
+    }
+}

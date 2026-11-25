@@ -1,0 +1,10 @@
+<h1>@Heading</h1>
+<p>@ChildContent</p>
+
+<p class="runtime" data-renderer="@RendererInfo.Name">
+    Rendering on <strong>@RendererInfo.Name</strong>@(RendererInfo.IsInteractive ? null : " (not interactive yet)")
+</p>
+
+<ZauberRichTextEditor @bind-Value="_html" Toolbar="ToolbarLayout.Full" AriaLabel="@($"{Heading} editor")" />
+
+<HtmlSource Html="@_html" />

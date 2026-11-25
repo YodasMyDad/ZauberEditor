@@ -1,0 +1,11 @@
+<div class="rte-toast-region" role="status" aria-live="polite">
+    @foreach (var toast in _toasts)
+    {
+        <div @key="toast.Id" class="rte-toast @TypeClass(toast.Type)">
+            <span class="rte-toast-message">@toast.Message</span>
+            <button type="button" class="rte-toast-close" aria-label="Dismiss" @onclick="() => Dismiss(toast.Id)">
+                @ToolbarPresenter.Svg(Icons.Dismiss)
+            </button>
+        </div>
+    }
+</div>

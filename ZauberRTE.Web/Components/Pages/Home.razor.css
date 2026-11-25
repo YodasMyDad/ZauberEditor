@@ -1,0 +1,35 @@
+.inspector {
+    margin-block-start: 0.5rem;
+}
+
+.panel-heading {
+    margin-block: 1rem 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.state-summary {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.25rem 1rem;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.state-summary div {
+    display: contents;
+}
+
+.state-summary dd {
+    margin: 0;
+    font-family: var(--bs-font-monospace);
+}
+
+.change-log {
+    min-block-size: 10rem;
+    margin: 0;
+    padding-inline-start: 1.25rem;
+    font-size: 0.85rem;
+    list-style: none;
+}

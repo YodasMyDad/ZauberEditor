@@ -1,0 +1,26 @@
+@page "/custom-items"
+@rendermode InteractiveServer
+
+<PageTitle>Custom items & panel</PageTitle>
+
+<h1>Custom items &amp; panel</h1>
+<p class="lead-text">
+    These items are registered in <code>Program.cs</code> with <code>options.AddToolbarItem&lt;T&gt;()</code> and placed
+    with a custom <code>ToolbarLayout</code>. The page's <code>HtmlPolicy</code> also allows <code>mark</code> and
+    <code>aside</code>, which the items emit.
+</p>
+
+<ul class="item-list">
+    <li><strong>Highlight</strong> (Ctrl+Shift+H): a toggle that wraps the selection in <code>&lt;mark&gt;</code> and shows as pressed inside it.</li>
+    <li><strong>Text colour</strong>: a dropdown whose children wrap the selection in <code>&lt;span class="ink-…"&gt;</code>.</li>
+    <li><strong>Insert callout</strong>: opens a custom panel and inserts an <code>&lt;aside class="callout"&gt;</code>.</li>
+    <li><strong>Insert current time</strong>: uses a <code>TimeProvider</code> injected through its constructor.</li>
+</ul>
+
+<ZauberRichTextEditor @bind-Value="_html"
+                      Settings="DemoToolbar.Settings"
+                      OnCommandExecuted="ShowCommand" />
+
+<p class="last-command" role="status">Last command: <code>@(_lastCommand ?? "none")</code></p>
+
+<HtmlSource Html="@_html" />

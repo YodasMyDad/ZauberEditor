@@ -1,211 +1,58 @@
+using System.Collections.Frozen;
+
 namespace ZauberCMS.RTE.Models;
 
-/// <summary>
-/// Represents the current state of the editor
-/// </summary>
-public class EditorState
+/// <summary>An immutable snapshot of the editor's selection and mode.</summary>
+public sealed record EditorState
 {
-    /// <summary>
-    /// Whether the editor has focus
-    /// </summary>
-    public bool HasFocus { get; set; }
+    /// <summary>The state before the editor has reported anything.</summary>
+    public static EditorState Empty { get; } = new();
 
-    /// <summary>
-    /// Whether there is an active text selection
-    /// </summary>
-    public bool HasSelection { get; set; }
+    /// <summary>Primary tags of the marks around the selection (case-insensitive).</summary>
+    public IReadOnlySet<string> ActiveMarks { get; init; } = FrozenSet<string>.Empty;
 
-    /// <summary>
-    /// The currently active inline marks (formatting)
-    /// </summary>
-    public HashSet<string> ActiveMarks { get; set; } = new();
+    /// <summary>Lower-case tag of the current block, such as <c>p</c>, <c>h2</c> or <c>ul</c>.</summary>
+    public string BlockType { get; init; } = "p";
 
-    /// <summary>
-    /// The block type at the current caret position
-    /// </summary>
-    public string? CurrentBlockType { get; set; }
+    /// <summary>Heading level of the current block, or 0 when it is not a heading.</summary>
+    public int HeadingLevel => BlockType is ['h', var digit and >= '1' and <= '6'] ? digit - '0' : 0;
 
-    /// <summary>
-    /// The heading level if current block is a heading
-    /// </summary>
-    public int? CurrentHeadingLevel { get; set; }
+    /// <summary>Text alignment of the current block.</summary>
+    public TextAlignment Alignment { get; init; }
 
-    /// <summary>
-    /// Whether the current selection can be formatted
-    /// </summary>
-    public bool CanFormat { get; set; } = true;
+    /// <summary>Whether text is selected.</summary>
+    public bool HasSelection { get; init; }
 
-    /// <summary>
-    /// Whether undo is available
-    /// </summary>
-    public bool CanUndo { get; set; }
+    /// <summary>Whether the editor has focus.</summary>
+    public bool HasFocus { get; init; }
 
-    /// <summary>
-    /// Whether redo is available
-    /// </summary>
-    public bool CanRedo { get; set; }
+    /// <summary>Whether there is a change to undo.</summary>
+    public bool CanUndo { get; init; }
 
-    /// <summary>
-    /// Current text alignment at caret
-    /// </summary>
-    public TextAlignment CurrentAlignment { get; set; } = TextAlignment.Left;
+    /// <summary>Whether there is a change to redo.</summary>
+    public bool CanRedo { get; init; }
 
-    /// <summary>
-    /// Whether the editor content has been modified since last save
-    /// </summary>
-    public bool IsDirty { get; set; }
+    /// <summary>Whether the cursor is inside a link.</summary>
+    public bool InLink { get; init; }
 
-    /// <summary>
-    /// Current word count
-    /// </summary>
-    public int WordCount { get; set; }
+    /// <summary>Whether an image is selected.</summary>
+    public bool InImage { get; init; }
 
-    /// <summary>
-    /// Current character count
-    /// </summary>
-    public int CharacterCount { get; set; }
+    /// <summary>Whether the cursor is inside a table.</summary>
+    public bool InTable { get; init; }
 
-    /// <summary>
-    /// Whether the editor is in source view mode
-    /// </summary>
-    public bool IsSourceView { get; set; }
+    /// <summary>Whether the HTML source view is showing.</summary>
+    public bool IsSourceView { get; init; }
 
-    /// <summary>
-    /// Creates a copy of the current state
-    /// </summary>
-    public EditorState Clone() => new()
-    {
-        HasFocus = HasFocus,
-        HasSelection = HasSelection,
-        ActiveMarks = new HashSet<string>(ActiveMarks),
-        CurrentBlockType = CurrentBlockType,
-        CurrentHeadingLevel = CurrentHeadingLevel,
-        CanFormat = CanFormat,
-        CanUndo = CanUndo,
-        CanRedo = CanRedo,
-        CurrentAlignment = CurrentAlignment,
-        IsDirty = IsDirty,
-        WordCount = WordCount,
-        CharacterCount = CharacterCount,
-        IsSourceView = IsSourceView
-    };
-}
+    /// <summary>Whether the editor is read-only.</summary>
+    public bool IsReadOnly { get; init; }
 
-/// <summary>
-/// Text alignment options
-/// </summary>
-public enum TextAlignment
-{
-    /// <summary>
-    /// Left alignment
-    /// </summary>
-    Left,
+    /// <summary>The theme setting.</summary>
+    public Theme Theme { get; init; }
 
-    /// <summary>
-    /// Center alignment
-    /// </summary>
-    Center,
+    /// <summary>Whether the user's system prefers a dark colour scheme.</summary>
+    public bool PrefersDarkScheme { get; init; }
 
-    /// <summary>
-    /// Right alignment
-    /// </summary>
-    Right,
-
-    /// <summary>
-    /// Justified alignment
-    /// </summary>
-    Justified
-}
-
-/// <summary>
-/// Selection information
-/// </summary>
-public class SelectionInfo
-{
-    /// <summary>
-    /// Start offset within the document
-    /// </summary>
-    public int StartOffset { get; set; }
-
-    /// <summary>
-    /// End offset within the document
-    /// </summary>
-    public int EndOffset { get; set; }
-
-    /// <summary>
-    /// Whether the selection is collapsed (caret)
-    /// </summary>
-    public bool IsCollapsed { get; set; }
-
-    /// <summary>
-    /// Selected text content
-    /// </summary>
-    public string? SelectedText { get; set; }
-
-    /// <summary>
-    /// HTML content of the selection
-    /// </summary>
-    public string? SelectedHtml { get; set; }
-}
-
-/// <summary>
-/// Information about a link element
-/// </summary>
-public class LinkInfo
-{
-    /// <summary>
-    /// The href attribute of the link
-    /// </summary>
-    public string Href { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The target attribute of the link
-    /// </summary>
-    public string? Target { get; set; }
-
-    /// <summary>
-    /// The rel attribute of the link
-    /// </summary>
-    public string? Rel { get; set; }
-
-    /// <summary>
-    /// The title attribute of the link
-    /// </summary>
-    public string? Title { get; set; }
-
-    /// <summary>
-    /// The text content of the link
-    /// </summary>
-    public string Text { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Information about an image element
-/// </summary>
-public class ImageInfo
-{
-    /// <summary>
-    /// The src attribute of the image (URL or base64 data)
-    /// </summary>
-    public string Src { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The alt attribute of the image
-    /// </summary>
-    public string? Alt { get; set; }
-
-    /// <summary>
-    /// The width attribute or style width
-    /// </summary>
-    public string? Width { get; set; }
-
-    /// <summary>
-    /// The height attribute or style height
-    /// </summary>
-    public string? Height { get; set; }
-
-    /// <summary>
-    /// Whether the image source is a data URL (base64)
-    /// </summary>
-    public bool IsDataUrl { get; set; }
+    /// <summary>Whether the editor currently renders dark, resolving <see cref="Theme.Auto"/>.</summary>
+    public bool IsDark => Theme is Theme.Dark || (Theme is Theme.Auto && PrefersDarkScheme);
 }

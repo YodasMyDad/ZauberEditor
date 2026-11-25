@@ -1,0 +1,9 @@
+.item-list {
+    max-inline-size: 60rem;
+}
+
+.last-command {
+    margin-block: 0.5rem 0;
+    font-size: 0.85rem;
+    color: #495057;
+}

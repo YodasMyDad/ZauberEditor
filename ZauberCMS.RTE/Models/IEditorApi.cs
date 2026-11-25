@@ -1,224 +1,103 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace ZauberCMS.RTE.Models;
 
-/// <summary>
-/// API interface for toolbar items to interact with the editor
-/// </summary>
+/// <summary>Programmatic control of one editor instance.</summary>
 public interface IEditorApi
 {
-    /// <summary>
-    /// Gets the current editor state
-    /// </summary>
-    EditorState GetState();
+    /// <summary>The latest editor state.</summary>
+    EditorState State { get; }
 
-    /// <summary>
-    /// Gets the editor settings
-    /// </summary>
-    EditorSettings GetSettings();
+    /// <summary>The editor's settings.</summary>
+    EditorSettings Settings { get; }
 
-    /// <summary>
-    /// Gets the current block type at the cursor position
-    /// </summary>
-    Task<string> GetCurrentBlockTypeAsync();
+    /// <summary>Toggles an inline mark such as <c>strong</c> on the selection.</summary>
+    Task ToggleMarkAsync(string tag, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Gets the current heading level at the cursor position (0 if not a heading)
-    /// </summary>
-    Task<int> GetCurrentHeadingLevelAsync();
+    /// <summary>Wraps the selection in an element.</summary>
+    Task WrapSelectionAsync(string tag, IReadOnlyDictionary<string, string>? attributes = null, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Inserts HTML content at the current caret position
-    /// </summary>
-    Task InsertHtmlAsync(string html);
+    /// <summary>Removes the given element from around the selection.</summary>
+    Task UnwrapSelectionAsync(string tag, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Inserts plain text at the current caret position
-    /// </summary>
-    Task InsertTextAsync(string text);
+    /// <summary>Changes the current block to another type such as <c>h2</c> or <c>p</c>.</summary>
+    Task SetBlockTypeAsync(string blockType, IReadOnlyDictionary<string, string>? attributes = null, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Wraps the current selection with the specified HTML tags
-    /// </summary>
-    Task WrapSelectionAsync(string tagName, Dictionary<string, string>? attributes = null);
+    /// <summary>Sets inline styles on the current block.</summary>
+    Task SetBlockStyleAsync(IReadOnlyDictionary<string, string> styles, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Unwraps the current selection from the specified HTML tags
-    /// </summary>
-    Task UnwrapSelectionAsync(string tagName);
+    /// <summary>Removes inline formatting from the selection.</summary>
+    Task ClearFormattingAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Replaces the current selection with new HTML content
-    /// </summary>
-    Task ReplaceSelectionAsync(string html);
+    /// <summary>Inserts HTML at the selection after sanitising it with the editor's policy.</summary>
+    Task InsertHtmlAsync(string html, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Applies an inline mark to the current selection
-    /// </summary>
-    Task ToggleMarkAsync(string markName);
+    /// <summary>Inserts plain text at the selection.</summary>
+    Task InsertTextAsync(string text, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Changes the block type at the current position
-    /// </summary>
-    Task SetBlockTypeAsync(string blockType, Dictionary<string, string>? attributes = null);
+    /// <summary>Gets the editor's current HTML.</summary>
+    /// <exception cref="EditorContentTooLargeException">The content is larger than <see cref="EditorSettings.MaxContentBytes"/>.</exception>
+    Task<string> GetHtmlAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Applies CSS styles to the current block element
-    /// </summary>
-    Task SetBlockStyleAsync(Dictionary<string, string> styles);
+    /// <summary>Gets the editor's current text content.</summary>
+    /// <exception cref="EditorContentTooLargeException">The text is larger than <see cref="EditorSettings.MaxContentBytes"/>.</exception>
+    Task<string> GetTextAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Opens a slide-out panel with the specified component
-    /// </summary>
-    Task OpenPanelAsync(Type componentType, object? parameters = null);
+    /// <summary>Replaces the content with sanitised HTML as an undoable change.</summary>
+    /// <exception cref="InvalidOperationException">The editor is read-only; set its <c>Value</c> instead.</exception>
+    Task SetHtmlAsync(string html, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Closes the currently open slide-out panel
-    /// </summary>
-    Task ClosePanelAsync();
+    /// <summary>Gets the current selection, or null when there is none in the editor.</summary>
+    Task<SelectionInfo?> GetSelectionAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Shows a toast notification
-    /// </summary>
-    Task ShowToastAsync(string message, ToastType type = ToastType.Info);
+    /// <summary>Remembers the current selection.</summary>
+    Task SaveSelectionAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Gets the current selection information
-    /// </summary>
-    SelectionInfo? GetSelection();
+    /// <summary>Restores the selection saved by <see cref="SaveSelectionAsync"/>.</summary>
+    Task RestoreSelectionAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Gets the current selection information asynchronously
-    /// </summary>
-    Task<SelectionInfo?> GetSelectionAsync();
+    /// <summary>Forgets the saved selection.</summary>
+    Task ClearSavedSelectionAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Focuses the editor
-    /// </summary>
-    Task FocusAsync();
+    /// <summary>Gets the link at the cursor, or null.</summary>
+    Task<LinkInfo?> GetLinkAtCursorAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Blurs the editor
-    /// </summary>
-    Task BlurAsync();
+    /// <summary>Selects the whole link at the cursor.</summary>
+    Task SelectLinkAtCursorAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Executes an undo operation
-    /// </summary>
-    Task UndoAsync();
+    /// <summary>Gets the selected image, or null.</summary>
+    Task<ImageInfo?> GetImageAtCursorAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Executes a redo operation
-    /// </summary>
-    Task RedoAsync();
+    /// <summary>Selects the image at the cursor.</summary>
+    Task SelectImageAtCursorAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Clears all formatting from the current selection
-    /// </summary>
-    Task ClearFormattingAsync();
+    /// <summary>Undoes the last change.</summary>
+    Task UndoAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Cleans HTML completely, removing all formatting and converting to plain paragraph tags
-    /// </summary>
-    Task CleanHtmlAsync();
+    /// <summary>Redoes the last undone change.</summary>
+    Task RedoAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Gets the current HTML content
-    /// </summary>
-    string? GetHtml();
+    /// <summary>Moves focus into the editor.</summary>
+    Task FocusAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Gets the current plain text content
-    /// </summary>
-    string? GetText();
+    /// <summary>Switches between the rich view and the HTML source view.</summary>
+    Task ToggleSourceViewAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Sets the HTML content (replaces all content)
-    /// </summary>
-    Task SetHtmlAsync(string html);
+    /// <summary>Changes the theme and raises <c>ThemeChanged</c>.</summary>
+    Task SetThemeAsync(Theme theme, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Sets the plain text content (replaces all content)
-    /// </summary>
-    Task SetTextAsync(string text);
+    /// <summary>Opens a panel in the slide-out.</summary>
+    /// <typeparam name="TPanel">The panel component.</typeparam>
+    /// <param name="parameters">Parameters passed to the panel.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    Task OpenPanelAsync<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TPanel>(
+        IReadOnlyDictionary<string, object?>? parameters = null,
+        CancellationToken cancellationToken = default)
+        where TPanel : PanelBase;
 
-    /// <summary>
-    /// Toggles between rich text and source view modes
-    /// </summary>
-    Task ToggleSourceViewAsync();
+    /// <summary>Closes the open panel and returns focus to the editor.</summary>
+    Task ClosePanelAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Saves the current selection range for later restoration (useful when opening panels)
-    /// </summary>
-    Task SaveSelectionRangeAsync();
-
-    /// <summary>
-    /// Restores a previously saved selection range
-    /// </summary>
-    Task<bool> RestoreSelectionRangeAsync();
-
-    /// <summary>
-    /// Clears the saved selection range
-    /// </summary>
-    Task ClearSavedSelectionRangeAsync();
-
-    /// <summary>
-    /// Gets information about a link at the current cursor position (if any)
-    /// </summary>
-    Task<LinkInfo?> GetLinkAtCursorAsync();
-
-    /// <summary>
-    /// Selects the entire link element if the cursor is inside a link
-    /// </summary>
-    Task<bool> SelectLinkAtCursorAsync();
-
-    /// <summary>
-    /// Gets information about an image at the current cursor position (if any)
-    /// </summary>
-    Task<ImageInfo?> GetImageAtCursorAsync();
-
-    /// <summary>
-    /// Selects the image element at the cursor position
-    /// </summary>
-    Task<bool> SelectImageAtCursorAsync();
-}
-
-/// <summary>
-/// Toast notification types
-/// </summary>
-public enum ToastType
-{
-    /// <summary>
-    /// Informational message
-    /// </summary>
-    Info,
-
-    /// <summary>
-    /// Success message
-    /// </summary>
-    Success,
-
-    /// <summary>
-    /// Warning message
-    /// </summary>
-    Warning,
-
-    /// <summary>
-    /// Error message
-    /// </summary>
-    Error
-}
-
-/// <summary>
-/// Parameters for panel components
-/// </summary>
-public class PanelParameters
-{
-    /// <summary>
-    /// The editor API instance
-    /// </summary>
-    public IEditorApi Api { get; set; } = null!;
-
-    /// <summary>
-    /// Additional custom parameters
-    /// </summary>
-    public Dictionary<string, object> Parameters { get; set; } = new();
+    /// <summary>Shows a short message in the editor.</summary>
+    Task ShowToastAsync(string message, ToastType type = ToastType.Info, CancellationToken cancellationToken = default);
 }

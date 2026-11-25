@@ -1,0 +1,23 @@
+@page "/multiple-editors"
+@rendermode InteractiveServer
+
+<PageTitle>Multiple editors</PageTitle>
+
+<h1>Multiple editors</h1>
+<p class="lead-text">
+    Three editors on one page with different toolbar layouts and their own bound values. Each editor has its own
+    script instance, history, selection and toolbar items, so typing, undo or a panel in one never affects another.
+</p>
+
+<div class="demo-grid">
+    @foreach (var sample in _samples)
+    {
+        <section @key="sample.Title">
+            <h2 class="h5">@sample.Title</h2>
+            <ZauberRichTextEditor @bind-Value="sample.Html"
+                                  Settings="sample.Settings"
+                                  AriaLabel="@($"{sample.Title} editor")" />
+            <HtmlSource Html="@sample.Html" />
+        </section>
+    }
+</div>

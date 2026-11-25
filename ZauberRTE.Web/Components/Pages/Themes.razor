@@ -1,0 +1,48 @@
+@page "/themes"
+@rendermode InteractiveServer
+
+<PageTitle>Themes</PageTitle>
+
+<h1>Themes</h1>
+<p class="lead-text">
+    The <code>Theme</code> parameter: <code>Light</code>, <code>Dark</code>, and <code>Auto</code>, which follows the
+    operating system's colour scheme.
+</p>
+
+<div class="demo-grid">
+    @foreach (var theme in FixedThemes)
+    {
+        <section @key="theme">
+            <h2 class="h5">Theme.@theme</h2>
+            <ZauberRichTextEditor Value="@SampleHtml"
+                                  Theme="theme"
+                                  Toolbar="ToolbarLayout.Simple"
+                                  AriaLabel="@($"{theme} theme editor")" />
+        </section>
+    }
+</div>
+
+<section class="demo-section">
+    <h2>Two-way theme binding</h2>
+    <p class="lead-text">
+        This editor uses <code>@@bind-Theme</code>. The toolbar's theme toggle updates the page, and the buttons below
+        update the editor.
+    </p>
+
+    <div class="btn-group mb-3" role="group" aria-label="Theme">
+        @foreach (var theme in AllThemes)
+        {
+            <button @key="theme"
+                    type="button"
+                    class="btn btn-outline-secondary @(_theme == theme ? "active" : null)"
+                    aria-pressed="@(_theme == theme ? "true" : "false")"
+                    @onclick="() => _theme = theme">
+                @theme
+            </button>
+        }
+    </div>
+
+    <ZauberRichTextEditor Value="@SampleHtml" @bind-Theme="_theme" Toolbar="ToggleLayout" AriaLabel="Bound theme editor" />
+
+    <p class="mt-2" role="status">Bound theme: <code>@_theme</code></p>
+</section>

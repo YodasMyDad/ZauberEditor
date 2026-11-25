@@ -1,13 +1,13 @@
 {
   "name": "zauber-rte",
-  "version": "1.0.0",
-  "description": "Zauber Rich Text Editor JavaScript dependencies",
+  "version": "3.0.0",
+  "description": "Zauber Rich Text Editor vendored JavaScript dependencies",
   "private": true,
   "dependencies": {
-    "dompurify": "^3.1.7"
+    "dompurify": "^3.5.0"
   },
   "scripts": {
     "build": "npm install && npm run copy-libs",
-    "copy-libs": "mkdir -p wwwroot/js/lib && cp node_modules/dompurify/dist/purify.min.js wwwroot/js/lib/"
+    "copy-libs": "node -e \"const fs=require('fs');fs.mkdirSync('wwwroot/js/lib',{recursive:true});fs.copyFileSync('node_modules/dompurify/dist/purify.es.mjs','wwwroot/js/lib/purify.es.mjs');fs.copyFileSync('node_modules/dompurify/dist/purify.es.mjs.map','wwwroot/js/lib/purify.es.mjs.map');fs.copyFileSync('node_modules/dompurify/LICENSE','wwwroot/js/lib/purify.LICENSE')\""
   }
 }

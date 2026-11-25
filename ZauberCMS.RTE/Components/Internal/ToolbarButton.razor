@@ -1,0 +1,11 @@
+<button type="button"
+        class="@CssClass"
+        aria-label="@Item.Label"
+        aria-pressed="@ToolbarPresenter.Pressed(Item, IsActive)"
+        title="@ToolbarPresenter.Title(Item)"
+        tabindex="@TabIndex"
+        disabled="@(!IsEnabled)"
+        @onmousedown:preventDefault="true"
+        @onclick="ExecuteAsync">
+    @ToolbarPresenter.Icon(Item)
+</button>

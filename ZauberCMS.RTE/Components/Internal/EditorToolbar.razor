@@ -1,0 +1,40 @@
+<div @ref="Element"
+     class="rte-toolbar"
+     role="toolbar"
+     aria-label="@AriaLabel"
+     aria-controls="@ContentId">
+    @foreach (var segment in Arrangement.Segments)
+    {
+        if (segment.IsSeparator)
+        {
+            <div @key="segment.Key" class="@segment.CssClass" role="separator" aria-orientation="vertical"></div>
+        }
+        else
+        {
+            <div @key="segment.Key" class="@segment.CssClass" role="group">
+                @foreach (var slot in segment.Slots)
+                {
+                    if (slot.Item.Kind is ToolbarItemKind.Dropdown)
+                    {
+                        <ToolbarDropdown @key="slot.Index"
+                                         Item="slot.Item"
+                                         Children="slot.Children"
+                                         State="State"
+                                         IsEnabled="_enabled[slot.Index]"
+                                         TabIndex="TabIndexFor(slot.Index)"
+                                         OnExecute="OnExecute" />
+                    }
+                    else
+                    {
+                        <ToolbarButton @key="slot.Index"
+                                       Item="slot.Item"
+                                       IsActive="slot.Item.IsActive(State)"
+                                       IsEnabled="_enabled[slot.Index]"
+                                       TabIndex="TabIndexFor(slot.Index)"
+                                       OnExecute="OnExecute" />
+                    }
+                }
+            </div>
+        }
+    }
+</div>

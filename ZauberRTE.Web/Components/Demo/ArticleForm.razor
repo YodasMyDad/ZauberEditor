@@ -1,0 +1,16 @@
+<EditForm Model="_article" OnValidSubmit="Save">
+    <DataAnnotationsValidator />
+
+    <ZauberRichTextEditor @bind-Value="_article.Body"
+                          Toolbar="ToolbarLayout.Simple"
+                          AriaLabel="Article body"
+                          Placeholder="Write the article body…"
+                          Settings="CompactSettings" />
+    <ValidationMessage For="() => _article.Body" />
+
+    <button type="submit" class="btn btn-primary mt-2">Save</button>
+    @if (_saved is not null)
+    {
+        <p class="mt-2" role="status">@_saved</p>
+    }
+</EditForm>

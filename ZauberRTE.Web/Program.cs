@@ -1,38 +1,45 @@
 using ZauberCMS.RTE.Services;
 using ZauberRTE.Web.Components;
+using ZauberRTE.Web.Toolbar;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents();
 
-// Configure SignalR to support larger messages (for base64 images)
-builder.Services.AddSignalR(options =>
+builder.Services.AddZauberRte(options =>
 {
-    options.MaximumReceiveMessageSize = 1 * 1024 * 1024; // 1 MB (allows images up to ~750KB)
+    options.AddToolbarItem<HighlightItem>();
+    options.AddToolbarItem<InsertTimeItem>();
+    options.AddToolbarItem<CalloutItem>();
+    options.AddToolbarItem<TextColorDropdownItem>();
+    options.AddToolbarItem<RemoveTextColorItem>();
+    foreach (var color in TextColorItem.Palette)
+    {
+        options.AddToolbarItem(color);
+    }
 });
-
-// Add Zauber RTE services
-builder.Services.AddZauberRte();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
+{
+    app.UseWebAssemblyDebugging();
+}
+else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-
-
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode()
+    .AddInteractiveWebAssemblyRenderMode()
+    .AddAdditionalAssemblies(typeof(ZauberRTE.Web.Client._Imports).Assembly);
 
 app.Run();

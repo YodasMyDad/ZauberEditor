@@ -2,41 +2,31 @@ using Microsoft.AspNetCore.Components;
 
 namespace ZauberCMS.RTE.Models;
 
-/// <summary>
-/// Base class for custom panel components that provides common functionality
-/// </summary>
-public abstract class PanelBase : ComponentBase, IDisposable
+/// <summary>Base class for components shown in the editor's slide-out panel.</summary>
+public abstract class PanelBase : ComponentBase
 {
-    /// <summary>
-    /// The editor API instance for interacting with the editor
-    /// </summary>
+    private readonly string _idPrefix = $"rte-panel-{Guid.NewGuid():N}";
+
+    /// <summary>The editor that opened the panel.</summary>
     [CascadingParameter]
-    public IEditorApi? Api { get; set; }
+    public IEditorApi Api { get; set; } = default!;
 
-    /// <summary>
-    /// Closes the panel
-    /// </summary>
-    protected async Task CloseAsync()
+    /// <summary>The panel heading, also its accessible name. Changes are shown whenever the panel re-renders.</summary>
+    public abstract string Title { get; }
+
+    internal Action? Rendering { get; set; }
+
+    /// <summary>Returns an element id that is unique to this panel instance.</summary>
+    /// <param name="name">A name for the element within the panel.</param>
+    protected string ElementId(string name) => $"{_idPrefix}-{name}";
+
+    /// <summary>Closes the panel and returns focus to the editor.</summary>
+    protected Task CloseAsync() => Api.ClosePanelAsync();
+
+    /// <summary>Keeps the panel heading in step with <see cref="Title"/>. Call the base method when overriding.</summary>
+    protected override bool ShouldRender()
     {
-        if (Api != null)
-        {
-            await Api.ClearSavedSelectionRangeAsync();
-            await Api.ClosePanelAsync();
-        }
-    }
-
-    /// <summary>
-    /// Override this method to perform cleanup when the panel is disposed
-    /// </summary>
-    protected virtual void OnDispose() { }
-
-    /// <summary>
-    /// Disposes the panel component
-    /// </summary>
-    public void Dispose()
-    {
-        OnDispose();
-        GC.SuppressFinalize(this);
+        Rendering?.Invoke();
+        return true;
     }
 }
-

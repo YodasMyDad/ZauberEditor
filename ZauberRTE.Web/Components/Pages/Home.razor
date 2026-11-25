@@ -1,71 +1,53 @@
 ﻿@page "/"
-@using ZauberCMS.RTE.Models
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Full toolbar</PageTitle>
 
-<style>
-    .rte-demo {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-    }
+<h1>Full toolbar</h1>
+<p class="lead-text">
+    Every built-in item (<code>ToolbarLayout.Full</code>) with <code>@@bind-Value</code>. The bound value is shown as
+    escaped text and rendered in a sandboxed iframe; the editor's events are logged on the right.
+</p>
 
-    .content-preview {
-        border: 1px solid #ddd;
-        padding: 15px;
-        margin: 10px 0;
-        border-radius: 4px;
-        background-color: #f9f9f9;
-    }
+<ZauberRichTextEditor @bind-Value="_html"
+                      Toolbar="ToolbarLayout.Full"
+                      Settings="UploadSettings"
+                      Placeholder="Start writing…"
+                      OnChange="LogChange"
+                      OnStateChanged="ShowState" />
 
-    .html-output {
-        background-color: #f5f5f5;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 15px;
-        overflow-x: auto;
-        white-space: pre-wrap;
-        font-family: 'Courier New', monospace;
-        font-size: 12px;
-        max-height: 200px;
-        overflow-y: auto;
-    }
-
-    h2, h3 {
-        color: #333;
-        margin-top: 30px;
-    }
-
-    h2:first-child {
-        margin-top: 0;
-    }
-</style>
-
-<div class="rte-demo">
-    <h2>Zauber Rich Text Editor Demo</h2>
-    <ZauberRichTextEditor @bind-Value="_editorContent"
-                         OnChange="HandleEditorChange"
-                         Theme="Theme.Light"
-                         Settings="@_editorSettings" />
-
-    <h3>Current Content:</h3>
-    <div class="content-preview">
-        @((MarkupString)_editorContent)
+<div class="demo-grid inspector">
+    <div>
+        <HtmlSource Html="@_html" />
+        <HtmlPreview Html="@_html" />
     </div>
+    <div>
+        <h2 class="panel-heading">OnStateChanged</h2>
+        <dl class="state-summary">
+            @foreach (var (name, value) in StateRows)
+            {
+                <div @key="name">
+                    <dt>@name</dt>
+                    <dd>@value</dd>
+                </div>
+            }
+        </dl>
 
-    <h3>HTML Output:</h3>
-    <pre class="html-output">@_editorContent</pre>
+        <h2 class="panel-heading">OnChange</h2>
+        <ol class="change-log" aria-live="polite">
+            @foreach (var change in _changes)
+            {
+                <li @key="change.Number">#@change.Number <strong>@change.Source</strong> · @change.Size</li>
+            }
+        </ol>
+    </div>
 </div>
 
-@code {
-    private string _editorContent = "<p>Welcome to the <strong>Zauber Rich Text Editor</strong>!</p><p>This is a simple demo showing basic functionality.</p>";
-    private readonly EditorSettings _editorSettings = new()
-    {
-        ToolbarLayout = ToolbarLayout.Full
-    };
-
-    private void HandleEditorChange(EditorChangeArgs args)
-    {
-        // You can handle editor changes here
-    }
-}
+<section class="demo-section">
+    <h2>EditForm validation</h2>
+    <p class="lead-text">
+        <code>@@bind-Value</code> also passes <code>ValueExpression</code>, so the editor notifies the
+        <code>EditContext</code>. Clear the text and press Save to see the required-content message.
+    </p>
+    <ArticleForm />
+</section>

@@ -1,582 +1,856 @@
-# Blazor Rich Text Editor
+# ZauberCMS.RTE: rich-text editor for Blazor
 
 [![NuGet](https://img.shields.io/nuget/v/ZauberCMS.RTE.svg)](https://www.nuget.org/packages/ZauberCMS.RTE/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/YodasMyDad/ZauberEditor/blob/master/LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0-blue.svg)](https://dotnet.microsoft.com/)
 
-A modern, extensible rich-text editor component for Blazor applications. Built with performance, accessibility, and developer experience in mind. [Built to be part of ZauberCMS](https://github.com/YodasMyDad/ZauberCMS), but released as own package.
+An extensible WYSIWYG HTML editor component for Blazor. It is built for
+[ZauberCMS](https://github.com/YodasMyDad/ZauberCMS) and released as a standalone package.
+
+Upgrading from 2.x? Read [Migrating to 3.0](#migrating-to-30) first. 3.0 is a major release with breaking changes.
+
+## Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation and setup](#installation-and-setup)
+- [Basic usage](#basic-usage)
+- [Parameters and events](#parameters-and-events)
+- [Programmatic control with `IEditorApi`](#programmatic-control-with-ieditorapi)
+- [Settings](#settings)
+- [Toolbar layouts](#toolbar-layouts)
+- [Built-in toolbar items](#built-in-toolbar-items)
+- [Keyboard](#keyboard)
+- [Theming and styling](#theming-and-styling)
+- [Accessibility](#accessibility)
+- [Security](#security)
+- [Large documents](#large-documents)
+- [Extending the editor](#extending-the-editor)
+- [Migrating to 3.0](#migrating-to-30)
+- [License](#license)
 
 ## Features
 
-- 🚀 **Blazor Native**: Fully built for Blazor Server and WebAssembly
-- 🎨 **Highly Configurable**: Extensive customization options for toolbar, capabilities, and behavior
-- 🔒 **Secure by Default**: Built-in HTML sanitization with configurable policies
-- ⌨️ **Keyboard Shortcuts**: Full keyboard support with customizable shortcuts
-- 🖼️ **Media Support**: Image upload, drag-and-drop, and embed support
-- 📱 **Responsive**: Mobile-friendly with touch support
-- 🎯 **Accessible**: ARIA compliant with screen reader support
-- 🧩 **Extensible**: Plugin architecture for custom toolbar items and functionality
-- 🎨 **Themes**: Light, dark theme support
-- 📝 **Source View**: Toggle between rich text and HTML source editing
+- **Blazor-native component.** Use `@bind-Value` and `EditForm` validation. It works in Interactive Server,
+  WebAssembly and Auto render modes.
+- **Zero script setup.** You add one stylesheet. The JavaScript loads itself as ES modules, and every editor on a page
+  gets its own isolated instance.
+- **Sanitised by default.** Every way HTML gets into the editor is cleaned with DOMPurify according to your
+  `HtmlPolicy`, and URL schemes are allow-listed.
+- **Extensible toolbar.** Register your own buttons, toggles, dropdowns and slide-out panels, override or remove
+  built-in items by id, and arrange the toolbar in code or JSON.
+- **Formatting.** Bold, italic, underline, strikethrough, sub/superscript, inline code and code blocks, headings,
+  quotes, lists, alignment, links, images (URL or upload, with resize handles), tables, clear formatting, undo/redo
+  and an HTML source view.
+- **Office-friendly paste.** Word lists come through as real lists, empty table cells are kept, and pasted image files
+  are embedded when the image settings and policy allow it.
+- **Themes.** Light, dark and auto (follows the OS), driven by CSS custom properties that you can override without
+  `!important`.
+- **Accessible.** The toolbar uses roving tabindex, toggles expose `aria-pressed`, menus and panels use ARIA dialog and
+  menu patterns, and focus is never trapped.
+- **Large documents.** Content bigger than a SignalR message is streamed, so you don't need to raise any limits.
+- **Trimming and AOT.** The library is marked `IsTrimmable` and `IsAotCompatible`, with no reflection on the default
+  path.
 
-## Installation
+## Requirements
 
-### NuGet Package
+- **.NET 10** (`net10.0`).
+- An **interactive render mode** for the component: Interactive Server, Interactive WebAssembly or Interactive Auto.
+  Prerendering is supported: the frame renders on the server and editing starts on the first interactive render.
+- A **browser that supports CSS `light-dark()`**: Chrome/Edge 123+, Firefox 120+ or Safari 17.5+.
+
+## Installation and setup
 
 ```bash
 dotnet add package ZauberCMS.RTE
 ```
 
-### Manual Installation
+### 1. Register the services
 
-1. Clone or download the ZauberCMS.RTE project
-2. Reference the `ZauberCMS.RTE.csproj` in your Blazor project
-3. Ensure static web assets are served correctly
-
-## Quick Start
-
-### 1. Register Services
-
-In your `Program.cs`:
+In `Program.cs`:
 
 ```csharp
 using ZauberCMS.RTE.Services;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Add Zauber RTE services - scans entry assembly for custom toolbar items
 builder.Services.AddZauberRte();
-
-// Or scan additional assemblies for custom toolbar items
-builder.Services.AddZauberRte(typeof(Program).Assembly, typeof(MyPlugin.Class).Assembly);
-
-// IMPORTANT: If using base64 image uploads (AllowBase64ImageUpload = true),
-// increase SignalR message size limit to support large images
-builder.Services.AddSignalR(options =>
-{
-    options.MaximumReceiveMessageSize = 1 * 1024 * 1024; // 1 MB
-});
-
-var app = builder.Build();
 ```
 
-**Note about SignalR Configuration:**
+`AddZauberRte` is safe to call more than once, and each call's configuration callback is applied in order. Custom
+toolbar items are registered in that callback (see [Extending the editor](#extending-the-editor)).
 
-- Base64-encoded images can be large (a 50KB image becomes ~67KB when base64-encoded)
-- The default SignalR message size limit is 32KB
-- If you enable base64 image uploads, you must increase this limit
-- Set `AllowBase64ImageUpload = false` in `ImageConstraints` if you only want URL-based images
+For **WebAssembly or Auto** render modes, also call `AddZauberRte(...)` in the client project's `Program.cs`, with
+the same item registrations. Keep the server registration as well, because prerendering runs on the server.
 
-### 2. Add to Your Page
+### 2. Add the stylesheet
+
+In `App.razor` (or your host page), inside `<head>`:
+
+```html
+<link href="_content/ZauberCMS.RTE/css/zauber-editor.css" rel="stylesheet" />
+```
+
+That's the only asset you add. Don't add `<script>` tags: the component imports its JavaScript modules
+(`_content/ZauberCMS.RTE/js/zauber-rte.js` and its dependencies, including DOMPurify) when it first renders. All
+assets ship inside the package; nothing loads from a CDN.
+
+### 3. Import the namespaces
+
+In `_Imports.razor`:
 
 ```razor
 @using ZauberCMS.RTE.Components
 @using ZauberCMS.RTE.Models
+```
 
-<ZauberRichTextEditor @bind-Value="editorContent"
-                      Settings="editorSettings"
-                      OnChange="HandleContentChange" />
+## Basic usage
+
+```razor
+@page "/editor"
+@rendermode InteractiveServer
+
+<ZauberRichTextEditor @bind-Value="_html" Placeholder="Start writing…" />
 
 @code {
-    private string editorContent = "";
-    private EditorSettings editorSettings = EditorSettings.CmsDefault();
-
-    private void HandleContentChange(EditorChangeArgs args)
-    {
-        // Handle content changes
-        Console.WriteLine($"Content changed: {args.Html}");
-    }
+    private string? _html = "<p>Hello <strong>world</strong></p>";
 }
 ```
 
-### 3. Include Required Assets
+The bound value is the editor's HTML. Typing updates it once the user pauses (after `EditorSettings.ChangeDelay`,
+250 ms by default). It also updates immediately when the editor loses focus, before any toolbar command runs, and
+after paste, undo/redo or source-view edits. Setting the value from your code replaces the content and resets the
+undo history, and it doesn't raise `ValueChanged`.
 
-Add the required CSS and JavaScript files to your `App.razor` (or `_Host.cshtml` for Blazor Server):
+### In an `EditForm`
 
-```html
-<head>
-    <!-- Other head content -->
-    
-    <!-- Zauber RTE Styles (required) -->
-    <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/fontawesome.min.css" />
-    <link rel="stylesheet" href="_content/ZauberCMS.RTE/css/zauber-editor.css" />
-</head>
+`@bind-Value` also passes `ValueExpression`, so the editor notifies the cascading `EditContext` and validation
+messages work:
 
-<body>
-    <!-- Your app content -->
-    <script src="_framework/blazor.web.js"></script>
-    
-    <!-- Zauber RTE Scripts (required) -->
-    <script src="_content/ZauberCMS.RTE/js/lib/purify.min.js"></script>
-    <script src="_content/ZauberCMS.RTE/js/zauber-rte.js"></script>
-</body>
-```
+```razor
+@using System.ComponentModel.DataAnnotations
 
-**Important Notes:**
+<EditForm Model="_article" OnValidSubmit="Save">
+    <DataAnnotationsValidator />
 
-- The Zauber RTE scripts must be loaded after the Blazor framework script
-- Font Awesome is bundled for the toolbar icons
-- All editor, panel, and component styles are consolidated in `zauber-editor.css`
+    <ZauberRichTextEditor @bind-Value="_article.Body" AriaLabel="Article body" />
+    <ValidationMessage For="() => _article.Body" />
 
-## Configuration
-
-### Basic Settings
-
-```csharp
-var settings = new EditorSettings
-{
-    // Configure toolbar layout - controls which buttons appear
-    ToolbarLayout = ToolbarLayout.Full,  // or Simple, Minimal, Cms
-
-    // Set dimensions
-    Dimensions = new EditorDimensions
-    {
-        Width = "100%",
-        Height = "300px",
-        MinHeight = 100,
-        MaxHeight = 600
-    },
-
-    // Image constraints
-    ImageConstraints = new ImageConstraints
-    {
-        MaxWidth = 800,
-        MaxHeight = 600,
-        MaintainAspectRatio = true,
-        AllowBase64ImageUpload = false, // Set to true to enable file uploads as base64 (requires SignalR config)
-        AllowedImageTypes = new() { ".jpg", ".jpeg", ".gif", ".png" }
-    }
-};
-```
-
-### Predefined Configurations
-
-```csharp
-// CMS-ready configuration with full toolbar
-var cmsSettings = EditorSettings.CmsDefault();
-
-// Minimal configuration with simple toolbar (bold, italic, underline, align)
-var minimalSettings = EditorSettings.Minimal();
-
-// Or customize the toolbar layout directly
-var customSettings = new EditorSettings
-{
-    ToolbarLayout = ToolbarLayout.FromItems(
-        new ToolbarBlock("bold", "italic", "underline"),
-        new ToolbarSeparator(),
-        new ToolbarBlock("link", "image")
-    )
-};
-```
-
-### HTML Sanitization
-
-```csharp
-var settings = new EditorSettings
-{
-    HtmlPolicy = new HtmlPolicy
-    {
-        AllowedTags = new HashSet<string> { "p", "strong", "em", "a", "img" },
-        AllowedAttributes = new Dictionary<string, HashSet<string>>
-        {
-            ["a"] = new() { "href", "target" },
-            ["img"] = new() { "src", "alt", "width", "height" }
-        },
-        AllowDataUrls = false,
-        AllowExternalImages = true
-    }
-};
-```
-
-### Keyboard Shortcuts
-
-Keyboard shortcuts are defined directly on toolbar items, making them fully extensible:
-
-```csharp
-public class MyCustomItem : ToolbarItemBase
-{
-    public override string Id => "myCustom";
-    public override string Label => "My Custom Action";
-    public override string IconCss => "fa-star";
-    public override string Shortcut => "Control+Shift+m";  // Define your shortcut here!
-    
-    public override Task ExecuteAsync(EditorApi api)
-    {
-        // Your custom logic
-        return Task.CompletedTask;
-    }
-}
-```
-
-Built-in shortcuts:
-
-- **Bold**: Ctrl+B
-- **Italic**: Ctrl+I  
-- **Underline**: Ctrl+U
-- **Link**: Ctrl+K
-- **Unordered List**: Ctrl+Shift+8
-- **Ordered List**: Ctrl+Shift+7
-- **Undo**: Ctrl+Z
-- **Redo**: Ctrl+Y
-
-## Component API
-
-### Properties
-
-| Property        | Type             | Description                      |
-| --------------- | ---------------- | -------------------------------- |
-| `Value`         | `string?`        | The HTML content of the editor   |
-| `Settings`      | `EditorSettings` | Configuration settings           |
-| `ToolbarLayout` | `ToolbarLayout`  | Toolbar layout configuration     |
-| `Theme`         | `Theme`          | Visual theme (Light, Dark, Auto) |
-| `ReadOnly`      | `bool`           | Whether the editor is read-only  |
-
-### Events
-
-| Event                | Type                                     | Description                 |
-| -------------------- | ---------------------------------------- | --------------------------- |
-| `ValueChanged`       | `EventCallback<string?>`                 | Fired when content changes  |
-| `OnChange`           | `EventCallback<EditorChangeArgs>`        | Detailed change information |
-| `OnKeyDown`          | `EventCallback<ZauberKeyboardEventArgs>` | Keyboard events             |
-| `OnSelectionChanged` | `EventCallback<SelectionChangedArgs>`    | Selection changes           |
-| `OnPaste`            | `EventCallback<PasteArgs>`               | Paste events                |
-| `OnImageResized`     | `EventCallback<ImageResizedArgs>`        | Image resize events         |
-| `OnCommandExecuted`  | `EventCallback<CommandExecutedArgs>`     | Toolbar command execution   |
-
-## Toolbar Customization
-
-### Default Toolbar Items
-
-The editor comes with comprehensive toolbar items:
-
-**Text Formatting**: Bold, Italic, Underline, Strikethrough, Code, Subscript, Superscript
-
-**Headings**: H1-H6 (available as individual buttons or dropdown)
-
-**Lists**: Unordered List, Ordered List
-
-**Alignment**: Left, Center, Right, Justified
-
-**Insert**: Link, Image
-
-**Utilities**: Clean Html, Undo, Redo, View Source, Theme Toggle
-
-### Toolbar Item Types
-
-The editor supports three types of toolbar items:
-
-1. **Button** - Standard clickable button (Bold, Italic, etc.)
-2. **Dropdown** - Menu with child items (e.g., Headings dropdown with H1-H6)
-3. **Separator** - Visual divider between toolbar groups
-
-### Flexible Toolbar Layouts
-
-The new flexible layout system allows complete customization with blocks, separators, and individual items:
-
-```csharp
-using ZauberCMS.RTE.Models;
-
-// Use predefined layouts
-var settings = new EditorSettings
-{
-    ToolbarLayout = ToolbarLayout.Simple,  // Simple: basic formatting + alignment
-    // ToolbarLayout = ToolbarLayout.Full,    // Full: all features logically grouped
-    // ToolbarLayout = ToolbarLayout.Minimal, // Minimal: bold, italic, link only
-    // ToolbarLayout = ToolbarLayout.Cms,     // CMS-focused layout
-};
-
-// Create custom layout with blocks and separators
-var customLayout = ToolbarLayout.FromItems(
-    new ToolbarBlock("bold", "italic", "underline"),  // Block of buttons
-    new ToolbarSeparator(),                            // Visual separator
-    new ToolbarBlock("headings"),                      // Headings dropdown (H1-H6)
-    new ToolbarSeparator(),
-    new ToolbarBlock("link", "image")
-);
-
-// Advanced: individual items with custom CSS (use IEnumerable for cssClass parameter)
-var advancedLayout = ToolbarLayout.FromItems(
-    new ToolbarBlock("my-custom-class", new[] { "undo", "redo" }),
-    new ToolbarSeparator("my-separator-style"),
-    new ToolbarItemReference("link", "my-link-style"),
-    new ToolbarBlock("bold", "italic")
-);
-```
-
-### Headings Dropdown
-
-The new headings dropdown consolidates H1-H6 into a single dropdown menu:
-
-```csharp
-// Use the headings dropdown (recommended)
-ToolbarLayout = ToolbarLayout.FromItems(
-    new ToolbarBlock("bold", "italic"),
-    new ToolbarSeparator(),
-    new ToolbarBlock("headings")  // Dropdown with H1-H6 and reset option
-);
-
-// Or use individual heading buttons
-ToolbarLayout = ToolbarLayout.FromItems(
-    new ToolbarBlock("bold", "italic"),
-    new ToolbarSeparator(),
-    new ToolbarBlock("h1", "h2", "h3", "h4", "h5", "h6")  // Individual buttons
-);
-```
-
-The headings dropdown automatically:
-
-- Shows the currently active heading (H1, H2, etc.)
-- Highlights the selected heading in the dropdown menu
-- Displays heading previews with appropriate font sizes
-- Closes when clicking outside the dropdown
-
-### Layout Examples
-
-```csharp
-// Blog editor with all features
-public static ToolbarLayout BlogLayout => ToolbarLayout.FromItems(
-    new ToolbarBlock("undo", "redo", "viewSource"),
-    new ToolbarSeparator(),
-    new ToolbarBlock("headings", "blockquote"),
-    new ToolbarSeparator(),
-    new ToolbarBlock("bold", "italic", "underline", "strike", "code"),
-    new ToolbarSeparator(),
-    new ToolbarBlock("ul", "ol"),
-    new ToolbarSeparator(),
-    new ToolbarBlock("link", "unlink", "image"),
-    new ToolbarSeparator(),
-    new ToolbarBlock("alignLeft", "alignCenter", "alignRight")
-);
-
-// Simple comment editor
-public static ToolbarLayout CommentLayout => ToolbarLayout.FromItems(
-    new ToolbarBlock("bold", "italic", "link")
-);
-
-// Using helper methods
-var layout = ToolbarLayout.FromItems(
-    ToolbarLayoutExtensions.Block("bold", "italic"),
-    ToolbarLayoutExtensions.Separator(),
-    ToolbarLayoutExtensions.Item("headings")
-);
-```
-
-### Custom Toolbar Items
-
-Create custom toolbar items by implementing `IToolbarItem`. See the **Extension Guide** section below for detailed examples.
-
-### Creating Custom Dropdowns
-
-You can create your own dropdown toolbar items:
-
-```csharp
-public class MyDropdownItem : ToolbarItemBase
-{
-    public override string Id => "myDropdown";
-    public override string Label => "My Options";
-    public override string IconCss => "fa-list";
-    public override ToolbarPlacement Placement => ToolbarPlacement.Custom;
-    public override ToolbarItemType ItemType => ToolbarItemType.Dropdown;
-    
-    public override List<IToolbarItem> ChildItems =>
-    [
-        new MyOption1Item(),
-        new MyOption2Item(),
-        new MyOption3Item()
-    ];
-    
-    public override Task ExecuteAsync(IEditorApi api) => Task.CompletedTask;
-}
-```
-
-## Advanced Usage
-
-### Programmatic Control
-
-```csharp
-@inject EditorApi EditorApi
-
-<ZauberRichTextEditor @ref="editor" />
+    <button type="submit">Save</button>
+</EditForm>
 
 @code {
-    private ZauberRichTextEditor? editor;
+    private readonly Article _article = new();
 
-    private async Task InsertCustomContent()
+    private void Save()
     {
-        if (editor?.EditorApi != null)
+    }
+
+    public sealed class Article
+    {
+        [Required]
+        public string? Body { get; set; }
+    }
+}
+```
+
+`[Required]` accepts markup with no text, such as `<p></p>`. To require visible text, write a validation attribute
+that strips the tags first. The demo app's `ZauberRTE.Web/Models/RequiredContentAttribute.cs` is an example.
+
+## Parameters and events
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `Value` | `string?` | `null` | The HTML content. Use with `@bind-Value`. |
+| `ValueChanged` | `EventCallback<string?>` | | Raised when the content changes. |
+| `ValueExpression` | `Expression<Func<string?>>?` | | Set by `@bind-Value`; identifies the field for `EditContext` validation. |
+| `Settings` | `EditorSettings` | `new()` | Editor configuration. See [Settings](#settings). |
+| `Toolbar` | `ToolbarLayout?` | `null` | The toolbar layout. Overrides `Settings.ToolbarLayout` when set. |
+| `Theme` | `Theme` | `Theme.Auto` | `Light`, `Dark` or `Auto`. Use `@bind-Theme` to follow the built-in theme toggle. |
+| `ThemeChanged` | `EventCallback<Theme>` | | Raised when the theme changes from inside the editor (theme toggle or `IEditorApi.SetThemeAsync`). |
+| `ReadOnly` | `bool` | `false` | Blocks editing, paste and drop, and disables the toolbar (except the theme toggle). Content changes and shortcuts reported by the browser are ignored while it is set. Can change at runtime. |
+| `Placeholder` | `string?` | `null` | Text shown while the editor is empty. |
+| `AriaLabel` | `string` | `"Rich text editor"` | Accessible name of the editing area. The toolbar is labelled "{AriaLabel} toolbar". |
+| `AdditionalAttributes` | `IReadOnlyDictionary<string, object>?` | | Any other attributes (such as `class`, `style`, `data-*`) are applied to the root element. `class` and `style` are merged with the editor's own. |
+
+| Event | Argument | Raised when |
+| --- | --- | --- |
+| `OnChange` | `EditorChangeArgs(string Html, ChangeSource Source)` | The content changed. `Source` is `Input`, `Paste`, `Command`, `History`, `Api`, `SourceView` or `ImageResize`. |
+| `OnStateChanged` | `EditorState` | The selection, active formatting, focus, undo/redo availability or mode changed. |
+| `OnCommandExecuted` | `CommandExecutedArgs(string ItemId)` | A toolbar item or keyboard shortcut ran successfully. |
+| `OnImageResized` | `ImageResizedArgs(int Width, int Height)` | The user finished resizing an image. |
+| `OnFocus` | | The editing area gained focus. |
+| `OnBlur` | | The editing area lost focus (after any pending change has been delivered). |
+
+```razor
+<ZauberRichTextEditor @bind-Value="_html" OnChange="LogChange" OnStateChanged="state => _state = state" />
+
+@code {
+    private string? _html;
+    private EditorState _state = EditorState.Empty;
+    private int _pastes;
+
+    private void LogChange(EditorChangeArgs change)
+    {
+        if (change.Source is ChangeSource.Paste)
         {
-            await editor.EditorApi.InsertHtmlAsync("<p>Custom content</p>");
-            await editor.EditorApi.SetSelectionAsync("end");
+            _pastes++;
         }
     }
 }
 ```
 
-### Image Handling
+`EditorState` is an immutable snapshot with these members: `ActiveMarks` (primary tags such as `strong` and `em`,
+case-insensitive), `BlockType` (lower-case tag: `p`, `h1`–`h6`, `blockquote`, `pre`, `ul`, `ol`), `HeadingLevel`
+(0 when the block isn't a heading), `Alignment`, `HasSelection`, `HasFocus`, `CanUndo`, `CanRedo`, `InLink`,
+`InImage`, `InTable`, `IsSourceView`, `IsReadOnly`, `Theme`, `PrefersDarkScheme` and `IsDark` (resolves
+`Theme.Auto`).
 
-```csharp
-private async Task HandleImageUpload(ImageUploadArgs args)
-{
-    // Handle image upload
-    var imageUrl = await UploadImageToServer(args.File);
+## Programmatic control with `IEditorApi`
 
-    // Insert the image
-    await args.InsertImageAsync(imageUrl, args.AltText);
-}
-```
-
-### Custom Panels
-
-Create custom slide-out panels by inheriting from `PanelBase`:
+Each editor exposes an `IEditorApi` through its `Api` property. Toolbar items receive the same API in `ExecuteAsync`.
+Calls made before the editor has finished loading wait until it's ready, and calls made after it has been disposed
+throw `ObjectDisposedException`. Every async member accepts an optional `CancellationToken`, and the members can be
+called from any thread.
 
 ```razor
-<!-- CustomPanel.razor -->
-@using ZauberCMS.RTE.Models
-@inherits PanelBase
-
-<div class="rte-panel-content">
-    <h3 class="rte-panel-title">Custom Panel</h3>
-    
-    <div class="rte-form-group">
-        <label class="rte-label">Enter Value</label>
-        <input @bind="customValue" class="rte-input" />
-    </div>
-
-    <div class="rte-panel-actions">
-        <button type="button" class="rte-btn rte-btn-secondary" @onclick="CloseAsync">
-            Cancel
-        </button>
-        <button type="button" class="rte-btn rte-btn-primary" @onclick="ApplyAsync">
-            Apply
-        </button>
-    </div>
-</div>
+<ZauberRichTextEditor @ref="_editor" @bind-Value="_html" />
+<button type="button" @onclick="AddSignatureAsync">Add signature</button>
 
 @code {
-    private string customValue = "";
+    private ZauberRichTextEditor? _editor;
+    private string? _html;
 
-    private async Task ApplyAsync()
+    private async Task AddSignatureAsync()
     {
-        if (Api == null) return;
-        
-        // Use HtmlBuilder for clean HTML generation
-        var html = HtmlBuilder.Element("div")
-            .Class("custom-content")
-            .Text(customValue)
-            .Build();
-            
-        await Api.InsertHtmlAsync(html);
-        await CloseAsync();
+        if (_editor is null)
+        {
+            return;
+        }
+
+        var signature = HtmlBuilder.Element("p").Child(HtmlBuilder.Element("em").Text("Kind regards"));
+        await _editor.Api.InsertHtmlAsync(signature.Build());
     }
 }
 ```
 
-## Styling
+When focus has moved to a button outside the editor, commands apply at the last caret position inside the editor.
 
-### CSS Variables
+| Member | Description |
+| --- | --- |
+| `State` | The latest `EditorState`. |
+| `Settings` | The editor's `EditorSettings`. |
+| `ToggleMarkAsync(tag)` | Toggles an inline mark such as `strong`, `em` or `mark` on the selection. |
+| `WrapSelectionAsync(tag, attributes?)` | Wraps the selection in an element, for example `span` with a `class`. |
+| `UnwrapSelectionAsync(tag)` | Removes that element from around the selection. |
+| `SetBlockTypeAsync(blockType, attributes?)` | Changes the current block(s) to `p`, `h1`–`h6`, `pre`, `blockquote`, `div`, `ul` or `ol`. |
+| `SetBlockStyleAsync(styles)` | Sets inline styles on the current block(s), such as `text-align`. |
+| `ClearFormattingAsync()` | Removes inline formatting from the selection. |
+| `InsertHtmlAsync(html)` | Inserts HTML at the selection after sanitising it with the editor's policy. |
+| `InsertTextAsync(text)` | Inserts plain text at the selection. |
+| `GetHtmlAsync()` / `GetTextAsync()` | Reads the current HTML or plain text (blocks separated by new lines). Throws `EditorContentTooLargeException` when it is larger than `EditorSettings.MaxContentBytes`, so a save never receives an empty string by mistake. |
+| `SetHtmlAsync(html)` | Replaces the content with sanitised HTML as an undoable change. Raises `ValueChanged` and `OnChange` with `ChangeSource.Api`. Throws `InvalidOperationException` while the editor is read-only; set `Value` instead. |
+| `GetSelectionAsync()` | Returns `SelectionInfo(string Text, bool IsCollapsed)`, or `null` when the selection isn't in the editor. |
+| `SaveSelectionAsync()` / `RestoreSelectionAsync()` / `ClearSavedSelectionAsync()` | Remembers and restores the selection, typically around opening a panel. |
+| `GetLinkAtCursorAsync()` / `SelectLinkAtCursorAsync()` | Returns `LinkInfo(Href, Text, Title, Target)` for the link at the cursor, or selects the whole link. |
+| `GetImageAtCursorAsync()` / `SelectImageAtCursorAsync()` | Returns `ImageInfo(Src, Alt, Title, Width, Height)` for the selected image, or selects it. |
+| `UndoAsync()` / `RedoAsync()` | Undo and redo. |
+| `FocusAsync()` | Moves focus into the editor. |
+| `ToggleSourceViewAsync()` | Switches between the rich view and the HTML source view. |
+| `SetThemeAsync(theme)` | Changes the theme and raises `ThemeChanged`. |
+| `OpenPanelAsync<TPanel>(parameters?)` | Opens a `PanelBase` component in the slide-out panel. |
+| `ClosePanelAsync()` | Closes the open panel and returns focus to the editor. |
+| `ShowToastAsync(message, type)` | Shows a short message inside the editor (`Info`, `Success`, `Warning` or `Error`). |
 
-Customize appearance using CSS variables:
+Tags and attributes you pass to these methods must be allowed by the editor's `HtmlPolicy`. Disallowed tags throw a
+`JSException`. Disallowed attributes are dropped, and the editor logs a warning.
 
-```css
-.zauber-rte {
-    --rte-primary-color: #007acc;
-    --rte-border-color: #e1e5e9;
-    --rte-background-color: #ffffff;
-    --rte-text-color: #333333;
-    --rte-toolbar-height: 40px;
-    --rte-font-family: 'Segoe UI', sans-serif;
+## Settings
+
+`EditorSettings` and the types it contains are immutable records. Create them with object initialisers, and use
+`with` to derive variations. Pass a new instance to change the settings of a live editor. Keep settings in a field
+(ideally `static readonly`) rather than building them inline on every render.
+
+```csharp
+using System.Collections.Frozen;
+using ZauberCMS.RTE.Models;
+
+public static class EditorPresets
+{
+    public static EditorSettings Article { get; } = new()
+    {
+        ToolbarLayout = ToolbarLayout.Full,
+        Dimensions = new() { Height = "420px", MaxHeight = "80vh" },
+        ImageConstraints = new() { AllowBase64ImageUpload = true, MaxWidth = 1200 },
+        HtmlPolicy = new()
+        {
+            AllowedTags = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, [.. new HtmlPolicy().AllowedTags, "mark"]),
+            AllowExternalImages = false
+        },
+        HistoryLimit = 200,
+        ChangeDelay = TimeSpan.FromMilliseconds(500)
+    };
+
+    public static EditorSettings Comment { get; } = Article with
+    {
+        ToolbarLayout = ToolbarLayout.Simple,
+        Dimensions = new() { Height = "160px" }
+    };
 }
 ```
+
+```razor
+<ZauberRichTextEditor @bind-Value="_html" Settings="EditorPresets.Article" />
+```
+
+### `EditorSettings`
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `ToolbarLayout` | `ToolbarLayout.Full` | Layout used when the component's `Toolbar` parameter isn't set. |
+| `Dimensions` | `new()` | Editor size; see below. |
+| `ImageConstraints` | `new()` | Image upload and resize rules; see below. |
+| `HtmlPolicy` | `new()` | The HTML kept in the content; see below. |
+| `HistoryLimit` | `100` | Maximum number of undo steps. Typing is grouped into one step per pause. |
+| `ChangeDelay` | `250 ms` | How long typing must pause before the bound value updates. |
+| `MaxContentBytes` | `10 MB` | Largest content, in UTF-8 bytes, that the editor transfers to .NET. Changes above it aren't delivered, and a warning is logged. |
+
+### `EditorDimensions`
+
+CSS lengths such as `"300px"`, `"20rem"` or `"50vh"`. A `null` value isn't emitted, so the stylesheet's defaults or
+your own CSS apply. The editing area can also be resized by dragging the handle in the bottom corner.
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `Width` | `null` | Editor width. `null` fills the container. |
+| `Height` | `"300px"` | Height of the editing area. `null` grows with the content. |
+| `MinHeight` | `"100px"` | Minimum height of the editing area. |
+| `MaxHeight` | `null` | Maximum height of the editing area. `null` is unlimited. |
+
+### `ImageConstraints`
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `MaxWidth` / `MaxHeight` | `null` | Largest size, in pixels, an image can be resized to. `null` is unlimited. |
+| `MaintainAspectRatio` | `true` | Whether resizing keeps the image's aspect ratio. |
+| `AllowBase64ImageUpload` | `false` | Shows an upload option in the image panel and lets pasted or dropped image files be embedded; files become `data:` URLs. Also requires `HtmlPolicy.AllowDataUrls`. |
+| `AllowedImageTypes` | `.jpg .jpeg .png .gif .webp` | File extensions accepted for uploaded, pasted or dropped image files (case-insensitive). |
+| `MaxFileSizeBytes` | `5 MB` | Largest image file accepted by upload, paste or drop. |
+
+A pasted or dropped image file that these rules reject isn't inserted; the editor shows a warning toast and logs it.
+
+### `HtmlPolicy`
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `AllowedTags` | `p br div span strong em b i u s strike sub sup code pre h1 h2 h3 h4 h5 h6 blockquote ul ol li table caption colgroup col thead tbody tfoot tr th td a img figure figcaption hr` | Allowed element names (case-insensitive). |
+| `AllowedAttributes` | `class id title lang dir role style data-* aria-* href target rel src alt width height colspan rowspan scope` | Allowed attribute names on any allowed element. `data-*` and `aria-*` allow those families. |
+| `AllowDataUrls` | `true` | Whether images may use `data:image/...` URLs. Uploaded, pasted or dropped image files also need `ImageConstraints.AllowBase64ImageUpload`. |
+| `AllowExternalImages` | `true` | Whether images may load from other origins. When `false`, only same-origin and relative image URLs are kept. |
+
+To allow extra tags, extend the defaults as shown in the settings example above. Alignment is stored as an inline
+`text-align` style, so keep `style` in `AllowedAttributes` if you use the alignment items. See
+[Security](#security) for the rules that apply whatever the policy says.
+
+## Toolbar layouts
+
+A `ToolbarLayout` is an ordered list of entries:
+
+- `ToolbarGroup(params string[] itemIds)`: items rendered together.
+- `ToolbarItemRef(string itemId)`: a single item outside a group.
+- `ToolbarSeparator()`: a vertical divider.
+
+Every entry has an optional `CssClass` property, which adds a class to the entry's element.
+
+Two layouts are built in:
+
+| Layout | Items |
+| --- | --- |
+| `ToolbarLayout.Simple` | `bold italic underline` \| `clean-html` \| `alignLeft alignCenter alignRight` |
+| `ToolbarLayout.Full` (default) | `bold italic underline strike code subscript superscript` \| `headings blockquote` \| `ul ol link unlink image table` \| `alignLeft alignCenter alignRight justified` \| `clean-html undo redo viewSource themeToggle` |
+
+Build your own from `ToolbarItemIds` constants and your own items' ids:
+
+```csharp
+using ZauberCMS.RTE.Models;
+
+public static class Toolbars
+{
+    public static ToolbarLayout Compact { get; } = new(
+        new ToolbarGroup(ToolbarItemIds.Bold, ToolbarItemIds.Italic, ToolbarItemIds.Link) { CssClass = "formatting" },
+        new ToolbarSeparator(),
+        new ToolbarGroup(ToolbarItemIds.Headings, ToolbarItemIds.UnorderedList, ToolbarItemIds.OrderedList),
+        new ToolbarSeparator(),
+        new ToolbarItemRef(ToolbarItemIds.Undo),
+        new ToolbarItemRef(ToolbarItemIds.Redo));
+}
+```
+
+```razor
+<ZauberRichTextEditor @bind-Value="_html" Toolbar="Toolbars.Compact" />
+```
+
+Ids that aren't registered (or were removed with `RemoveToolbarItem`) are skipped, and logged at `Debug` level. Keyboard shortcuts are active only for items in the
+editor's layout, including dropdown children.
+
+### Layouts as JSON
+
+Layouts serialise to and from JSON, for example to store them in configuration:
+
+```csharp
+var json = Toolbars.Compact.ToJson();
+var layout = ToolbarLayout.FromJson(json);
+```
+
+```json
+{
+  "entries": [
+    { "$type": "group", "itemIds": ["bold", "italic", "link"], "cssClass": "formatting" },
+    { "$type": "separator" },
+    { "$type": "item", "itemId": "undo" }
+  ]
+}
+```
+
+`FromJson` throws a `JsonException` for JSON that isn't a layout, including entries or item ids that are missing or
+null, so a bad stored layout fails where you read it rather than inside the editor.
+
+## Built-in toolbar items
+
+Every built-in item is always registered. The layout decides which ones are shown. Use the `ToolbarItemIds`
+constants rather than literal strings. Ids are case-insensitive.
+
+| Id | `ToolbarItemIds` | Action | Shortcut |
+| --- | --- | --- | --- |
+| `bold` | `Bold` | Toggles `<strong>` (also recognises `<b>`) | Ctrl+B |
+| `italic` | `Italic` | Toggles `<em>` (also recognises `<i>`) | Ctrl+I |
+| `underline` | `Underline` | Toggles `<u>` | Ctrl+U |
+| `strike` | `Strike` | Toggles `<s>` (also recognises `<strike>`) | |
+| `subscript` | `Subscript` | Toggles `<sub>` | |
+| `superscript` | `Superscript` | Toggles `<sup>` | |
+| `code` | `Code` | Inline `<code>` on a selection; a `<pre>` code block when nothing is selected | |
+| `h1` to `h6` | `Heading1` to `Heading6` | Toggles the block between that heading and a paragraph | |
+| `headings` | `Headings` | Dropdown listing `h1` to `h6` | |
+| `blockquote` | `Blockquote` | Toggles a block quote | |
+| `ul` | `UnorderedList` | Toggles a bulleted list | Ctrl+Shift+8 |
+| `ol` | `OrderedList` | Toggles a numbered list | Ctrl+Shift+7 |
+| `alignLeft` | `AlignLeft` | Left-aligns the block | |
+| `alignCenter` | `AlignCenter` | Centres the block | |
+| `alignRight` | `AlignRight` | Right-aligns the block | |
+| `justified` | `Justify` | Justifies the block | |
+| `link` | `Link` | Opens the link panel (URL, text, title, new window) | Ctrl+K |
+| `unlink` | `Unlink` | Removes the link at the cursor | |
+| `image` | `Image` | Opens the image panel (URL or upload, alt text); edits the selected image | |
+| `table` | `Table` | Opens the table panel (rows, columns, header row; up to 20 x 20) | |
+| `clean-html` | `ClearFormatting` | Removes inline formatting from the selection | |
+| `undo` | `Undo` | Undo | Ctrl+Z |
+| `redo` | `Redo` | Redo | Ctrl+Y or Ctrl+Shift+Z |
+| `viewSource` | `ViewSource` | Toggles the HTML source view | |
+| `themeToggle` | `ThemeToggle` | Switches between light and dark, and raises `ThemeChanged` | |
+
+On macOS, Cmd works wherever Ctrl is listed. To replace or remove a built-in item, see
+[Extending the editor](#extending-the-editor).
+
+## Keyboard
+
+- **Shortcuts:** see the table above. A button's tooltip shows its shortcut.
+- **Tab / Shift+Tab** indents and outdents list items, and moves between table cells. Everywhere else, Tab moves focus
+  out of the editor as usual.
+- **Enter** splits blocks and list items. On an empty list item, Enter outdents it, which ends the list at the top
+  level. In a code block, Enter inserts a new line, and in a table cell it inserts a line break. **Shift+Enter**
+  inserts a line break.
+- **Ctrl/Cmd+click** on a link opens it in a new tab. A plain click places the caret, so links stay editable. In
+  read-only mode, links open normally.
+- In the toolbar, **Left/Right arrows** move between buttons. In a dropdown, **Up/Down/Home/End** move, **Enter** or
+  **Space** chooses, and **Escape** closes. In a panel, **Escape** closes and **Enter** submits the built-in panels.
+
+## Theming and styling
 
 ### Themes
 
 ```razor
-<!-- Light theme -->
-<ZauberRichTextEditor Theme="Theme.Light" />
+<ZauberRichTextEditor @bind-Value="_html" Theme="Theme.Dark" />
 
-<!-- Dark theme -->
-<ZauberRichTextEditor Theme="Theme.Dark" />
+<ZauberRichTextEditor @bind-Value="_html" @bind-Theme="_theme" />
 
-<!-- Auto theme (follows system preference) -->
-<ZauberRichTextEditor Theme="Theme.Auto" />
+@code {
+    private string? _html;
+    private Theme _theme = Theme.Light;
+}
 ```
 
-## Security Considerations
+- `Theme.Auto` (the default) follows the operating system's colour scheme and updates live when it changes.
+- `Theme` is reactive, so changing the parameter re-themes the editor immediately.
+- With `@bind-Theme`, the built-in `themeToggle` item and `IEditorApi.SetThemeAsync` update your field.
 
-- HTML content is sanitized by default using a configurable policy
-- Data URLs can be disabled for images
-- External images can be restricted
-- XSS protection through DOMPurify integration
-- Content Security Policy (CSP) friendly
+Themes work through CSS `color-scheme`. The root gets `rte-theme-light`, `rte-theme-dark` or `rte-theme-auto`, which
+set `color-scheme` to `light`, `dark` or `light dark`. Every colour token is defined with `light-dark()`, so one set of
+rules serves both themes. The editor sets its own `color-scheme`, so the host page's scheme doesn't leak in.
 
-## Browser Support
+### Design tokens
 
-- Chrome 80+
-- Firefox 75+
-- Safari 13+
-- Edge 80+
+Everything visual is a CSS custom property declared on `.zauber-rte`. Slide-out panels are moved to `<body>`, so
+they carry the same tokens on `.zauber-rte-portal`. Override tokens in your own CSS, and include both selectors so the
+panels match:
 
-## Contributing
+```css
+.zauber-rte,
+.zauber-rte-portal {
+    --rte-color-accent: #7c3aed;
+    --rte-color-accent-hover: #6d28d9;
+    --rte-color-bg: light-dark(#fffdf8, #18181b);
+    --rte-radius-lg: 0.25rem;
+    --rte-font-family: "Inter", system-ui, sans-serif;
+}
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+To support both themes, use `light-dark(light, dark)` for colours. To style one editor only, give it a class
+(`<ZauberRichTextEditor class="brand-editor" ... />`) and scope the override to `.zauber-rte.brand-editor`. That
+override doesn't reach its slide-out panel, which uses the page-wide tokens.
+
+| Group | Tokens |
+| --- | --- |
+| Colour | `--rte-color-bg`, `--rte-color-bg-subtle`, `--rte-color-bg-hover`, `--rte-color-input-bg`, `--rte-color-text`, `--rte-color-text-muted`, `--rte-color-text-subtle`, `--rte-color-border`, `--rte-color-border-strong`, `--rte-color-border-hover`, `--rte-color-accent`, `--rte-color-accent-hover`, `--rte-color-on-accent`, `--rte-color-accent-text`, `--rte-color-selected-bg`, `--rte-color-focus`, `--rte-color-success`, `--rte-color-warning`, `--rte-color-danger`, `--rte-color-backdrop`, `--rte-color-shadow` |
+| Shadow | `--rte-shadow-sm`, `--rte-shadow-md`, `--rte-shadow-lg`, `--rte-shadow-panel` |
+| Shape | `--rte-radius-sm`, `--rte-radius-md`, `--rte-radius-lg`, `--rte-radius-round`, `--rte-border-width`, `--rte-border-width-thick`, `--rte-border-width-accent`, `--rte-focus-offset` |
+| Spacing | `--rte-space-3xs`, `--rte-space-2xs`, `--rte-space-xs`, `--rte-space-sm`, `--rte-space-md`, `--rte-space-lg`, `--rte-space-xl`, `--rte-block-spacing`, `--rte-list-indent` |
+| Sizes | `--rte-toolbar-button-size`, `--rte-icon-size`, `--rte-icon-size-sm`, `--rte-icon-size-lg`, `--rte-separator-size`, `--rte-content-min-height`, `--rte-panel-width`, `--rte-dropdown-min-width`, `--rte-dropdown-max-height`, `--rte-image-handle-size`, `--rte-image-preview-max-height`, `--rte-grip-width`, `--rte-grip-height`, `--rte-toast-width` |
+| Typography | `--rte-font-family`, `--rte-font-mono`, `--rte-font-size`, `--rte-font-size-xs`, `--rte-font-size-sm`, `--rte-font-size-lg`, `--rte-font-size-code`, `--rte-font-size-input`, `--rte-font-weight-medium`, `--rte-font-weight-bold`, `--rte-line-height`, `--rte-line-height-tight`, `--rte-line-height-code`, `--rte-letter-spacing-caps`, `--rte-heading-1` to `--rte-heading-6` |
+| Motion and layering | `--rte-duration-fast`, `--rte-duration-base`, `--rte-ease`, `--rte-transition-colors`, `--rte-z-handles`, `--rte-z-toast`, `--rte-z-dropdown`, `--rte-z-overlay`, `--rte-opacity-disabled`, `--rte-opacity-muted` |
+
+`--rte-width`, `--rte-height`, `--rte-min-height` and `--rte-max-height` are written to the root's inline style from
+`EditorSettings.Dimensions`. To size the editor from CSS instead, set those dimensions to `null`. On touch devices
+(`pointer: coarse`), buttons and handles grow automatically. With `prefers-reduced-motion`, animations are turned off.
+
+### Cascade layer and host CSS frameworks
+
+All of the editor's rules live in the cascade layer `@layer zauber-rte`, and its selectors are wrapped in `:where()`
+(zero specificity). Any rule you write outside a layer wins, without `!important`:
+
+```css
+.zauber-rte .rte-content blockquote {
+    border-inline-start-color: var(--rte-color-accent);
+    font-style: italic;
+}
+```
+
+The flip side is that a CSS reset that isn't in a layer also beats the editor's layered rules. Examples are Bootstrap's
+Reboot and Tailwind's Preflight, which restyle `button`, `input`, headings and lists. To survive them, the stylesheet
+ends with one small unlayered block, scoped to `.zauber-rte` and `.zauber-rte-portal`. It re-asserts only the
+properties those resets touch: button and input padding, borders and fonts, headings, lists, links and table borders
+in the content. So Bootstrap needs nothing extra. To override one of those properties, match its specificity (for
+example `.zauber-rte .rte-btn`).
+
+Tailwind v3's Preflight also sets `border-width: 0` on every element, and the unlayered block doesn't re-assert every
+border. If you use Tailwind v3, put Preflight into a cascade layer. Disable it in `tailwind.config.js`
+(`corePlugins: { preflight: false }`), then import a copy of Preflight into a layer that comes before the editor's:
+
+```css
+@layer reset, zauber-rte;
+@import url("preflight.css") layer(reset);
+```
+
+Tailwind v4 already uses cascade layers. Declare the layer order once, before any stylesheet loads, so Preflight
+(`base`) sits below the editor and your utilities sit above it:
+
+```css
+@layer theme, base, zauber-rte, components, utilities;
+```
+
+### CSS classes
+
+The editor's markup uses stable `rte-*` class names that you can target. These are the main ones:
+
+- `.zauber-rte`: the root, plus `.rte-readonly` and `.rte-source-mode`.
+- `.rte-toolbar`, `.rte-toolbar-block`, `.rte-toolbar-single-item` and `.rte-toolbar-separator`: the toolbar and its
+  entries.
+- `.rte-toolbar-btn` (plus `.rte-btn-active`): a toolbar button. `.rte-dropdown-{id}` and `.rte-dropdown-menu`: a
+  dropdown and its menu.
+- `.rte-content`: the editable area. `.rte-source-view`: the source textarea.
+- `.rte-slideout-panel`: a panel. `.rte-toast`: a toast.
+
+Icons render inside `<span class="rte-icon">`.
+
+## Accessibility
+
+- **Toolbar:** `role="toolbar"` labelled "{AriaLabel} toolbar", with groups (`role="group"`) and separators
+  (`role="separator"`). Roving tabindex makes the toolbar a single Tab stop, and the arrow keys move between enabled
+  buttons.
+- **Buttons:** every button has an `aria-label` (the item's `Label`) and a tooltip that includes its shortcut. Toggle
+  items expose `aria-pressed`. Disabled items use the native `disabled` attribute.
+- **Dropdowns:** the trigger has `aria-haspopup="menu"` and `aria-expanded`. The menu is `role="menu"`, toggle children
+  are `menuitemradio` with `aria-checked`, and focus returns to the trigger on close.
+- **Editing area:** `role="textbox"`, `aria-multiline="true"`, `aria-label` and `aria-readonly`. Tab isn't trapped
+  outside lists and tables.
+- **Panels:** `role="dialog"`, `aria-modal="true"` and labelled by the panel's `Title`. Focus moves into the panel and
+  is trapped while it's open. Escape closes it, and focus returns to the editor.
+- **Toasts:** announced through a `role="status"` live region.
+- **Visuals:** `:focus-visible` rings, larger targets on touch screens, and no motion with `prefers-reduced-motion`.
+
+## Security
+
+- **Every way into the editor is sanitised** with DOMPurify in the browser, using the editor's `HtmlPolicy`: the
+  initial `Value` and later parameter changes, `SetHtmlAsync`, `InsertHtmlAsync` (and so every panel), paste, drop,
+  and edits in the HTML source view.
+- **Always removed, whatever the policy says:** `script`, `style`, `iframe`, `frame`, `frameset`, `object`, `embed`,
+  `form`, `input`, `button`, `select`, `textarea`, `svg`, `math`, `template`, `link`, `meta`, `base`, `noscript`, and
+  all `on*` event-handler attributes.
+- **URL schemes are allow-listed.** `href` and `src` keep only `http:`, `https:`, `mailto:`, `tel:` and relative URLs;
+  `javascript:` and similar are stripped. Images also accept `data:image/...` when `AllowDataUrls` is on, and only
+  same-origin sources when `AllowExternalImages` is off. Links with `target="_blank"` get
+  `rel="noopener noreferrer"`. Ctrl/Cmd+click opens a link only if its scheme is allowed, and always with `noopener`.
+- **`HtmlBuilder` encodes** text and attribute values and rejects invalid tag and attribute names, so values typed
+  into panels can't break out of an attribute.
+- **Sanitise on the server too.** The editor's sanitising runs in the user's browser, and a modified client can post
+  any HTML to your app. Treat the bound value as untrusted input: sanitise it on the server before you store it or
+  render it as `MarkupString`, or only render it where untrusted HTML is safe (for example a sandboxed `iframe`, as the
+  demo app does). A `Value` you set is sanitised before display, but the bound field only holds the sanitised HTML
+  after the next edit.
+- `style` is allowed by default because alignment uses it. If untrusted users author content and you don't need
+  alignment, remove `style` from `AllowedAttributes`.
+
+## Large documents
+
+Content changes up to about 12 KB are sent to .NET inline. Larger content, and everything the API reads back from
+the browser (`GetHtmlAsync`, `GetTextAsync`, `GetSelectionAsync`, `GetLinkAtCursorAsync` and `GetImageAtCursorAsync`,
+whose `Src` can be a large `data:` URL), is read through a JavaScript stream reference (`IJSStreamReference`). Every
+other message from the browser is small. As a result, Blazor Server's default 32 KB `MaximumReceiveMessageSize` is
+enough for any document and for base64 images, and you don't need `AddSignalR(o => o.MaximumReceiveMessageSize = ...)`
+for the editor. Content above `EditorSettings.MaxContentBytes` (10 MB by default) isn't transferred: the bound value
+keeps its last value, the user sees a warning, the warning is logged, and the read methods throw
+`EditorContentTooLargeException`. Typing is debounced (`ChangeDelay`), so a large document isn't re-sent on every
+keystroke, and a toolbar item runs only after the latest content has reached the bound value.
+
+## Extending the editor
+
+Register custom toolbar items, dropdowns and panels in `AddZauberRte`:
+
+```csharp
+builder.Services.AddZauberRte(options =>
+{
+    options.AddToolbarItem<HighlightItem>();
+    options.AddToolbarItem<InsertTimeItem>();
+    options.RemoveToolbarItem(ToolbarItemIds.Image);
+});
+```
+
+Then add their ids to a [layout](#toolbar-layouts). The
+[extension guide](https://github.com/YodasMyDad/ZauberEditor/blob/master/QUICK_START_EXTENDING.md) covers buttons,
+toggles, dropdowns, panels, dependency injection, overriding built-ins and icons, with working code from the demo app.
+
+---
+
+## Migrating to 3.0
+
+3.0 rebuilds the editor's internals and trims the public API. The consumer namespaces stay the same
+(`ZauberCMS.RTE.Components`, `ZauberCMS.RTE.Models`, `ZauberCMS.RTE.Services`). Everything else listed below changed.
+Work through the sections in order, then build: most breaks are compile errors that point at the line to change. The
+full list of fixes is in the [changelog](https://github.com/YodasMyDad/ZauberEditor/blob/master/CHANGELOG.md).
+
+### 1. Host page and services
+
+| 2.x | 3.0 |
+| --- | --- |
+| `<script src="_content/ZauberCMS.RTE/js/lib/purify.min.js">` | **Remove.** DOMPurify is now imported as an ES module. |
+| `<script src="_content/ZauberCMS.RTE/js/zauber-rte.js">` | **Remove.** The file is now an ES module that the component imports. Loading it as a classic script throws a syntax error. |
+| `<link href="_content/ZauberCMS.RTE/css/fontawesome.min.css">` | **Remove.** Font Awesome is no longer shipped (see [Icons](#7-icons-css-and-themes)). |
+| `<link href="_content/ZauberCMS.RTE/css/zauber-editor.css">` | Keep. |
+| `AddSignalR(o => o.MaximumReceiveMessageSize = ...)` for large content or base64 images | Not needed for the editor; content over 12 KB, and every value the API reads back, is streamed. |
+| WebAssembly not really supported (the JS was a page-wide global) | Interactive Server, WebAssembly and Auto supported. For WebAssembly or Auto, call `AddZauberRte` in the client project too. |
+| Browsers: "Chrome 80+" etc. | Chrome/Edge 123+, Firefox 120+, Safari 17.5+ (CSS `light-dark()`, cascade layers, nesting). |
+
+### 2. Registration (`AddZauberRte`)
+
+| 2.x | 3.0 |
+| --- | --- |
+| `AddZauberRte()` scanned the entry assembly for `IToolbarItem` types | `AddZauberRte()` registers only the built-in items. **Custom items no longer appear unless you register them.** |
+| `AddZauberRte(params Assembly[] assemblies)` | `AddZauberRte(o => o.AddToolbarItem<MyItem>())` (preferred, trim-safe), or `AddZauberRte(o => o.AddToolbarItemsFromAssembly(assembly))` (reflection; marked `[RequiresUnreferencedCode]`). |
+| `AddZauberRte(Action<ZauberRteOptions>, params Assembly[])` | `AddZauberRte(Action<ZauberRteOptions>? configure = null)` |
+| `ZauberRteOptions.Assemblies` | `options.AddToolbarItemsFromAssembly(assembly)` |
+| `ZauberRteOptions.AllowOverrides` | Removed. Registrations apply in order, and a later item with the same id always replaces the earlier one (including built-ins). |
+| No way to remove a built-in item | `options.RemoveToolbarItem(id)` |
+| | New: `options.AddToolbarItem(IToolbarItem instance)` registers one stateless instance shared by every editor. |
+| Items were created per DI scope and cached | Items registered by type are created **per editor instance** through `ActivatorUtilities`, so they can inject scoped services and are disposed with the editor if they implement `IDisposable`/`IAsyncDisposable`. |
+| `ToolbarDiscoveryService`, `ToolbarItemMetadata`, `ToolbarItemFactory` (public) | Internal; not part of the API. |
+| `IZauberJsRuntime`, `ZauberJsRuntime`, `SelectionInterop`, `ClipboardInterop`, `ImageInterop`, `MutationInterop`, `PanelInterop`, `HistoryInterop` (public) | Removed. Use `IEditorApi`. |
+
+### 3. Toolbar items (`IToolbarItem`, `ToolbarItemBase`)
+
+| 2.x | 3.0 |
+| --- | --- |
+| `ToolbarPlacement Placement` (abstract) and the `ToolbarPlacement` enum | Removed. Delete your `Placement` overrides. |
+| `string IconCss` (abstract); rendered as `<i class="fas {IconCss}">` | `string? IconCss` (virtual, optional). Rendered **as given**, with no `fas` prefix: `"fa-bold"` becomes `"fas fa-bold"` (or `"fa-solid fa-bold"`), and you load your own icon font. |
+| | New: `string? IconSvg`, trusted inline SVG markup (preferred). With neither icon, the button shows `Label` as text. |
+| `ToolbarItemType ItemType` (`Button`, `Dropdown`, `Separator`) | `ToolbarItemKind Kind` (`Button`, `Dropdown`). Separators are layout entries (`ToolbarSeparator`). |
+| `List<IToolbarItem> ChildItems` | `IReadOnlyList<string> ChildItemIds`. Children are looked up by id, so they must be registered themselves, and overrides apply to them. |
+| `bool IsDropdownLabel` | Removed. A dropdown's trigger shows the active child's label and icon automatically. |
+| `Type? PanelComponent` | Removed (it was never read). Open panels from `ExecuteAsync` with `await api.OpenPanelAsync<MyPanel>()`. |
+| `Task ExecuteAsync(IEditorApi api)` | `Task ExecuteAsync(IEditorApi api, CancellationToken cancellationToken)`. The token is cancelled when the editor is disposed; pass it to the API and to your own async work. |
+| `string[] TrackedTags` | `IReadOnlyList<string> TrackedTags` |
+| `ToolbarItemBase.IsEnabled` returned `true` | Returns `false` while the editor is read-only or showing HTML source. Override it to change that. |
+| `ToolbarItemBase.IsActive` returned `false` | Returns `true` when `PrimaryTag` is in `State.ActiveMarks`, so toggles only need `TrackedTags` and `PrimaryTag`. |
+| `Shortcut`: `Control` matched only Ctrl; `Ctrl+Shift+7`/`8` didn't fire on US/UK layouts; every registered item's shortcut was active | `Control` means Ctrl on Windows/Linux and Cmd on macOS; digits match the physical key; only items in the editor's layout respond. |
+| Built-in item classes in `ZauberCMS.RTE.Models.ToolbarItems` (`BoldItem`, `Heading1Item`, `TableItem`, ...) and `DefaultToolbarItems.GetAllDefaultItems()` | Internal. Refer to built-ins by id through `ToolbarItemIds` (ids are unchanged). Remove `@using ZauberCMS.RTE.Models.ToolbarItems`. |
+| `ZauberCMS.RTE.Examples` (`CustomDropdownExamples`, `CustomLayoutExample`, `CustomToolbarItemTemplate`, `CustomPanelTemplate`, `CustomDropdownUsage`, `UsageExample`) compiled into the package | Removed from the package. Equivalent working examples live in the demo app (`ZauberRTE.Web/Toolbar/`). |
+| `table` item existed but wasn't registered or in any layout | Registered by default and included in `ToolbarLayout.Full`. |
+
+### 4. `IEditorApi`
+
+Every async member gained an optional `CancellationToken cancellationToken = default` as its last parameter. Callers
+aren't affected, but your own implementations of `IEditorApi` (for example test fakes) must update.
+
+| 2.x | 3.0 |
+| --- | --- |
+| No public way to get the API outside a toolbar item (`editor.EditorApi` in the old docs didn't exist) | `ZauberRichTextEditor.Api` (use `@ref`) |
+| `EditorState GetState()` | `EditorState State { get; }` |
+| `EditorSettings GetSettings()` | `EditorSettings Settings { get; }` |
+| `Task<string> GetCurrentBlockTypeAsync()` | `State.BlockType` |
+| `Task<int> GetCurrentHeadingLevelAsync()` | `State.HeadingLevel` |
+| `SelectionInfo? GetSelection()` (synchronous) | `GetSelectionAsync()` |
+| `string? GetHtml()` (synchronous, could be stale) | `Task<string> GetHtmlAsync()` |
+| `string? GetText()` (always returned `null`) | `Task<string> GetTextAsync()` |
+| `SetTextAsync(string text)` | Removed. Use `SetHtmlAsync(HtmlBuilder.Element("p").Text(text).Build())`. |
+| `ReplaceSelectionAsync(string html)` | `InsertHtmlAsync(html)` (it was an alias). |
+| `CleanHtmlAsync()` | `ClearFormattingAsync()` |
+| `BlurAsync()` (did nothing) | Removed. |
+| `SaveSelectionRangeAsync()` | `SaveSelectionAsync()` |
+| `Task<bool> RestoreSelectionRangeAsync()` | `Task RestoreSelectionAsync()` |
+| `ClearSavedSelectionRangeAsync()` | `ClearSavedSelectionAsync()` |
+| `Task<bool> SelectLinkAtCursorAsync()` / `Task<bool> SelectImageAtCursorAsync()` | `Task SelectLinkAtCursorAsync()` / `Task SelectImageAtCursorAsync()` |
+| `OpenPanelAsync(Type componentType, object? parameters)` (non-dictionary parameters were silently dropped) | `OpenPanelAsync<TPanel>(IReadOnlyDictionary<string, object?>? parameters = null) where TPanel : PanelBase` |
+| `WrapSelectionAsync(string tagName, Dictionary<string, string>?)`, `SetBlockTypeAsync(..., Dictionary<string, string>?)`, `SetBlockStyleAsync(Dictionary<string, string>)` | Take `IReadOnlyDictionary<string, string>` (a `Dictionary` still works). Parameter names are now `tag` and `blockType`, which matters only for named arguments. |
+| `ToggleMarkAsync(string markName)` | `ToggleMarkAsync(string tag)` |
+| `ShowToastAsync` did nothing | Shows a toast. |
+| `SetHtmlAsync` didn't update the bound value or the history | Undoable, and raises `ValueChanged` and `OnChange` (`ChangeSource.Api`). |
+| | New: `SetThemeAsync(Theme)`. |
+| `PanelParameters` class | Removed (unused). |
+
+### 5. State, info and event types
+
+All of these are now immutable `sealed record`s. Use `with` to copy.
+
+| 2.x | 3.0 |
+| --- | --- |
+| `EditorState` (mutable class) `CurrentBlockType` (`string?`) | `BlockType` (`string`, lower-case, `"p"` by default) |
+| `CurrentHeadingLevel` (`int?`) | `HeadingLevel` (`int`, 0 when not a heading) |
+| `CurrentAlignment` | `Alignment` (now actually reported) |
+| `ActiveMarks` (`HashSet<string>`) | `IReadOnlySet<string>` of primary tags (case-insensitive) |
+| `CanFormat`, `IsDirty`, `WordCount`, `CharacterCount`, `Clone()` | Removed (never populated). |
+| | New: `InLink`, `InImage`, `InTable`, `IsReadOnly`, `Theme`, `PrefersDarkScheme`, `IsDark`, `EditorState.Empty`. |
+| `TextAlignment.Justified` | `TextAlignment.Justify` |
+| `SelectionInfo { StartOffset, EndOffset, IsCollapsed, SelectedText, SelectedHtml }` | `SelectionInfo(string Text, bool IsCollapsed)` |
+| `LinkInfo { Href, Target, Rel, Title, Text }` | `LinkInfo(string Href, string Text, string? Title, string? Target)`; `Rel` removed. |
+| `ImageInfo { Src, Alt, Width (string?), Height (string?), IsDataUrl }` | `ImageInfo(string Src, string? Alt, string? Title, int? Width, int? Height)`; use `Src.StartsWith("data:")` instead of `IsDataUrl`. |
+| `EditorEventArgs` base class (with `Timestamp`) | Removed; event args no longer derive from `System.EventArgs`. |
+| `EditorChangeArgs { Html, Text, IsUserInput, Source }` | `EditorChangeArgs(string Html, ChangeSource Source)`. `Text` was HTML anyway; call `Api.GetTextAsync()` if you need text. Replace `IsUserInput` with a check on `Source`. |
+| `ChangeSource.User`, `Paste`, `Command`, `Programmatic`, `UndoRedo` | `Input`, `Paste`, `Command`, `Api`, `History`, plus new `SourceView` and `ImageResize`. |
+| `CommandExecutedArgs { Command, Parameters, Success, ErrorMessage }` | `CommandExecutedArgs(string ItemId)`, raised only on success. Failures are logged and shown as an error toast. |
+| `ImageResizedArgs { ImageSrc, NewWidth, NewHeight, OriginalWidth, OriginalHeight, MaintainedAspectRatio }` (never raised) | `ImageResizedArgs(int Width, int Height)`, raised after each resize. |
+| `PasteArgs`, `SelectionChangedArgs`, `ZauberKeyboardEventArgs` (with `MatchesShortcut`) | Removed with their events (see below). |
+
+### 6. The `ZauberRichTextEditor` component
+
+| 2.x | 3.0 |
+| --- | --- |
+| `OnKeyDown` (`ZauberKeyboardEventArgs`; `Cancel()` had no effect) | Removed. Use a toolbar item with a `Shortcut`. |
+| `OnPaste` (`PasteArgs`; raised after the insert) | Removed. Use `OnChange` and check `Source == ChangeSource.Paste`. |
+| `OnSelectionChanged` (`SelectionChangedArgs`; never fired) | Removed. Use `OnStateChanged` (`EditorState`). |
+| `SetContentAsync(string?)` (public) | Removed. Set `Value`, or call `Api.SetHtmlAsync`. |
+| `[JSInvokable]` `OnPasteCallbackAsync`, `OnImageClickCallbackAsync`, `OnContentModifiedAsync` (public) | Removed from the component (now internal callbacks). |
+| `IDisposable.Dispose()` | `IAsyncDisposable.DisposeAsync()` |
+| Toolbar layout only through `Settings.ToolbarLayout` | New `Toolbar` parameter, which overrides it. |
+| `Theme` read once at start; `Auto` rendered light | Reactive. `Auto` follows the OS (so users with a dark OS now see a dark editor; set `Theme="Theme.Light"` to keep 2.x's look). New `ThemeChanged` for `@bind-Theme`. |
+| `ReadOnly` ignored | Implemented. |
+| `ValueChanged` fired on every keystroke and on every toolbar click, and with `null` when an interop call failed | Debounced by `Settings.ChangeDelay`, flushed on blur and before commands, raised only when the HTML actually changed, and never with a value from a failed call. |
+| No `EditForm` support | `ValueExpression` (passed by `@bind-Value`) notifies the `EditContext`. |
+| | New: `Placeholder`, `AriaLabel`, `OnStateChanged`, `AdditionalAttributes`. |
+| Root element had an `id` | No `id`. Pass your own through `AdditionalAttributes` if you need one. |
+| `ToolbarHost`, `ToolbarButton`, `ToolbarDropdown`, `SlideOutPanel`, `Panels.LinkPanel`/`ImagePanel`/`TablePanel` (public, in `ZauberCMS.RTE.Components` and `ZauberCMS.RTE.Components.Panels`) | Moved to `ZauberCMS.RTE.Components.Internal` and hidden from IntelliSense; `ToolbarHost` is now `EditorToolbar`. They're implementation details, so don't use them directly. Remove `@using ZauberCMS.RTE.Components.Panels`. |
+
+### 7. Icons, CSS and themes
+
+| 2.x | 3.0 |
+| --- | --- |
+| Font Awesome CSS bundled; fonts loaded from cdnjs | Removed. Built-in icons are inline SVG. For custom items, use `IconSvg`, or load your own icon font and use `IconCss`. |
+| `<i class="fas fa-...">` in toolbar markup | `<span class="rte-icon" aria-hidden="true">` containing the SVG (or `<i class="{IconCss}">`). |
+| Documented variables `--rte-primary-color`, `--rte-border-color`, `--rte-background-color`, `--rte-text-color`, `--rte-toolbar-height`, `--rte-font-family` (none existed) | Real tokens: `--rte-color-accent`, `--rte-color-border`, `--rte-color-bg`, `--rte-color-text`, `--rte-toolbar-button-size`, `--rte-font-family`, and the [full list](#design-tokens). |
+| 265 `!important` declarations | None. Rules are in `@layer zauber-rte` with zero-specificity selectors, so your CSS wins without `!important`. Remove `!important` from your overrides; some host styles you relied on being overridden may now apply. See [Cascade layer and host CSS frameworks](#cascade-layer-and-host-css-frameworks). |
+| Dark theme by duplicated `.zauber-rte.rte-theme-dark ...` selectors | `color-scheme` plus `light-dark()` tokens. Your `.rte-theme-dark` selectors still match, but prefer overriding tokens with `light-dark()`. `rte-theme-auto` now works. |
+| Image resize handles `.rte-resize-handle` and `.rte-resize-handle-{n,ne,e,se,s,sw,w,nw}`, positioned `fixed` | `.rte-image-resize-handles` > `.rte-image-resize-handle[data-handle="nw\|ne\|sw\|se"]`, positioned inside the editor (corners only). |
+| `.rte-toolbar-icon`, `.rte-toolbar-row`, `.rte-drop-zone`, `.rte-heading-label`, `.rte-dropdown-label-item`, `.resizing` | Removed. |
+| | New classes: `rte-icon`, `rte-readonly`, `rte-source-mode`, `rte-empty`, `rte-toast`, `rte-toast-{success\|warning\|error}`, `rte-toast-region`, `rte-dropdown-backdrop`, `rte-dropdown-{id}`, `rte-form-error`, `rte-image-preview`, `rte-button-row`, `zauber-rte-portal` (portalled panels). |
+
+### 8. Settings
+
+The settings types changed from mutable classes (`set`) to immutable `sealed record`s (`init`). Object initialisers
+still compile. Code that changes a property after creation doesn't compile: build a new instance, or use `with`.
+
+| 2.x | 3.0 |
+| --- | --- |
+| `EditorSettings.DefaultTheme` | Removed. Use the component's `Theme` parameter. |
+| `EditorSettings.CmsDefault()` | `new EditorSettings { ImageConstraints = new() { MaxWidth = 800, MaxHeight = 600 } }` |
+| `EditorSettings.Minimal()` | `new EditorSettings { ToolbarLayout = ToolbarLayout.Simple }` |
+| `EditorSettings.BlockTags` | Removed; block detection is built in. |
+| `EditorSettings.ToolbarLayout` defaulted to `ToolbarLayout.Default` | Defaults to `ToolbarLayout.Full`. |
+| | New: `HistoryLimit` (100), `ChangeDelay` (250 ms), `MaxContentBytes` (10 MB). |
+| `EditorDimensions.MinHeight` / `MaxHeight` (`int?`, ignored) | `string?` CSS lengths (`"100px"` / `null`), now applied. `Height` is now the real height (it used to be applied as a minimum height). |
+| `ImageConstraints.MaxWidth` / `MaxHeight` (`int`, 800/600, ignored) | `int?`, `null` (unlimited) by default, enforced while resizing. |
+| `ImageConstraints.MaintainAspectRatio` (ignored) | Honoured. |
+| `ImageConstraints.AllowedImageTypes` (`HashSet<string>`) | `IReadOnlySet<string>`; `.webp` added to the defaults. |
+| | New: `ImageConstraints.MaxFileSizeBytes` (5 MB). |
+| `HtmlPolicy.AllowedTags` (`HashSet<string>`) | `IReadOnlySet<string>`. Defaults add `h4`–`h6`, `strike`, `caption`, `colgroup`, `col` and `tfoot`. |
+| `HtmlPolicy.AllowedAttributes` (`Dictionary<string, HashSet<string>>` per tag, with `"*"` for all) | `IReadOnlySet<string>`, one flat set that applies to every allowed tag. Defaults: `class id title lang dir role style data-* aria-* href target rel src alt width height colspan rowspan scope`. Removed from the defaults: `tabindex`, `max-width`, `border`, `cellpadding`, `cellspacing`, `align`, `valign`. |
+| `HtmlPolicy` applied only to paste; `AllowDataUrls` and `AllowExternalImages` ignored | Applied to every entry point, including the initial `Value`, and both flags are enforced. **Stored content with tags or attributes outside the policy is now stripped when it loads.** Extend the policy before upgrading if your content uses other markup. |
+
+### 9. Toolbar layouts
+
+| 2.x | 3.0 |
+| --- | --- |
+| `class ToolbarLayout { List<ToolbarLayoutItem> LayoutItems }` | `sealed record ToolbarLayout(params IReadOnlyList<ToolbarLayoutEntry> Entries)` |
+| `ToolbarLayout.FromItems(a, b, c)` | `new ToolbarLayout(a, b, c)` |
+| `layout.LayoutItems`, `layout.GetEffectiveLayout()` | `layout.Entries` |
+| `ToolbarLayout.Default`, `ToolbarLayout.Cms` | `ToolbarLayout.Full` (both were aliases of it). `Full` now also contains `table`. |
+| `ToolbarLayoutItem` (abstract class with `Type` and the `LayoutItemType` enum) | `ToolbarLayoutEntry` (abstract record with `CssClass`); use pattern matching instead of `Type`. |
+| `new ToolbarBlock("bold", "italic")` / `ToolbarBlock.Items` | `new ToolbarGroup("bold", "italic")` / `ToolbarGroup.ItemIds` |
+| `new ToolbarBlock("css-class", items)` | `new ToolbarGroup([.. items]) { CssClass = "css-class" }` |
+| `new ToolbarItemReference(id, "css-class")` | `new ToolbarItemRef(id) { CssClass = "css-class" }` |
+| `new ToolbarSeparator("css-class")` | `new ToolbarSeparator { CssClass = "css-class" }` |
+| `ToolbarLayoutExtensions.Block(...)`, `.Item(...)`, `.Separator(...)` | Removed; use the constructors above. |
+| JSON: `{"LayoutItems":[{"$type":"block","Type":0,"Items":[...],"CssClass":null}]}` | JSON: `{"entries":[{"$type":"group","itemIds":[...]}]}` (camelCase; discriminators `group`, `item`, `separator`). Convert stored 2.x JSON. |
+
+### 10. `HtmlBuilder`
+
+| 2.x | 3.0 |
+| --- | --- |
+| Attribute values written unencoded | Encoded. If you pre-encoded values, stop, or they'll be double-encoded. Invalid tag or attribute names throw `ArgumentException`. |
+| `Html(string html)` (raw HTML) | Removed. Compose with `Child(...)`, or insert raw HTML separately with `InsertHtmlAsync` (which sanitises it). |
+| `Id(string id)` / `Style(string style)` | `Attr("id", id)` / `Attr("style", style)` |
+| `Attr(string name, string value)` | `Attr(string name, string? value)`: `null` leaves the attribute out, and setting the same name again replaces it. |
+| `Attrs(Dictionary<string, string>)` | `Attrs(IReadOnlyDictionary<string, string>)` |
+| Implicit conversion to `string` | Removed. Call `Build()`. |
+
+### 11. Panels (`PanelBase`)
+
+| 2.x | 3.0 |
+| --- | --- |
+| Title derived from the component's type name | `public abstract string Title { get; }`: **you must override it**. It's the panel heading and the dialog's accessible name. |
+| `IEditorApi? Api` | `IEditorApi Api` (never null inside a panel). |
+| `CloseAsync()` also cleared the saved selection | `CloseAsync()` only closes. Call `Api.ClearSavedSelectionAsync()` yourself when you cancel after saving a selection. |
+| `PanelBase : IDisposable` with `OnDispose()` | No longer disposable; implement `IDisposable` on your panel if it needs cleanup. |
+| | New: `ElementId(name)` returns an element id unique to the panel instance (for `<label for>`). |
+| Opened with `OpenPanelAsync(typeof(MyPanel), new Dictionary<string, object> { ... })` | `OpenPanelAsync<MyPanel>(new Dictionary<string, object?> { [nameof(MyPanel.Value)] = value })` |
+| Exceptions in a panel were swallowed | Panels render inside an error boundary that shows a message. |
+
+### 12. Behaviour changes to check
+
+- **Sanitisation everywhere.** The `HtmlPolicy` now applies to the initial `Value`, so check that your stored content
+  fits it.
+- **Debounced value.** `ValueChanged` arrives after a pause in typing, not per keystroke. It's always flushed on blur,
+  so form submit buttons see the final value.
+- **Tab** leaves the editor except inside lists and tables (2.x trapped focus).
+- **Pasted or dropped image files** are embedded as `data:` URLs when `HtmlPolicy.AllowDataUrls` is on (the default).
+  Turn it off to block them.
+- **Shortcuts** respond only for items in the layout, and Cmd works on macOS.
+- **Multiple editors** on one page are fully independent (2.x sent every paste to the last editor initialised).
 
 ## License
 
-MIT License - see LICENSE file for details.
-
-## Extensibility
-
-Create custom toolbar buttons and panels in minutes. Zauber RTE provides a simple, powerful extension system.
-
-```csharp
-// Create a custom toolbar item
-public class EmojiItem : ToolbarItemBase
-{
-    public override string Id => "emoji";
-    public override string Label => "Emoji";
-    public override string IconCss => "fa-smile";
-    
-    public override async Task ExecuteAsync(EditorApi api)
-    {
-        await api.InsertHtmlAsync("😀");
-    }
-}
-```
-
-### Override Built-in Items
-
-Customize any built-in toolbar item by creating your own with the same ID:
-
-```csharp
-// Override the built-in Bold button with custom behavior
-public class BoldItem : ToolbarItemBase
-{
-    public override string Id => "bold";  // Same ID = replaces default
-    public override string Label => "Bold";
-    public override string IconCss => "fa-bold";
-    public override string Shortcut => "Control+b";
-    
-    public override async Task ExecuteAsync(EditorApi api)
-    {
-        // Your custom bold logic here
-        await api.ToggleMarkAsync("strong");
-        await api.ShowToastAsync("Bold applied!");
-    }
-}
-```
-
-By default, `AllowOverrides = true` lets your items replace built-in ones. Set to `false` to prevent overrides:
-
-```csharp
-// Advanced configuration with options
-builder.Services.AddZauberRte(options =>
-{
-    options.AllowOverrides = false;  // Your items won't replace built-ins
-}, typeof(Program).Assembly, typeof(MyPlugin.Class).Assembly);
-```
-
-**[→ Extension Guide](QUICK_START_EXTENDING.md)** - Full documentation with copy-paste templates for toolbar items and custom panels
+MIT. See [LICENSE](https://github.com/YodasMyDad/ZauberEditor/blob/master/LICENSE).

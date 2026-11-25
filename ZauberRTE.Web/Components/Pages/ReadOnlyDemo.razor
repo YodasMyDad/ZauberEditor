@@ -1,0 +1,19 @@
+@page "/read-only"
+@rendermode InteractiveServer
+
+<PageTitle>Read-only</PageTitle>
+
+<h1>Read-only</h1>
+<p class="lead-text">
+    <code>ReadOnly</code> can change at runtime. While it is on, the content cannot be edited, pasted into or dropped
+    onto, and the toolbar is disabled; the content stays selectable and copyable.
+</p>
+
+<div class="form-check form-switch mb-3">
+    <input id="read-only-switch" class="form-check-input" type="checkbox" role="switch" @bind="_readOnly" />
+    <label class="form-check-label" for="read-only-switch">Read-only</label>
+</div>
+
+<ZauberRichTextEditor @bind-Value="_html" ReadOnly="_readOnly" />
+
+<HtmlSource Html="@_html" />

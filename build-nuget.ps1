@@ -1,29 +1,19 @@
 #!/usr/bin/env pwsh
+$ErrorActionPreference = 'Stop'
+Set-Location $PSScriptRoot
 
-# Build and pack NuGet package for ZauberCMS.RTE
-
-Write-Host "Building ZauberCMS.RTE..." -ForegroundColor Cyan
-
-# Step 1: Build first (creates the DLLs)
-dotnet build ZauberCMS.RTE/ZauberCMS.RTE.csproj -c Release
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Build failed!" -ForegroundColor Red
-    exit $LASTEXITCODE
+function Invoke-Step([string] $Name, [scriptblock] $Command) {
+    Write-Host $Name -ForegroundColor Cyan
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "$Name failed" -ForegroundColor Red
+        exit $LASTEXITCODE
+    }
 }
 
-Write-Host "Build successful!" -ForegroundColor Green
-Write-Host ""
-Write-Host "Packing NuGet package..." -ForegroundColor Cyan
+Invoke-Step 'Building solution (Release)' { dotnet build ZauberRTE.sln -c Release }
+Invoke-Step 'Running tests' { dotnet test --solution ZauberRTE.sln -c Release --no-build }
+Invoke-Step 'Packing ZauberCMS.RTE' { dotnet pack ZauberCMS.RTE/ZauberCMS.RTE.csproj -c Release --no-build --output nupkgs }
 
-# Step 2: Then pack (creates the NuGet package)
-dotnet pack ZauberCMS.RTE/ZauberCMS.RTE.csproj -c Release --output nupkgs
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Pack failed!" -ForegroundColor Red
-    exit $LASTEXITCODE
-}
-
-Write-Host ""
-Write-Host "NuGet package created successfully in ./nupkgs/" -ForegroundColor Green
-
+Write-Host 'Packages created in ./nupkgs/' -ForegroundColor Green
+Get-ChildItem nupkgs -Filter 'ZauberCMS.RTE.*' | Sort-Object LastWriteTime -Descending | Select-Object -First 2 | ForEach-Object { Write-Host "  $($_.Name)" }

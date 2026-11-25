@@ -12,7 +12,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{73AEE2ED-B
 		README.md = README.md
 		QUICK_START_EXTENDING.md = QUICK_START_EXTENDING.md
 		build-nuget.ps1 = build-nuget.ps1
+		CHANGELOG.md = CHANGELOG.md
+		LICENSE = LICENSE
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZauberCMS.RTE.Tests", "ZauberCMS.RTE.Tests\ZauberCMS.RTE.Tests.csproj", "{28643AED-C23D-44D7-A72E-13AD49C09326}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZauberRTE.Web.Client", "ZauberRTE.Web.Client\ZauberRTE.Web.Client.csproj", "{2407094D-807A-48DA-AD93-B7EBD41AE3B1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -48,10 +54,32 @@ Global
 		{A93DEEEC-9299-4445-A262-8F96AFF6785F}.Release|x64.Build.0 = Release|Any CPU
 		{A93DEEEC-9299-4445-A262-8F96AFF6785F}.Release|x86.ActiveCfg = Release|Any CPU
 		{A93DEEEC-9299-4445-A262-8F96AFF6785F}.Release|x86.Build.0 = Release|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Debug|x64.Build.0 = Debug|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Debug|x86.Build.0 = Debug|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Release|x64.ActiveCfg = Release|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Release|x64.Build.0 = Release|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Release|x86.ActiveCfg = Release|Any CPU
+		{28643AED-C23D-44D7-A72E-13AD49C09326}.Release|x86.Build.0 = Release|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Debug|x64.Build.0 = Debug|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Debug|x86.Build.0 = Debug|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Release|x64.ActiveCfg = Release|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Release|x64.Build.0 = Release|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Release|x86.ActiveCfg = Release|Any CPU
+		{2407094D-807A-48DA-AD93-B7EBD41AE3B1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
 	EndGlobalSection
 EndGlobal

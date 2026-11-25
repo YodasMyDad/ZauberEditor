@@ -1,0 +1,23 @@
+@inherits PanelBase
+
+<form class="rte-panel-content" @onsubmit="InsertAsync" @onsubmit:preventDefault>
+    <div class="rte-form-group">
+        <label for="@ElementId("text")" class="rte-label">Text</label>
+        <input id="@ElementId("text")" type="text" class="rte-input" @bind="_text" @bind:event="oninput" />
+    </div>
+
+    <div class="rte-form-group">
+        <label for="@ElementId("style")" class="rte-label">Style</label>
+        <select id="@ElementId("style")" class="rte-select" @bind="_style">
+            @foreach (var style in Styles)
+            {
+                <option @key="style" value="@style">@style</option>
+            }
+        </select>
+    </div>
+
+    <div class="rte-panel-actions">
+        <button type="button" class="rte-btn rte-btn-secondary" @onclick="CancelAsync">Cancel</button>
+        <button type="submit" class="rte-btn rte-btn-primary" disabled="@string.IsNullOrWhiteSpace(_text)">Insert</button>
+    </div>
+</form>

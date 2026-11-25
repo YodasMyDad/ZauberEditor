@@ -1,137 +1,51 @@
 namespace ZauberCMS.RTE.Models;
 
-/// <summary>
-/// Type of toolbar item
-/// </summary>
-public enum ToolbarItemType
-{
-    /// <summary>
-    /// Standard button item
-    /// </summary>
-    Button,
-    
-    /// <summary>
-    /// Dropdown menu with child items
-    /// </summary>
-    Dropdown,
-    
-    /// <summary>
-    /// Separator/divider (visual only)
-    /// </summary>
-    Separator
-}
-
-/// <summary>
-/// Interface for toolbar items that can be plugged into the editor
-/// </summary>
+/// <summary>A button or dropdown shown in the editor toolbar.</summary>
 public interface IToolbarItem
 {
-    /// <summary>
-    /// Unique identifier for this toolbar item
-    /// </summary>
+    /// <summary>Unique, case-insensitive id used in layouts and to override built-in items.</summary>
     string Id { get; }
 
-    /// <summary>
-    /// Accessible name/label for this item
-    /// </summary>
+    /// <summary>Accessible name, also shown as text when the item has no icon.</summary>
     string Label { get; }
 
-    /// <summary>
-    /// Optional tooltip text
-    /// </summary>
+    /// <summary>Tooltip text; defaults to <see cref="Label"/> when null.</summary>
     string? Tooltip { get; }
 
-    /// <summary>
-    /// Placement category for this item
-    /// </summary>
-    ToolbarPlacement Placement { get; }
+    /// <summary>Trusted inline SVG markup for the icon.</summary>
+    string? IconSvg { get; }
 
-    /// <summary>
-    /// Font Awesome icon class (e.g., "fa-bold", "fa-align-left")
-    /// </summary>
-    string IconCss { get; }
+    /// <summary>CSS classes for an icon font, rendered as given (for example <c>fa-solid fa-star</c>).</summary>
+    string? IconCss { get; }
 
-    /// <summary>
-    /// Optional keyboard shortcut (e.g., "Control+b", "Control+Shift+8")
-    /// </summary>
+    /// <summary>Keyboard shortcut such as <c>Control+Shift+7</c>; <c>Control</c> matches Ctrl or Cmd.</summary>
     string? Shortcut { get; }
 
-    /// <summary>
-    /// Whether this is a toggle item (can be on/off)
-    /// </summary>
+    /// <summary>Whether the item shows a pressed state.</summary>
     bool IsToggle { get; }
 
-    /// <summary>
-    /// Type of toolbar item (Button, Dropdown, Separator)
-    /// </summary>
-    ToolbarItemType ItemType { get; }
+    /// <summary>Whether the item is a button or a dropdown.</summary>
+    ToolbarItemKind Kind { get; }
 
-    /// <summary>
-    /// Child items for dropdown menus. Only applicable when ItemType is Dropdown.
-    /// </summary>
-    List<IToolbarItem> ChildItems { get; }
+    /// <summary>Ids of the items listed in a dropdown.</summary>
+    IReadOnlyList<string> ChildItemIds { get; }
 
-    /// <summary>
-    /// For child items in dropdowns: indicates this is a label/header item that resets to default when selected
-    /// </summary>
-    bool IsDropdownLabel { get; }
+    /// <summary>Tags that mark this item as active when they wrap the selection.</summary>
+    IReadOnlyList<string> TrackedTags { get; }
 
-    /// <summary>
-    /// HTML tag names this toolbar item tracks for active state detection.
-    /// For example, BoldItem returns ["strong", "b"], LinkItem returns ["a"].
-    /// Used to dynamically detect which marks are active in the editor.
-    /// </summary>
-    string[] TrackedTags { get; }
-
-    /// <summary>
-    /// The primary (canonical) HTML tag for this toolbar item.
-    /// For example, BoldItem uses "strong" as primary even though it also tracks "b".
-    /// Used for mark operations (toggle, wrap, etc.) to ensure consistent output.
-    /// If not specified, defaults to the item's Id.
-    /// </summary>
+    /// <summary>Canonical tag the tracked tags are reported as.</summary>
     string? PrimaryTag { get; }
 
-    /// <summary>
-    /// Determines if this item should be enabled given the current editor state
-    /// </summary>
+    /// <summary>Whether the item can be used in the given state.</summary>
+    /// <param name="state">The current editor state.</param>
     bool IsEnabled(EditorState state);
 
-    /// <summary>
-    /// Determines if this toggle item is currently active
-    /// </summary>
+    /// <summary>Whether the item is active (pressed) in the given state.</summary>
+    /// <param name="state">The current editor state.</param>
     bool IsActive(EditorState state);
 
-    /// <summary>
-    /// Executes the action for this toolbar item
-    /// </summary>
-    Task ExecuteAsync(IEditorApi api);
-
-    /// <summary>
-    /// Optional Blazor component type to render in a slide-out panel
-    /// </summary>
-    Type? PanelComponent { get; }
-}
-
-/// <summary>
-/// Abstract base class for toolbar items
-/// </summary>
-public abstract class ToolbarItemBase : IToolbarItem
-{
-    public abstract string Id { get; }
-    public abstract string Label { get; }
-    public virtual string? Tooltip => null;
-    public abstract ToolbarPlacement Placement { get; }
-    public abstract string IconCss { get; }
-    public virtual string? Shortcut => null;
-    public virtual bool IsToggle => false;
-    public virtual ToolbarItemType ItemType => ToolbarItemType.Button;
-    public virtual List<IToolbarItem> ChildItems => [];
-    public virtual bool IsDropdownLabel => false;
-    public virtual Type? PanelComponent => null;
-    public virtual string[] TrackedTags => [];
-    public virtual string? PrimaryTag => null;
-
-    public virtual bool IsEnabled(EditorState state) => true;
-    public virtual bool IsActive(EditorState state) => false;
-    public abstract Task ExecuteAsync(IEditorApi api);
+    /// <summary>Performs the item's action.</summary>
+    /// <param name="api">The editor the item belongs to.</param>
+    /// <param name="cancellationToken">Cancelled when the editor is disposed.</param>
+    Task ExecuteAsync(IEditorApi api, CancellationToken cancellationToken);
 }

@@ -1,0 +1,27 @@
+@if (Content is not null)
+{
+    <div @ref="Element" class="rte-slideout-overlay zauber-rte-portal @ThemeClass" @onclick="OnClose">
+        <div class="rte-slideout-panel zauber-rte-portal @ThemeClass"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="@_titleId"
+             @onclick:stopPropagation="true">
+            <div class="rte-slideout-header">
+                <h2 id="@_titleId" class="rte-slideout-title">@Title</h2>
+                <button type="button" class="rte-slideout-close" aria-label="Close" @onclick="OnClose">
+                    @ToolbarPresenter.Svg(Icons.Dismiss)
+                </button>
+            </div>
+            <div class="rte-slideout-content">
+                <CascadingValue Value="Api" IsFixed="true">
+                    <ErrorBoundary @ref="_boundary">
+                        <ChildContent>@Content</ChildContent>
+                        <ErrorContent>
+                            <p class="rte-form-error" role="alert">This panel ran into a problem. Close it and try again.</p>
+                        </ErrorContent>
+                    </ErrorBoundary>
+                </CascadingValue>
+            </div>
+        </div>
+    </div>
+}

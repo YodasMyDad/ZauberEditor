@@ -1,0 +1,58 @@
+<div class="rte-toolbar-dropdown rte-dropdown-@Item.Id">
+    <button @ref="_trigger"
+            type="button"
+            class="@TriggerClass"
+            aria-haspopup="menu"
+            aria-expanded="@ToolbarPresenter.Bool(_isOpen)"
+            aria-label="@Item.Label"
+            title="@ToolbarPresenter.Title(Item)"
+            tabindex="@TabIndex"
+            disabled="@(!IsEnabled)"
+            @onmousedown:preventDefault="true"
+            @onclick="Toggle"
+            @onkeydown="OnTriggerKeyDownAsync">
+        @ToolbarPresenter.Icon(TriggerIconItem)
+        @if (ActiveChild is { } activeChild)
+        {
+            <span class="rte-dropdown-label">@activeChild.Label</span>
+        }
+        @ToolbarPresenter.Svg(Icons.ChevronDown, "rte-dropdown-caret")
+    </button>
+
+    @if (_isOpen)
+    {
+        <div class="rte-dropdown-backdrop" @onmousedown:preventDefault="true" @onclick="Close"></div>
+        <div class="rte-dropdown-menu"
+             role="menu"
+             aria-label="@Item.Label"
+             @onkeydown="OnMenuKeyDownAsync"
+             @onkeydown:preventDefault="true"
+             @onkeydown:stopPropagation="true">
+            @for (var index = 0; index < Children.Count; index++)
+            {
+                var child = Children[index];
+                var position = index;
+                <button @key="child.Id"
+                        @ref="_menuItems[position]"
+                        type="button"
+                        role="@(child.IsToggle ? "menuitemradio" : "menuitem")"
+                        aria-checked="@ToolbarPresenter.Pressed(child, _childActive[position])"
+                        class="@ItemClass(position)"
+                        title="@ToolbarPresenter.Title(child)"
+                        tabindex="-1"
+                        disabled="@(!_childEnabled[position])"
+                        @onmousedown:preventDefault="true"
+                        @onclick="() => SelectAsync(position)">
+                    <span class="rte-dropdown-item-label">
+                        @ToolbarPresenter.Icon(child, labelFallback: false)
+                        @child.Label
+                    </span>
+                    @if (_childActive[position])
+                    {
+                        @ToolbarPresenter.Svg(Icons.Check, "rte-dropdown-check")
+                    }
+                </button>
+            }
+        </div>
+    }
+</div>

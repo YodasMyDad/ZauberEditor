@@ -1,13 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-    <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-    </PropertyGroup>
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\ZauberCMS.RTE\ZauberCMS.RTE.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ZauberCMS.RTE\ZauberCMS.RTE.csproj" />
+    <ProjectReference Include="..\ZauberRTE.Web.Client\ZauberRTE.Web.Client.csproj" />
+  </ItemGroup>
 
 </Project>
