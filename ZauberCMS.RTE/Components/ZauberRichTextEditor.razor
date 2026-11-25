@@ -1,3 +1,8 @@
+@if (StylesPending)
+{
+    <link rel="stylesheet" href="@StylesheetUrl" />
+}
+
 <div @ref="_root" @attributes="AdditionalAttributes" class="@RootClass" style="@RootStyle">
     <CascadingValue Value="_arrangement">
         <EditorToolbar @ref="_toolbar"

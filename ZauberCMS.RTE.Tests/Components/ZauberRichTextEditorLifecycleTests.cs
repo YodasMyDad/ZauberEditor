@@ -14,6 +14,7 @@ public sealed class ZauberRichTextEditorLifecycleTests : EditorTestContext
     [Fact]
     public void ScriptInstanceIsCreatedOnceWithTheEditorElements()
     {
+        Services.AddZauberRte(options => options.AutoLoadStyles = false);
         var cut = RenderEditor();
 
         var call = Factory.ReceivedCalls().ShouldHaveSingleItem().GetArguments();

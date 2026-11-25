@@ -19,6 +19,8 @@ internal sealed record EditorInitOptions(
 {
     public const int DefaultInlineLimit = 12_000;
 
+    public string? Stylesheet { get; init; }
+
     public static EditorInitOptions Create(
         string? html,
         bool readOnly,

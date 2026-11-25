@@ -11,6 +11,7 @@ public sealed partial class NavMenu
         ("read-only", "Read-only"),
         ("themes", "Themes"),
         ("large-content", "Large content"),
+        ("host-css", "Hostile host CSS"),
         ("webassembly", "WebAssembly"),
         ("auto", "Auto render mode")
     ];

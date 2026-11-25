@@ -10,6 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - .NET 11 support: the package targets `net10.0` and `net11.0`, so it works in apps on .NET 10 (LTS) and .NET 11.
+- The stylesheet loads itself: the first editor on a page adds `zauber-editor.css` to `<head>` once (fingerprinted
+  under `MapStaticAssets`, ahead of the page's own stylesheets), and an existing link is reused. The editor stays
+  hidden until the stylesheet applies, prerendered HTML included, and is shown after 3 seconds if it fails (logged).
+  `ZauberRteOptions.AutoLoadStyles = false` turns this off.
+- `--rte-content-font` token and `rte-neutral` class: set the content's font, or give the editor a system font
+  instead of the page's.
 
 ### Changed
 
@@ -17,7 +23,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Dependencies: `Microsoft.AspNetCore.Components.Web` 10.0.15 for `net10.0` and 11.0.0 for `net11.0`. The explicit
   `Microsoft.Extensions.DependencyInjection.Abstractions`, `Microsoft.Extensions.Logging.Abstractions` and
   `Microsoft.Extensions.Options` references were dropped; they come with `Microsoft.AspNetCore.Components.Web`.
-- No API changes from 3.1.0.
+- The unlayered guard at the end of the stylesheet now applies `all: revert-layer` to the editor's elements and the
+  content, so host rules such as Bootstrap Reboot, Tailwind Preflight, `* { margin }`, `button { ... }`,
+  `ul li::before` or `[role=dialog] { position: static }` no longer change the editor. Tailwind v3 Preflight no longer
+  needs to be moved into a layer.
+- The root sets its own line height, letter spacing and text transform instead of inheriting the page's.
+- The toast's close button has its own style instead of the browser's default button.
+- The demo no longer links the stylesheet, and has a `/host-css` page with hostile global CSS.
+- No other API changes from 3.1.0.
 
 ## [3.1.0] - 2026-11-25
 

@@ -64,6 +64,7 @@
         --rte-char-cell-size: 2.75rem;
 
         --rte-font-family: inherit;
+        --rte-font-system: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         --rte-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         --rte-font-size: 1rem;
         --rte-font-size-xs: 0.75rem;
@@ -98,6 +99,15 @@
 
         color-scheme: light;
         box-sizing: border-box;
+        line-height: var(--rte-line-height);
+        letter-spacing: normal;
+        word-spacing: normal;
+        text-align: start;
+        text-indent: 0;
+        text-transform: none;
+        font-style: normal;
+        font-weight: normal;
+        white-space: normal;
 
         & *, & ::before, & ::after {
             box-sizing: inherit;
@@ -127,6 +137,7 @@
 
     :where(.zauber-rte) {
         --_rte-inner-radius: calc(var(--rte-radius-lg) - var(--rte-border-width));
+        --_rte-styled: visible;
         position: relative;
         inline-size: var(--rte-width, auto);
         max-inline-size: 100%;
@@ -148,6 +159,10 @@
             border-color: var(--rte-color-focus);
             box-shadow: 0 0 0 var(--rte-border-width) var(--rte-color-focus), var(--rte-shadow-md);
         }
+    }
+
+    :where(.zauber-rte.rte-neutral) {
+        --rte-font-family: var(--rte-font-system);
     }
 
     :where(.rte-toolbar) {
@@ -199,7 +214,7 @@
         }
     }
 
-    :where(.rte-toolbar-btn, .rte-dropdown-item, .rte-btn, .rte-slideout-close, .rte-char-btn, .rte-input, .rte-select, .rte-checkbox-label input):focus-visible {
+    :where(.rte-toolbar-btn, .rte-dropdown-item, .rte-btn, .rte-slideout-close, .rte-char-btn, .rte-toast-close, .rte-input, .rte-select, .rte-checkbox-label input):focus-visible {
         outline: var(--rte-border-width-thick) solid var(--rte-color-focus);
         outline-offset: var(--rte-focus-offset);
     }
@@ -214,7 +229,7 @@
         font-size: var(--rte-icon-size);
     }
 
-    :where(.rte-icon, .rte-editor-resize-handle, .rte-slideout-close) > svg {
+    :where(.rte-icon, .rte-editor-resize-handle, .rte-slideout-close, .rte-toast-close) > svg {
         display: block;
         inline-size: var(--rte-icon-size);
         block-size: var(--rte-icon-size);
@@ -381,6 +396,7 @@
     :where(.rte-content) {
         position: relative;
         padding: var(--rte-space-md);
+        font-family: var(--rte-content-font, var(--rte-font-family));
         font-size: var(--rte-font-size);
         line-height: var(--rte-line-height);
         overflow-wrap: break-word;
@@ -583,6 +599,9 @@
 
     :where(.rte-toast) {
         --_rte-tone: var(--rte-color-accent-text);
+        display: flex;
+        align-items: center;
+        gap: var(--rte-space-xs);
         max-inline-size: var(--rte-toast-width);
         padding: var(--rte-space-xs) var(--rte-space-sm);
         border: var(--rte-border-width) solid var(--rte-color-border);
@@ -606,6 +625,27 @@
 
     :where(.rte-toast-error) {
         --_rte-tone: var(--rte-color-danger);
+    }
+
+    :where(.rte-toast-close) {
+        --rte-icon-size: var(--rte-icon-size-sm);
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        padding: var(--rte-space-2xs);
+        border: 0;
+        border-radius: var(--rte-radius-sm);
+        background-color: transparent;
+        color: var(--rte-color-text-subtle);
+        cursor: pointer;
+        transition: var(--rte-transition-colors);
+
+        &:hover {
+            background-color: var(--rte-color-bg-hover);
+            color: var(--rte-color-text);
+        }
     }
 
     :where(.rte-slideout-overlay) {
@@ -891,13 +931,28 @@
     }
 }
 
-:is(.zauber-rte, .zauber-rte-portal) {
+:is(.zauber-rte, .zauber-rte-portal, .rte-slideout-overlay) {
+    &, & :where([class^="rte-"], [class*=" rte-"], [class^="rte-"] > svg, [class*=" rte-"] > svg, .rte-checkbox-label input, .rte-image-preview img, .rte-content *) {
+        all: revert-layer;
+    }
+
+    & :where([class^="rte-"], [class*=" rte-"], .rte-content *) {
+        &::before, &::after, &::marker, &::placeholder {
+            all: revert-layer;
+        }
+    }
+
+    & .rte-slideout-panel {
+        position: revert-layer;
+    }
+
     & :is(.rte-toolbar-btn, .rte-dropdown-item, .rte-btn, .rte-slideout-close, .rte-char-btn) {
         border-radius: var(--rte-radius-sm);
         background-color: var(--_rte-bg);
         color: var(--_rte-fg);
         font-size: var(--rte-font-size-sm);
         line-height: var(--rte-line-height-tight);
+        cursor: revert-layer;
     }
 
     & .rte-toolbar-btn {

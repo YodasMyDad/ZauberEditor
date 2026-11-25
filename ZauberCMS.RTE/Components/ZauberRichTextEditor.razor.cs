@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
 using ZauberCMS.RTE.Components.Internal;
 using ZauberCMS.RTE.Interop;
@@ -14,6 +15,8 @@ namespace ZauberCMS.RTE.Components;
 public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost, IEditorEventSink
 {
     private const string FailureMessage = "Sorry, that didn't work. Please try again.";
+    private const string StylesheetPath = "_content/ZauberCMS.RTE/css/zauber-editor.css";
+    private const string StylesCloak = "visibility:var(--_rte-styled, hidden)";
     private const string TooLargeMessage = "This content is too large to save. Remove some of it, such as large images.";
 
     private readonly string _contentId = $"rte-content-{Guid.NewGuid():N}";
@@ -138,6 +141,9 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
     private IServiceProvider Services { get; set; } = default!;
 
     [Inject]
+    private IOptions<ZauberRteOptions> RteOptions { get; set; } = default!;
+
+    [Inject]
     private ILogger<ZauberRichTextEditor> Logger { get; set; } = default!;
 
     EditorState IEditorHost.State => _state;
@@ -166,8 +172,16 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
         }.Where(part => !string.IsNullOrWhiteSpace(part)));
 
     private string? RootStyle =>
-        string.Join(';', new[] { _dimensionStyle.Style, AdditionalAttributes?.GetValueOrDefault("style") as string }.Where(part => !string.IsNullOrWhiteSpace(part)))
+        string.Join(';', new[] { _dimensionStyle.Style, AdditionalAttributes?.GetValueOrDefault("style") as string, StylesPending ? StylesCloak : null }.Where(part => !string.IsNullOrWhiteSpace(part)))
             is { Length: > 0 } style ? style : null;
+
+    private bool StylesPending
+    {
+        get => field && RteOptions.Value.AutoLoadStyles;
+        set;
+    } = true;
+
+    private string StylesheetUrl => Assets[StylesheetPath];
 
     /// <summary>Delivers pending edits through <see cref="ValueChanged"/>, then releases the editor's script instance and references.</summary>
     public ValueTask DisposeAsync() => new(_disposal ??= DisposeCoreAsync());
@@ -438,7 +452,9 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
     {
         _callbacks = DotNetObjectReference.Create(new EditorCallbacks(this));
         _configurationPending = false;
-        if (await CreateInteropAsync(_callbacks) is not { } interop)
+        var interop = await CreateInteropAsync(_callbacks);
+        SettleStyles();
+        if (interop is null)
         {
             return;
         }
@@ -469,7 +485,7 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
                 _source,
                 _toolbar?.Element ?? default,
                 callbacks,
-                BuildOptions(_sync.KnownHtml));
+                BuildOptions(_sync.KnownHtml) with { Stylesheet = StylesPending ? StylesheetUrl : null });
 
             if (interop is not null && !_lifetime.IsCancellationRequested)
             {
@@ -616,6 +632,15 @@ public sealed partial class ZauberRichTextEditor : IAsyncDisposable, IEditorHost
         if (_panelRequest?.Instance?.Title is { } title && title != _panelTitle)
         {
             _panelTitle = title;
+            StateHasChanged();
+        }
+    }
+
+    private void SettleStyles()
+    {
+        if (StylesPending && !_lifetime.IsCancellationRequested)
+        {
+            StylesPending = false;
             StateHasChanged();
         }
     }

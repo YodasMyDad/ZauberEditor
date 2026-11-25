@@ -240,6 +240,48 @@ public sealed class ZauberRichTextEditorRenderingTests : EditorTestContext
     }
 
     [Fact]
+    public void StylesheetIsLinkedAndTheRootHiddenUntilTheScriptHasLoaded()
+    {
+        const string stylesheet = "_content/ZauberCMS.RTE/css/zauber-editor.css";
+        var creation = DeferCreation();
+        var cut = RenderEditor();
+
+        cut.Find("link[rel=stylesheet]").GetAttribute("href").ShouldBe(stylesheet);
+        cut.Find("div.zauber-rte").GetAttribute("style").ShouldEndWith("visibility:var(--_rte-styled, hidden)");
+        InitOptions.ShouldNotBeNull().Stylesheet.ShouldBe(stylesheet);
+
+        creation.SetResult(Interop);
+
+        cut.WaitForAssertion(() => cut.FindAll("link").ShouldBeEmpty());
+        cut.Find("div.zauber-rte").GetAttribute("style").ShouldBe("--rte-height:300px;--rte-min-height:100px");
+    }
+
+    [Fact]
+    public void RootIsShownWhenTheScriptFailsToLoad()
+    {
+        var creation = DeferCreation();
+        var cut = RenderEditor();
+
+        creation.SetResult(null);
+
+        cut.WaitForAssertion(() => cut.Find("div.zauber-rte").GetAttribute("style").ShouldBe("--rte-height:300px;--rte-min-height:100px"));
+        cut.FindAll("link").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AutoLoadStylesOffLinksNothingAndNeverHidesTheRoot()
+    {
+        Services.AddZauberRte(options => options.AutoLoadStyles = false);
+        DeferCreation();
+
+        var cut = RenderEditor();
+
+        cut.FindAll("link").ShouldBeEmpty();
+        cut.Find("div.zauber-rte").GetAttribute("style").ShouldBe("--rte-height:300px;--rte-min-height:100px");
+        InitOptions.ShouldNotBeNull().Stylesheet.ShouldBeNull();
+    }
+
+    [Fact]
     public void ToolbarParameterOverridesTheSettingsLayout()
     {
         var cut = RenderEditor(parameters => parameters
