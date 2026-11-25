@@ -495,12 +495,12 @@
         var html = await JsRuntime.Mutation.GetHtmlAsync(_editorId);
         if (forceUpdate || html != _currentHtml)
         {
-            _currentHtml = html;
             
             // Record state after content change for undo history (typing, paste, etc.)
             // This records the NEW state after a change
             await JsRuntime.History.RecordStateAsync(_editorId);
             
+            _currentHtml = html;
             await ValueChanged.InvokeAsync(html);
 
             var changeArgs = new EditorChangeArgs
